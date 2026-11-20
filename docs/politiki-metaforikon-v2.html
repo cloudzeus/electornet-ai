@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<title>Κανόνες αποστολών · Euronics · έκδοση 2.0</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm 14mm; }
+  :root{
+    --red:#E31E2A; --red-soft:#FFF1F2; --ink:#16181D; --ink2:#43474F; --muted:#767B85;
+    --line:#E4E6EA; --surface:#F4F3F2; --row:#FBFAFA; --green:#0F7B4F; --green-soft:#EAF6F0;
+    --amber:#8A5A00; --amber-soft:#FFF6E3; --blue:#123A6B; --blue-soft:#EEF3FA;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  body{font-family:Inter,"Helvetica Neue",Arial,sans-serif; color:var(--ink); font-size:9.6pt; line-height:1.5; margin:0}
+  h1{font-size:30pt; line-height:1.05; letter-spacing:-.02em; margin:0 0 10px; font-weight:800}
+  h2{font-size:14pt; margin:26px 0 8px; font-weight:800; letter-spacing:-.01em}
+  h2:first-of-type{margin-top:18px}
+  h3{font-size:10.6pt; margin:16px 0 5px; font-weight:800}
+  p{margin:0 0 8px}
+  .lead{font-size:11pt; color:var(--ink2); line-height:1.55}
+  .muted{color:var(--muted)}
+  .brand{display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid var(--red); padding-bottom:10px}
+  .brand .who{font-weight:800; font-size:12pt}
+  .brand .who span{display:block; font-weight:500; font-size:8.4pt; color:var(--muted)}
+  .kicker{color:var(--red); font-weight:800; font-size:8.4pt; letter-spacing:.14em; margin:30px 0 8px}
+  .meta{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:10px 0; margin:22px 0 4px}
+  .meta div b{display:block; font-size:7.6pt; letter-spacing:.1em; color:var(--muted); font-weight:700; margin-bottom:2px}
+  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:14px 0 4px}
+  .stat{border:1px solid var(--line); border-radius:8px; padding:11px 12px}
+  .stat b{display:block; font-size:21pt; font-weight:800; line-height:1; letter-spacing:-.02em}
+  .stat span{display:block; font-size:8.2pt; color:var(--ink2); margin-top:5px; line-height:1.35}
+  .stat.on b{color:var(--green)} .stat.wait b{color:var(--amber)} .stat.ask b{color:var(--red)}
+  table{width:100%; border-collapse:collapse; margin:8px 0 4px; font-size:8.8pt}
+  th{background:var(--surface); text-align:left; font-weight:800; padding:6px 8px; border-bottom:1px solid var(--line); font-size:8.2pt}
+  td{padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top}
+  tr:nth-child(even) td{background:var(--row)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap}
+  .tag{display:inline-block; border-radius:99px; padding:1px 7px; font-size:7.6pt; font-weight:800; white-space:nowrap}
+  .tag.on{background:var(--green-soft); color:var(--green)}
+  .tag.wait{background:var(--amber-soft); color:var(--amber)}
+  .tag.ask{background:var(--red-soft); color:var(--red)}
+  .quote{border-left:3px solid var(--red); background:var(--red-soft); padding:8px 11px; margin:8px 0; border-radius:0 6px 6px 0}
+  .quote .src{display:block; font-size:7.6pt; color:var(--muted); font-weight:700; margin-bottom:3px; letter-spacing:.04em}
+  .quote em{font-style:normal; font-weight:700}
+  .note{background:var(--blue-soft); border-radius:8px; padding:10px 12px; margin:10px 0; font-size:9pt; color:var(--ink2)}
+  .note b{color:var(--ink)}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:8.2pt; background:var(--surface); padding:1px 4px; border-radius:3px}
+  .page{page-break-before:always}
+  .keep{page-break-inside:avoid}
+  footer{border-top:1px solid var(--line); margin-top:22px; padding-top:6px; font-size:7.6pt; color:var(--muted); display:flex; justify-content:space-between}
+  ol,ul{margin:4px 0 8px; padding-left:17px} li{margin:2px 0}
+</style>
+</head>
+<body>
+
+<header class="brand">
+  <div class="who">DGsoft<span>Λογισμικό &amp; ηλεκτρονικό εμπόριο</span></div>
+  <div class="muted" style="text-align:right;font-size:8.2pt">Euronics · νέο eshop<br>Απάντηση στις σημειώσεις σας</div>
+</header>
+
+<div class="kicker">ΤΙ ΥΛΟΠΟΙΗΣΑΜΕ</div>
+<h1>Κανόνες<br>αποστολών</h1>
+<p class="lead">Πήραμε τις 12 σημειώσεις σας μέσα στο PDF της 19ης Νοεμβρίου και τις απαντήσεις σας στο email της 20ής. Αυτό το έγγραφο λέει, για κάθε μία, τι ζητήσατε, τι κάναμε, πού μπήκε και πώς το δοκιμάσαμε — και τι μένει ανοιχτό.</p>
+
+<div class="meta">
+  <div><b>ΠΡΟΣ</b>Euronics</div>
+  <div><b>ΑΠΟ</b>DGsoft</div>
+  <div><b>ΗΜΕΡΟΜΗΝΙΑ</b>20 Νοεμβρίου 2026</div>
+  <div><b>ΕΚΔΟΣΗ</b>2.0 — απαντά στην 1.0</div>
+</div>
+
+<div class="stats">
+  <div class="stat on"><b>2</b><span>κανόνες δουλεύουν ήδη στο eshop, δοκιμασμένοι</span></div>
+  <div class="stat wait"><b>8</b><span>κλειδώθηκαν στον κατάλογο, περιμένουν τον τιμοκατάλογο Α–Ε</span></div>
+  <div class="stat ask"><b>3</b><span>σημεία που χρειάζονται ακόμη απάντησή σας</span></div>
+</div>
+
+<h2>1. Πώς διαβάζεται αυτό το έγγραφο</h2>
+<p>Κάθε κανόνας έχει μία από τρεις καταστάσεις:</p>
+<table>
+  <tr><td style="width:120px"><span class="tag on">ΖΩΝΤΑΝΟ</span></td><td>Γράφτηκε, δοκιμάστηκε και είναι μέσα στον κώδικα του eshop. Ισχύει από τη στιγμή που θα ανέβει η έκδοση.</td></tr>
+  <tr><td><span class="tag wait">ΚΑΤΑΓΡΑΦΗΚΕ</span></td><td>Η απάντησή σας μπήκε στον επίσημο κατάλογο περιοχών και κλασεων. Θα ενεργοποιηθεί μαζί με τον τιμοκατάλογο Α–Ε, που περιμένει τα ποσά των 17 περιοχών.</td></tr>
+  <tr><td><span class="tag ask">ΑΝΟΙΧΤΟ</span></td><td>Δεν μπορούμε να προχωρήσουμε χωρίς μια ακόμη διευκρίνιση από εσάς.</td></tr>
+</table>
+
+<h2>2. Οι σημειώσεις σας, μία προς μία</h2>
+<table>
+  <thead><tr><th style="width:92px">Πού</th><th>Η σημείωσή σας</th><th>Τι ισχύει τώρα</th><th style="width:92px">Κατάσταση</th></tr></thead>
+  <tbody>
+    <tr><td>σελ. 2<br><span class="muted">κλάσεις</span></td><td>«ΟΚ και στα δύο»</td><td>Πλυντήριο πάνω από 10 κιλά → κλάση Ε. Τηλεόραση πάνω από 55″ → κλάση Δ.</td><td><span class="tag wait">ΚΑΤΑΓΡΑΦΗΚΕ</span></td></tr>
+    <tr><td>σελ. 8<br><span class="muted">κλάσεις</span></td><td>«Πάνω από 85άρα να πάει σε κλάση Ε»</td><td>Η Δ κρατά μόνο τις 56″–84″. Από 85″ και πάνω πάνε στην Ε.</td><td><span class="tag wait">ΚΑΤΑΓΡΑΦΗΚΕ</span></td></tr>
+    <tr><td>σελ. 8<br><span class="muted">κλάση Α</span></td><td>«Να βάλουμε παντού σε όλα όπως το είχατε: ΕΛΤΑ 3,90 και ACS 4,90»</td><td>Η κλάση Α δεν χρεώνεται 3 € πουθενά — παντού ισχύει ο τιμοκατάλογος courier.</td><td><span class="tag wait">ΚΑΤΑΓΡΑΦΗΚΕ</span></td></tr>
+    <tr><td>σελ. 8<br><span class="muted">Δωδεκάνησα</span></td><td>«Να το αλλάξουμε σε 30 €»</td><td>Πάτμος, Σύμη, Αστυπάλαια: η κλάση Β από 100 € πάει στα 30 €.</td><td><span class="tag wait">ΚΑΤΑΓΡΑΦΗΚΕ</span></td></tr>
+    <tr><td>σελ. 7<br><span class="muted">υπόλοιπη Ελλάδα</span></td><td>«Να προχωρήσουμε με λογική 3,9,50,50,100»</td><td>Μία γραμμή «όλες οι υπόλοιπες περιοχές»: Ρόδος, Κως, Πάρος, Νάξος, Τήνος, Κέρκυρα, Ζάκυνθος, Σάμος, Χίος, Κάρπαθος, Κύθηρα και κάθε στεριανή περιοχή χωρίς κατάστημα.</td><td><span class="tag wait">ΚΑΤΑΓΡΑΦΗΚΕ</span></td></tr>
+    <tr><td>σελ. 7<br><span class="muted">έκταση</span></td><td>«Να βάλουμε όλο το νομό»</td><td>Ιωάννινα 44 + 45, Τρίκαλα 42, Ιεράπετρα κάθε Τ.Κ. 722xx.</td><td><span class="tag wait">ΚΑΤΑΓΡΑΦΗΚΕ</span></td></tr>
+    <tr><td>σελ. 7<br><span class="muted">Πόρος</span></td><td>«Να πάμε με λογική 3,9,50,100»</td><td>Ο Γαλατάς δεν χρεώνεται ως νησί. Τον βάλαμε 3 / 9 / 50 / 50 / 100, όπως και στο email σας.</td><td><span class="tag ask">ΑΝΟΙΧΤΟ</span></td></tr>
+    <tr><td>σελ. 8<br><span class="muted">6 περιοχές</span></td><td>«Να πάμε με λογική χωρίς κατάστημα»</td><td>Χαλκιδική, Κάλυμνος, Σκόπελος, Ιθάκη, Σκύρος, Σπέτσες μένουν στον κατάλογο, παρόλο που έχουμε κατάστημα εκεί.</td><td><span class="tag wait">ΚΑΤΑΓΡΑΦΗΚΕ</span></td></tr>
+    <tr><td>σελ. 5<br><span class="muted">Σαρωνικός</span></td><td>«Σωστά»</td><td>Αίγινα, Πόρος, Ύδρα, Σπέτσες δεν είναι Αττική για τις αποστολές. Η Σαλαμίνα μένει Αττική.</td><td><span class="tag on">ΖΩΝΤΑΝΟ</span></td></tr>
+    <tr><td>σελ. 3<br><span class="muted">δωρεάν 100 €</span></td><td>«Δωρεάν μεταφορικά και στο νομό Θεσσαλονίκης»</td><td>Το «δωρεάν από 100 €» ισχύει σε Αττική <b>και</b> νομό Θεσσαλονίκης. Παντού αλλού τα μεταφορικά χρεώνονται.</td><td><span class="tag on">ΖΩΝΤΑΝΟ</span></td></tr>
+    <tr><td>σελ. 6 &amp; 7<br><span class="muted">17 περιοχές</span></td><td>«Σε όλες να τους αφήνουμε να προχωράνε σε παραγγελία χωρίς πληρωμή και να στέλνουμε email επιβεβαίωσης που θα λέει ότι θα επικοινωνήσουμε για τα μεταφορικά»</td><td>Οι 17 περιοχές δεν μπλοκάρονται πια. Παραγγελία «κατόπιν συνεννόησης», χωρίς πληρωμή, με το μήνυμα στο email.</td><td><span class="tag on">ΖΩΝΤΑΝΟ</span></td></tr>
+  </tbody>
+</table>
+
+<h2 style="page-break-before:auto">3. Ο πρώτος κανόνας που μπήκε: οι 17 περιοχές</h2>
+
+<div class="quote">
+  <span class="src">ΣΗΜΕΙΩΣΗ ΣΑΣ · ΣΕΛΙΔΑ 6, ΠΑΡΑΔΕΙΓΜΑ «ΚΑΣΤΕΛΟΡΙΖΟ» · 19/11 14:45</span>
+  «Να γράψει <em>κατόπιν συνεννόησης</em>, να προχωρήσει σε <em>παραγγελία χωρίς πληρωμή</em>· το email επιβεβαίωσης να στέλνουμε μήνυμα ότι θα σας καλέσουμε για τα μεταφορικά.»
+</div>
+
+<p>Μέχρι τώρα το ταμείο <b>έκοβε</b> την παραγγελία σε αυτές τις 17 περιοχές και άφηνε μόνο την παραλαβή από κατάστημα. Αυτό άλλαξε. Όταν ο Τ.Κ. ανήκει σε μία από αυτές, το ταμείο κάνει τα εξής:</p>
+
+<table>
+  <thead><tr><th style="width:150px">Βήμα</th><th>Τι βλέπει ο πελάτης</th></tr></thead>
+  <tbody>
+    <tr><td>Τρόπος αποστολής</td><td>Μία μόνο επιλογή, «Κατόπιν συνεννόησης», με την εξήγηση ότι τα μεταφορικά δεν υπολογίζονται αυτόματα εκεί. Courier και μεταφορική δεν προσφέρονται.</td></tr>
+    <tr><td>Σύνολο</td><td>«Παράδοση · Κατόπιν συνεννόησης». Τα μεταφορικά <b>δεν</b> μπαίνουν στο σύνολο — ούτε ως 0 €, ούτε ως «δωρεάν».</td></tr>
+    <tr><td>Τρόπος πληρωμής</td><td>Μία μόνο επιλογή, «Κατόπιν συνεννόησης — δεν πληρώνεις τώρα». Κάρτα, αντικαταβολή και κατάθεση δεν εμφανίζονται.</td></tr>
+    <tr><td>Κουμπί</td><td>«Καταχώρηση παραγγελίας», όχι «Πληρωμή 51,90 € &amp; ολοκλήρωση». Από κάτω: «Δεν χρεώνεται τίποτα τώρα».</td></tr>
+    <tr><td>Email επιβεβαίωσης</td><td>Στη γραμμή των μεταφορικών γράφει «Κατόπιν συνεννόησης» αντί για ποσό, και από κάτω: «θα σε καλέσουμε για το κόστος αποστολής και τον τρόπο πληρωμής. Μέχρι τότε δεν χρεώνεται τίποτα.»</td></tr>
+    <tr><td>Παραστατικό SoftOne</td><td>Μένει σε «προεπισκόπηση» και <b>δεν</b> φεύγει αυτόματα στο ERP, για να μην εκδοθεί παραστατικό με μηδενικά μεταφορικά πριν το τηλεφώνημα.</td></tr>
+  </tbody>
+</table>
+
+<h3>Οι 17 περιοχές</h3>
+<table>
+  <thead><tr><th>Περιοχή</th><th class="num">Τ.Κ.</th><th>Περιοχή</th><th class="num">Τ.Κ.</th><th>Περιοχή</th><th class="num">Τ.Κ.</th></tr></thead>
+  <tbody>
+    <tr><td>Ίος</td><td class="num">84001</td><td>Λειψοί</td><td class="num">85001</td><td>Κάσος</td><td class="num">85800</td></tr>
+    <tr><td>Κίμωλος</td><td class="num">84004</td><td>Τήλος</td><td class="num">85002</td><td>Άγιος Ευστράτιος</td><td class="num">81900</td></tr>
+    <tr><td>Ανάφη</td><td class="num">84009</td><td>Αγαθονήσι</td><td class="num">85006</td><td>Οινούσσες</td><td class="num">82101</td></tr>
+    <tr><td>Σίκινος</td><td class="num">84010</td><td>Χάλκη</td><td class="num">85110</td><td>Ψαρά</td><td class="num">82104</td></tr>
+    <tr><td>Φολέγανδρος</td><td class="num">84011</td><td>Καστελόριζο</td><td class="num">85111</td><td>Φούρνοι</td><td class="num">83400</td></tr>
+    <tr><td>Παξοί</td><td class="num">49082</td><td>Μεγανήσι</td><td class="num">31083</td><td></td><td class="num"></td></tr>
+  </tbody>
+</table>
+
+<div class="note keep">
+  <b>Τι σημαίνει αυτό για εσάς, πρακτικά.</b> Κάθε τέτοια παραγγελία χρειάζεται <b>ένα τηλεφώνημα</b> για να προχωρήσει: να συμφωνηθεί το κόστος αποστολής, να εισπραχθεί και να εκδοθεί το παραστατικό. Μέχρι να γίνει αυτό, η παραγγελία μένει ανοιχτή και απλήρωτη. Σήμερα δεν υπάρχει ξεχωριστή ειδοποίηση ή λίστα στη διαχείριση γι' αυτές — αν θέλετε, την προσθέτουμε.
+</div>
+
+<h3>Πώς το δοκιμάσαμε</h3>
+<p>Με πραγματικό καλάθι και διεύθυνση στο Καστελόριζο (Τ.Κ. 85111), σε δοκιμαστικές παραγγελίες που αναιρούνται:</p>
+<table>
+  <thead><tr><th>Τι στείλαμε</th><th>Τι έγινε</th></tr></thead>
+  <tbody>
+    <tr><td>Κατόπιν συνεννόησης + χωρίς πληρωμή</td><td><b style="color:var(--green)">Πέρασε</b> — αριθμός παραγγελίας, μεταφορικά εκτός συνόλου</td></tr>
+    <tr><td>Κατόπιν συνεννόησης + πληρωμή με κάρτα</td><td><b style="color:var(--red)">Απορρίφθηκε</b> — «καταχωρείται χωρίς πληρωμή, θα σε καλέσουμε»</td></tr>
+    <tr><td>Αποστολή με courier ΕΛΤΑ</td><td><b style="color:var(--red)">Απορρίφθηκε</b> — «τα μεταφορικά ορίζονται κατόπιν συνεννόησης»</td></tr>
+    <tr><td>Η ίδια «χωρίς πληρωμή» σε κανονική περιοχή</td><td><b style="color:var(--red)">Απορρίφθηκε</b> — «διάλεξε τρόπο πληρωμής»</td></tr>
+  </tbody>
+</table>
+
+<div class="page"></div>
+<h2>4. Ο δεύτερος κανόνας: δωρεάν μεταφορικά από 100 €</h2>
+
+<div class="quote">
+  <span class="src">ΣΗΜΕΙΩΣΗ ΣΑΣ · ΣΕΛΙΔΑ 3, ΣΤΟΝ ΚΑΝΟΝΑ «ΔΩΡΕΑΝ ΑΠΟ 100 €, ΜΟΝΟ ΑΤΤΙΚΗ» · 19/11 14:47</span>
+  «<em>Δωρεάν μεταφορικά και στο νομό Θεσσαλονίκης.</em>»
+</div>
+
+<p>Μέχρι τώρα τα δωρεάν μεταφορικά από 100 € ίσχυαν σε <b>όλη την Ελλάδα</b>. Τώρα ισχύουν μόνο σε δύο περιοχές:</p>
+
+<table>
+  <thead><tr><th>Περιοχή</th><th class="num" style="width:110px">Τ.Κ.</th><th>Τι ισχύει</th></tr></thead>
+  <tbody>
+    <tr><td>Αττική</td><td class="num">10xxx–19xxx</td><td>Δωρεάν από 100 €. Χωρίς τα νησιά του Σαρωνικού (18010, 18020, 18040, 18050) — η Σαλαμίνα 18900 μέσα.</td></tr>
+    <tr><td>Νομός Θεσσαλονίκης</td><td class="num">54xxx–57xxx</td><td>Δωρεάν από 100 €, με δική σας απόφαση.</td></tr>
+    <tr><td>Όλη η υπόλοιπη Ελλάδα</td><td class="num">—</td><td>Τα μεταφορικά χρεώνονται, όσο μεγάλο κι αν είναι το καλάθι.</td></tr>
+  </tbody>
+</table>
+
+<h3>Η μέτρηση, με το ίδιο καλάθι των 103,80 €</h3>
+<table>
+  <thead><tr><th>Διεύθυνση</th><th class="num" style="width:90px">Τ.Κ.</th><th class="num" style="width:120px">Μεταφορικά</th></tr></thead>
+  <tbody>
+    <tr><td>Θεσσαλονίκη</td><td class="num">54622</td><td class="num"><b style="color:var(--green)">0,00 €</b></td></tr>
+    <tr><td>Αθήνα</td><td class="num">10431</td><td class="num"><b style="color:var(--green)">0,00 €</b></td></tr>
+    <tr><td>Ιωάννινα</td><td class="num">45221</td><td class="num"><b>3,90 €</b></td></tr>
+    <tr><td>Σπέτσες</td><td class="num">18050</td><td class="num"><b>3,90 €</b></td></tr>
+  </tbody>
+</table>
+<p class="muted" style="font-size:8.4pt">Με καλάθι κάτω από 100 € η Θεσσαλονίκη χρεώνεται κανονικά 3,90 €, όπως και πριν.</p>
+
+<h3>Πού το λέει ο ιστότοπος</h3>
+<p>Το καλάθι δεν ξέρει ακόμη τον Τ.Κ. του πελάτη, οπότε η μπάρα «σου λείπουν Χ € για δωρεάν μεταφορικά» θα ήταν παραπλανητική για τα 2/3 της Ελλάδας. Προσθέσαμε τη διευκρίνιση σε τέσσερα σημεία:</p>
+<ul>
+  <li><b>Καλάθι και mini-καλάθι:</b> «Ισχύει για Αττική και νομό Θεσσαλονίκης· αλλού το κόστος φαίνεται στο ταμείο, με τον Τ.Κ. σου.»</li>
+  <li><b>Σελίδα προϊόντος</b> (οι ερωτήσεις–απαντήσεις που διαβάζει και η Google): «δωρεάν σε Αττική και Θεσσαλονίκη».</li>
+  <li><b>Ερμής</b>, ο σύμβουλος αγορών: δεν λέει πια «δωρεάν από 100 €» σκέτο.</li>
+  <li><b>Διαχείριση → Ρυθμίσεις → Αποστολές:</b> η επεξήγηση του πεδίου «Δωρεάν αποστολή από» λέει πού ισχύει.</li>
+</ul>
+
+<div class="note keep">
+  <b>Προσοχή — είναι αύξηση τιμής.</b> Από τη στιγμή που θα ανέβει η έκδοση, κάθε πελάτης εκτός Αττικής και Θεσσαλονίκης χάνει τα δωρεάν μεταφορικά που είχε μέχρι χθες, ενώ οι υπόλοιπες νέες τιμές (οι κλάσεις Α–Ε) δεν έχουν μπει ακόμη. Αν θέλετε να μπουν όλα μαζί, μας το λέτε και το κρατάμε κλειστό μέχρι τότε.
+</div>
+
+<div class="page"></div>
+<h2>5. Ο κατάλογος περιοχών, όπως κλείδωσε</h2>
+<p>Ποσά σε ευρώ, <b>ανά συσκευή</b> (μικτό καλάθι = άθροισμα). Διψήφιος Τ.Κ. = όλος ο νομός, τριψήφιος = όλη η ευρύτερη περιοχή, πεντάψηφιος = μόνο αυτός· κερδίζει πάντα ο πιο ειδικός. Με <b>έντονα</b> ό,τι άλλαξε με τις σημειώσεις σας.</p>
+<table>
+  <thead><tr><th>Περιοχή</th><th>Τ.Κ.</th><th class="num">Α</th><th class="num">Β</th><th class="num">Γ</th><th class="num">Δ</th><th class="num">Ε</th><th>Σημείωση</th></tr></thead>
+  <tbody>
+    <tr><td>Ιωάννινα</td><td><b>44, 45</b></td><td class="num">courier</td><td class="num">9</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td>όλος ο νομός</td></tr>
+    <tr><td>Τρίκαλα</td><td>42</td><td class="num">courier</td><td class="num">9</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td>όλος ο νομός</td></tr>
+    <tr><td>Κιλκίς</td><td>61</td><td class="num">courier</td><td class="num">9</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td></td></tr>
+    <tr><td>Χαλκιδική</td><td>63</td><td class="num">courier</td><td class="num">9</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td><b>ισχύει ο κατάλογος, παρόλο που έχουμε 2 καταστήματα</b></td></tr>
+    <tr><td>Λευκάδα</td><td>31</td><td class="num">courier</td><td class="num">9</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td></td></tr>
+    <tr><td>Ιεράπετρα</td><td><b>722</b></td><td class="num">courier</td><td class="num">9</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td><b>και τα γύρω χωριά</b></td></tr>
+    <tr><td>Φωκίδα · Άμφισσα, Ιτέα</td><td><b>33058, 33100, 33200</b></td><td class="num">courier</td><td class="num">9</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td><b>όχι όλη η Φωκίδα</b></td></tr>
+    <tr><td>Σύρος</td><td>84100</td><td class="num">courier</td><td class="num">9</td><td class="num">50</td><td class="num">50</td><td class="num">100</td><td></td></tr>
+    <tr><td>Σαντορίνη</td><td>84700, 84702</td><td class="num">courier</td><td class="num">9</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td>84702 = Οία</td></tr>
+    <tr><td>Μύκονος</td><td>84600</td><td class="num">courier</td><td class="num">9</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td></td></tr>
+    <tr><td>Άνδρος</td><td>84500–84502</td><td class="num">courier</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td>Γαύριο, Κόρθι</td></tr>
+    <tr><td>Μήλος</td><td>84800</td><td class="num">courier</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td></td></tr>
+    <tr><td>Κέα (Τζιά)</td><td>84002</td><td class="num">courier</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td></td></tr>
+    <tr><td>Κύθνος</td><td>84006</td><td class="num">courier</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td></td></tr>
+    <tr><td>Σέριφος</td><td>84005</td><td class="num">courier</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td></td></tr>
+    <tr><td>Αμοργός</td><td>84008</td><td class="num">courier</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td></td></tr>
+    <tr><td>Αντίπαρος</td><td>84007</td><td class="num">courier</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td></td></tr>
+    <tr><td>Κάλυμνος</td><td>85200</td><td class="num">courier</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td><b>μένει εδώ, παρόλο που έχουμε κατάστημα</b></td></tr>
+    <tr><td>Λέρος</td><td>85400</td><td class="num">courier</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td class="num">100</td><td></td></tr>
+    <tr><td>Πάτμος</td><td>85500</td><td class="num">courier</td><td class="num"><b>30</b></td><td class="num">100</td><td class="num">100</td><td class="num">100</td><td><b>η Β από 100 € → 30 €</b></td></tr>
+    <tr><td>Σύμη</td><td>85600</td><td class="num">courier</td><td class="num"><b>30</b></td><td class="num">100</td><td class="num">100</td><td class="num">100</td><td><b>η Β από 100 € → 30 €</b></td></tr>
+    <tr><td>Αστυπάλαια</td><td>85900</td><td class="num">courier</td><td class="num"><b>30</b></td><td class="num">100</td><td class="num">100</td><td class="num">100</td><td><b>η Β από 100 € → 30 €</b></td></tr>
+    <tr><td>Λήμνος</td><td>81400</td><td class="num">courier</td><td class="num">50</td><td class="num">50</td><td class="num">100</td><td class="num">100</td><td></td></tr>
+    <tr><td>Σκόπελος</td><td>37003</td><td class="num">courier</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td class="num">100</td><td><b>μένει εδώ, παρόλο που έχουμε 2 καταστήματα</b></td></tr>
+    <tr><td>Αλόννησος</td><td>37005</td><td class="num">courier</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td class="num">100</td><td></td></tr>
+    <tr><td>Ιθάκη</td><td>28300</td><td class="num">courier</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td class="num">100</td><td><b>μένει εδώ, παρόλο που έχουμε κατάστημα</b></td></tr>
+    <tr><td>Σαμοθράκη</td><td>68002</td><td class="num">courier</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td class="num">100</td><td></td></tr>
+    <tr><td>Σκύρος</td><td>34007</td><td class="num">courier</td><td class="num">50</td><td class="num">50</td><td class="num">50</td><td class="num">100</td><td><b>μένει εδώ, παρόλο που έχουμε κατάστημα</b></td></tr>
+    <tr><td>Αίγινα</td><td>18010</td><td class="num">courier</td><td class="num">30</td><td class="num">50</td><td class="num">50</td><td class="num">100</td><td>Τ.Κ. Αττικής, όχι Αττική για αποστολές</td></tr>
+    <tr><td>Πόρος <span class="muted">(νησί)</span></td><td>18020</td><td class="num">courier</td><td class="num">30</td><td class="num">50</td><td class="num">50</td><td class="num">100</td><td>ίδιος Τ.Κ. με τον Γαλατά</td></tr>
+    <tr><td><b>Γαλατάς</b> <span class="muted">(στεριά)</span></td><td>18020</td><td class="num">courier</td><td class="num"><b>9</b></td><td class="num">50</td><td class="num">50</td><td class="num">100</td><td><b>δεν χρεώνεται ως νησί</b></td></tr>
+    <tr><td>Ύδρα</td><td>18040</td><td class="num">courier</td><td class="num">30</td><td class="num">50</td><td class="num">50</td><td class="num">100</td><td>Τ.Κ. Αττικής</td></tr>
+    <tr><td>Σπέτσες</td><td>18050</td><td class="num">courier</td><td class="num">30</td><td class="num">50</td><td class="num">50</td><td class="num">100</td><td><b>μένει εδώ, παρόλο που έχουμε κατάστημα</b></td></tr>
+    <tr><td><b>Όλες οι υπόλοιπες περιοχές</b></td><td>—</td><td class="num">courier</td><td class="num"><b>9</b></td><td class="num"><b>50</b></td><td class="num"><b>50</b></td><td class="num"><b>100</b></td><td><b>νέα γραμμή — καλύπτει Ρόδο, Κω, Πάρο, Κέρκυρα και κάθε στεριά χωρίς κατάστημα</b></td></tr>
+  </tbody>
+</table>
+
+<h3>Οι πέντε κλάσεις, όπως κλείδωσαν</h3>
+<table>
+  <thead><tr><th style="width:60px">Κλάση</th><th>Τι περιλαμβάνει</th><th style="width:190px">Χρέωση όταν υπάρχει κατάστημα, πάνω από 15 χλμ</th></tr></thead>
+  <tbody>
+    <tr><td><b>Α</b></td><td>Πολύ μικρά: ακουστικά, καλώδια, αξεσουάρ. <b>Τιμή courier παντού</b> — ΕΛΤΑ 3,90 €, ACS και Γενική 4,90 €, BOX NOW 2,90 €.</td><td>τιμή courier</td></tr>
+    <tr><td><b>Β</b></td><td>Μικροσυσκευές: καφετιέρα, σκούπα, σίδερο, φρυγανιέρα.</td><td class="num">9 €</td></tr>
+    <tr><td><b>Γ</b></td><td>Τηλεοράσεις έως 55″.</td><td class="num">30 €</td></tr>
+    <tr><td><b>Δ</b></td><td>Λευκές συσκευές, κουζίνα, στεγνωτήριο, πλυντήριο <b>έως</b> 10 κιλά, και <b>τηλεόραση 56″–84″</b>.</td><td class="num">40 €</td></tr>
+    <tr><td><b>Ε</b></td><td>Ντουλάπα, side by side, <b>πλυντήριο πάνω από 10 κιλά</b>, <b>τηλεόραση 85″ και πάνω</b>.</td><td class="num">50 €</td></tr>
+  </tbody>
+</table>
+<p class="muted" style="font-size:8.4pt">Μέσα σε 15 χλμ από κατάστημα (20 χλμ στην Αττική) η παράδοση είναι δωρεάν σε όλες τις κλάσεις. Η παλιά κλίμακα 15–25 χλμ καταργείται.</p>
+
+<div class="page"></div>
+<h2>6. Τι χρειαζόμαστε ακόμη από εσάς</h2>
+
+<h3>α. Οι τιμές των 17 περιοχών <span class="tag ask">ΜΠΛΟΚΑΡΕΙ ΤΟΝ ΤΙΜΟΚΑΤΑΛΟΓΟ</span></h3>
+<p>Είναι το μόνο που κρατά τον τιμοκατάλογο Α–Ε εκτός λειτουργίας. Το Excel που σας στείλαμε είναι ενημερωμένο: έχει τις 17 γραμμές για συμπλήρωση, τον συμφωνημένο πίνακα των 34 περιοχών και ένα φύλλο με τις 18 ερωτήσεις μαζί με τις απαντήσεις που μας δώσατε. Μέχρι να έρθουν τα ποσά, οι 17 περιοχές δουλεύουν «κατόπιν συνεννόησης» — δηλαδή με τηλεφώνημα ανά παραγγελία.</p>
+
+<h3>β. Πόρος και Γαλατάς μοιράζονται τον Τ.Κ. 18020 <span class="tag ask">ΑΝΟΙΧΤΟ</span></h3>
+<p>Μας είπατε ότι ο Γαλατάς δεν χρεώνεται ως νησί: κλάση Β 9 € αντί για 30 €. Το πρόβλημα είναι τεχνικό και δεν λύνεται με τον Τ.Κ., γιατί είναι ο ίδιος και στους δύο. Δύο δρόμοι:</p>
+<table>
+  <thead><tr><th style="width:190px">Λύση</th><th>Τι σημαίνει</th></tr></thead>
+  <tbody>
+    <tr><td>Κρίνει η πόλη</td><td>Αν ο πελάτης γράψει «Γαλατάς» ή «Τριζηνία» χρεώνεται ως στεριά, αλλιώς ως Πόρος. Δουλεύει, αλλά εξαρτάται από το τι πληκτρολογεί ο πελάτης: λάθος γραφή = λάθος χρέωση.</td></tr>
+    <tr><td>Ίδια χρέωση και στους δύο</td><td>Σταθερό και χωρίς εκπλήξεις. Κοστίζει 21 € διαφορά στην κλάση Β για τους πελάτες του Γαλατά — ή για εμάς, ανάλογα ποια τιμή κρατήσετε.</td></tr>
+  </tbody>
+</table>
+<p class="muted" style="font-size:8.4pt">Στη σημείωσή σας στο PDF γράφατε «3,9,50,100» — τέσσερα νούμερα. Κρατήσαμε το «3, 9, 50, 50, 100» του email σας. Αν ισχύει κάτι άλλο, πείτε μας.</p>
+
+<h3>γ. Δύο μικρότερες διευκρινίσεις <span class="tag ask">ΑΝΟΙΧΤΟ</span></h3>
+<table>
+  <tbody>
+    <tr><td style="width:190px"><b>Ιεράπετρα</b></td><td>Το «και τα γύρω χωριά» το διαβάσαμε ως «κάθε Τ.Κ. που αρχίζει από 722». Αν κάποιο χωριό του δήμου έχει Τ.Κ. εκτός 722xx, πείτε μας ποιο.</td></tr>
+    <tr><td><b>Κλάση Β εκτός πίνακα</b></td><td>Για την κλάση Α μάς είπατε «παντού οι τιμές courier». Η κλάση Β (μικροσυσκευές, φεύγουν κι αυτές με courier) μένει στα 9 € ή ακολουθεί κι αυτή τον courier;</td></tr>
+  </tbody>
+</table>
+
+<h2>7. Τα επόμενα βήματα</h2>
+<table>
+  <thead><tr><th style="width:80px">Ποιος</th><th>Τι</th></tr></thead>
+  <tbody>
+    <tr><td><b>Εσείς</b></td><td>Συμπληρώνετε τις τιμές των 17 περιοχών στο Excel και απαντάτε στα β και γ παραπάνω.</td></tr>
+    <tr><td><b>Εμείς</b></td><td>Καταχωρούμε τον πίνακα των 34 περιοχών ως τιμοκατάλογο στη διαχείριση και δηλώνουμε τις κλάσεις Α–Ε στις κατηγορίες προϊόντων. Από εκεί και πέρα κάθε αλλαγή τιμής γίνεται από εσάς, χωρίς νέα έκδοση.</td></tr>
+    <tr><td><b>Μαζί</b></td><td>Δοκιμάζουμε 10 πραγματικά καλάθια (μικρό, μικτό, ογκώδες, νησί, Αττική) και επιβεβαιώνετε τα ποσά πριν βγει στο κοινό.</td></tr>
+    <tr><td><b>Μετά</b></td><td>Κάθε περιοχή που παίρνει τιμή βγαίνει αυτόματα από το «κατόπιν συνεννόησης» και χρεώνεται κανονικά — χωρίς νέα έκδοση του eshop.</td></tr>
+  </tbody>
+</table>
+
+<h2>8. Τεκμηρίωση</h2>
+<p>Για να μπορείτε να ελέγξετε ή να ανατρέξετε σε ό,τι γράφει αυτό το έγγραφο:</p>
+<table>
+  <thead><tr><th style="width:230px">Τι</th><th>Πού</th></tr></thead>
+  <tbody>
+    <tr><td>Το αίτημά σας</td><td><code>politiki-metaforikon-euronics.pdf</code>, έκδοση 1.0 (19/11/2026) με 12 σημειώσεις σας της 19/11, 14:11–14:48 · και το email σας της 20/11 με τις απαντήσεις στο σημείο 8</td></tr>
+    <tr><td>Ο επίσημος κατάλογος περιοχών</td><td><code>docs/apostoles-tk-perioxon.md</code> — με αναφορά, σε κάθε γραμμή, στο αν προέρχεται από τη σημείωση ή από το email</td></tr>
+    <tr><td>Το Excel για τις 17 τιμές</td><td><code>docs/apostoles-times-perioxon.xlsx</code> — 3 φύλλα: χωρίς τιμή, ερωτήσεις με τις απαντήσεις σας, συμφωνημένες</td></tr>
+    <tr><td>Οι αλλαγές στον κώδικα</td><td>Δύο καταχωρήσεις: <code>59b5bef</code> (ο κατάλογος) και <code>f0f4fb4</code> (οι δύο κανόνες)</td></tr>
+    <tr><td>Αυτόματοι έλεγχοι</td><td>1.222 έλεγχοι περνούν, με νέους για τα όρια «Αττική και Θεσσαλονίκη» και για τον εντοπισμό των 17 περιοχών</td></tr>
+    <tr><td>Οδηγός διαχείρισης</td><td>Η σελίδα «Αποστολές» στη βοήθεια της διαχείρισης περιγράφει τη νέα ροή και ότι κάθε τέτοια παραγγελία θέλει τηλεφώνημα</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  <span>DGsoft · Κανόνες αποστολών για την Euronics</span>
+  <span>20 Νοεμβρίου 2026 · έκδοση 2.0</span>
+</footer>
+
+</body>
+</html>
