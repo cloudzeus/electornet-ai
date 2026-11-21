@@ -47,7 +47,7 @@ export function ExtPricingForm({ initial, categories, canWrite }: { initial: Ext
         <input type="checkbox" checked={enabled} disabled={!canWrite} onChange={(e) => setEnabled(e.target.checked)} className="mt-1 size-5 accent-eu-blue" />
         <span className="grid gap-0.5">
           <span className="font-bold text-eu-ink text-[length:var(--fs-15)]">Επέκταση εγγύησης επί πληρωμή</span>
-          <span className="text-eu-ink-3 text-[length:var(--fs-14)]">Στις συσκευές πελατών χωρίς δωρεάν επέκταση (χωρίς «Επέκταση Εγγύησης» στο SoftOne), με ενεργή εγγύηση, εμφανίζεται κουμπί «Επέκταση +2 έτη · τιμή» και η πληρωμή γίνεται μέσω Viva. Οι συσκευές με CCCWARRANTY συνεχίζουν δωρεάν.</span>
+          <span className="text-eu-ink-3 text-[length:var(--fs-14)]">Χωρίς κλίμακα δεν προσφέρεται πουθενά επέκταση. Με κλίμακα, στα είδη με «Επέκταση Εγγύησης» (CCCWARRANTY) στο SoftOne εμφανίζεται η επιλογή «Επέκταση εγγύησης +2 έτη · τιμή» στη σελίδα προϊόντος και στο καλάθι, και στις συσκευές του λογαριασμού το κουμπί αγοράς με πληρωμή Viva.</span>
         </span>
       </label>
 

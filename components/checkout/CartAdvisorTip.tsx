@@ -20,7 +20,7 @@ export function CartAdvisorTip({ lines }: { lines: CartLine[] }) {
   if (!lines.length) return null;
   const heavy = lines.find((l) => HEAVY.has(l.product.subcategory));
   const noInstall = heavy && !l_has(heavy, "paradosi-egkatastasi");
-  // η επέκταση εγγύησης δεν πωλείται πια: είναι δωρεάν και αυτόματη στα είδη που την έχουν (lib/warranty)
+  // η συμβουλή για την επέκταση θέλει να ξέρουμε ποια είδη τη δέχονται (CCCWARRANTY) — ο browser δεν το ξέρει, άρα σιωπά
   const noWarranty = null as (typeof lines)[number] | null;
   let text: string;
   let q: string;

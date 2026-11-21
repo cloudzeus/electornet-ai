@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Minus, Plus, Trash2, Heart, ShieldCheck, Truck, RotateCcw, Store as StoreIcon, Compass, Tag, Check, ChevronRight, Gift } from "lucide-react";
 import type { Product, Service } from "@/lib/data/types";
 import { instalment, priceLong, priceShort, weekday } from "@/lib/format";
+import { EXTENSION_SLUG } from "@/lib/warranty/policy";
 import { useCart } from "@/components/commerce/CartProvider";
 import { EmailCartButton } from "@/components/commerce/EmailCartButton";
 import { Stepper } from "./Stepper";
@@ -39,7 +40,11 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
   const servicesTotal = quote ? quote.addons / 100 : addonsTotal;
   const discPrice = quote ? quote.discPrice / 100 : 0;
   const discCoupon = quote ? quote.discCoupon / 100 : 0;
-  const shipping = quote ? quote.shipping / 100 : localGoods === 0 ? 0 : 4.9;
+  const shipping = quote ? quote.shipping / 100 : 0;
+  // χωρίς Τ.Κ. δεν δείχνουμε χρέωση: η δωρεάν παράδοση προβάλλεται πρώτη και το ποσό μπαίνει στο ταμείο (Euronics 21/11/2026)
+  const zipNeeded = quote ? quote.zipNeeded : true;
+  // η περιοχή από τοποθεσία/IP: μόνο ένδειξη «έχουμε κατάστημα κοντά σου» — τη χρέωση την κρίνει ο Τ.Κ. στο ταμείο
+  const hint = quote?.areaHint ?? null;
   const total = quote ? quote.total / 100 : localGoods + shipping;
   const vat = total - total / 1.24;
   const freeByPromo = !!quote?.freeShipping;
@@ -107,8 +112,13 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
           <ul className="m-0 p-0 list-none grid gap-3">
             {lines.map((l) => {
               const p = l.product;
-              const lineAddons = catalog.filter((s) => s.slug !== "paradosi-egkatastasi" || p.installation).filter((s) => s.addonAt?.includes("pdp") || s.addonAt?.includes("checkout"));
               const ql = quoteLineOf(quote, p.id);
+              // η επέκταση εγγύησης έχει τιμή ανά συσκευή (15,5 % — την υπολογίζει ο server): χωρίς τιμή δεν προσφέρεται
+              const lineAddons = catalog
+                .filter((s) => s.slug !== "paradosi-egkatastasi" || p.installation)
+                .filter((s) => s.addonAt?.includes("pdp") || s.addonAt?.includes("checkout"))
+                .filter((s) => s.slug !== EXTENSION_SLUG || (ql?.extPrice ?? 0) > 0)
+                .map((s) => (s.slug === EXTENSION_SLUG ? { ...s, title: `${s.title} +2 έτη`, priceFrom: (ql!.extPrice ?? 0) / 100 } : s));
               const freeAddons = ql?.addons.filter((a) => a.free) ?? [];
               const lineTotal = ql ? (ql.total + ql.addons.reduce((a, x) => a + x.price, 0) * ql.qty) / 100 : l.qty * (p.price + l.addons.reduce((a, x) => a + x.price, 0));
               const lineWas = ql && ql.discPrice + ql.discCoupon > 0 ? (ql.listTotal + ql.addons.reduce((a, x) => a + x.value, 0) * ql.qty) / 100 : p.wasPrice ? l.qty * p.wasPrice : null;
@@ -202,7 +212,7 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
 
           <div className="grid grid-cols-1 @xl:grid-cols-3 gap-3">
             {[
-              { icon: Truck, t: "Στη διεύθυνσή σου", s: shipping === 0 ? "Δωρεάν · 1–3 εργάσιμες" : `${priceLong(shipping)} · 1–3 εργάσιμες` },
+              { icon: Truck, t: "Στη διεύθυνσή σου", s: zipNeeded ? (hint?.free ? `Δωρεάν στην περιοχή σου (${hint.place}) · 1–3 εργάσιμες` : "Δωρεάν όπου έχουμε κατάστημα · 1–3 εργάσιμες") : shipping === 0 ? "Δωρεάν · 1–3 εργάσιμες" : `${priceLong(shipping)} · 1–3 εργάσιμες` },
               { icon: StoreIcon, t: "Παραλαβή από κατάστημα", s: "Δωρεάν · SMS όταν είναι έτοιμη" },
               { icon: RotateCcw, t: "Άλλαξες γνώμη;", s: "14 ημέρες δωρεάν επιστροφή" },
             ].map((x) => (
@@ -253,7 +263,8 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
               {discPrice > 0 && <Row k="Προσφορές" v={`− ${priceLong(discPrice)}`} cls="text-eu-green" />}
               {discCoupon > 0 && <Row k={`Κουπόνι ${quote?.coupon.applied ?? ""}`} v={`− ${priceLong(discCoupon)}`} cls="text-eu-green" />}
               {(quote?.gifts.length ?? 0) > 0 && <Row k={quote!.gifts.length === 1 ? "Δώρο" : `Δώρα (${quote!.gifts.length})`} v="0,00 €" cls="text-eu-green" />}
-              <Row k="Μεταφορικά" v={shipping === 0 ? "Δωρεάν" : priceLong(shipping)} cls={shipping === 0 ? "text-eu-green" : ""} />
+              <Row k="Μεταφορικά" v={zipNeeded ? "Δωρεάν*" : shipping === 0 ? "Δωρεάν" : priceLong(shipping)} cls={shipping === 0 ? "text-eu-green" : ""} />
+              {zipNeeded && <p className="m-0 -mt-1 text-eu-muted text-[length:var(--fs-12)]">{hint?.free ? `* Έχουμε κατάστημα κοντά σου (${hint.place}) — επιβεβαιώνεται με τον Τ.Κ. σου στο ταμείο.` : "* Δωρεάν στις περιοχές με κατάστημα Euronics. Βάλε τον Τ.Κ. σου στο ταμείο και το επιβεβαιώνουμε πριν πληρώσεις."}</p>}
               <Row k="ΦΠΑ 24% (περιλαμβάνεται)" v={priceLong(vat)} cls="text-eu-muted-2 text-[length:var(--fs-14)]" />
               <div className="flex justify-between items-baseline border-t-2 border-eu-line pt-3 mt-1">
                 <dt className="font-extrabold text-eu-ink text-[length:var(--fs-17)]">{c.synolo}</dt>

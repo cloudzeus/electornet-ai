@@ -6,7 +6,7 @@ import { setPartsForSite, setsOfMain } from "@/lib/catalog/sets";
 import { extEligibleMap, productWarranty } from "@/lib/warranty/server";
 
 /**
- * Τα «extra» της σελίδας προϊόντος (set ειδών, εγγύηση κατασκευαστή, δωρεάν επέκταση, ρύθμιση AR) — ίδια για όλους τους
+ * Τα «extra» της σελίδας προϊόντος (set ειδών, εγγύηση κατασκευαστή, αν δέχεται επέκταση, ρύθμιση AR) — ίδια για όλους τους
  * επισκέπτες· στη μνήμη 1′ ανά προϊόν (έως 3′), «παλιά» σε κάθε αλλαγή καταλόγου. Πριν: 4 ερωτήματα σε κάθε προβολή.
  */
 type Extras = { setParts: Awaited<ReturnType<typeof setPartsForSite>> | null; setLinks: Awaited<ReturnType<typeof setsOfMain>>; soldAlone: boolean; maker: Awaited<ReturnType<typeof productWarranty>> | null; extOk: boolean; ar: Awaited<ReturnType<typeof db.productAr.findUnique>> };

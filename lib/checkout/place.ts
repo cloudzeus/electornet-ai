@@ -221,7 +221,7 @@ export async function placeOrder(input: PlaceInput) {
       const redirect = await startVivaPayment(result.orderId, input.payment).catch(() => paymentPagePath(number, "&e=start"));
       return { ok: true as const, number, total: q.total, nextCoupon: null, redirect };
     }
-    // «Οι συσκευές μου»: εγγύηση (και δωρεάν επέκταση όπου ισχύει) στο προφίλ του πελάτη
+    // «Οι συσκευές μου»: εγγύηση (και η επέκταση που αγόρασε ο πελάτης στη γραμμή) στο προφίλ του πελάτη
     void import("@/lib/warranty/server").then((m) => m.devicesFromOrder(result.orderId)).catch(() => null);
     // αποστολή στο SoftOne για όσες δεν περιμένουν online πληρωμή (αντικαταβολή, κατάθεση, στο κατάστημα) — μόνο σε
     // «Αποστολή»· οι πληρωμές με Viva/Klarna στέλνονται από το markPaid όταν επιβεβαιωθεί η πληρωμή

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canExtend, canExtendAtAll, extensionPrice, normalizePricing, parseWarrantyMonths, warrantyDetail, warrantyFromSpecs, warrantyLabel } from "./policy";
+import { canExtendAtAll, extensionPrice, normalizePricing, parseWarrantyMonths, warrantyDetail, warrantyFromSpecs, warrantyLabel } from "./policy";
 
 test("εγγύηση από ελεύθερο κείμενο του ERP", () => {
   assert.equal(parseWarrantyMonths("2 χρόνια"), 24);
@@ -20,18 +20,7 @@ test("από τα χαρακτηριστικά: η πρώτη γραμμή «Ε�
   assert.equal(warrantyFromSpecs([{ key: "Χρώμα", value: "Λευκό" }]), null);
 });
 
-test("δωρεάν επέκταση παλιάς αγοράς: Euronics, προϊόν με CCCWARRANTY, εγγύηση σε ισχύ, μία φορά", () => {
-  const now = new Date("2026-10-10");
-  const ok = { registeredBy: "erp", productEligible: true, warrantyUntil: new Date("2027-05-01"), extendedUntil: null };
-  assert.equal(canExtend(ok, now).eligible, true);
-  assert.equal(canExtend({ ...ok, registeredBy: "order" }, now).eligible, true);
-  assert.equal(canExtend({ ...ok, registeredBy: "manual" }, now).eligible, false);
-  assert.equal(canExtend({ ...ok, productEligible: false }, now).eligible, false);
-  assert.equal(canExtend({ ...ok, warrantyUntil: new Date("2026-01-01") }, now).eligible, false);
-  assert.equal(canExtend({ ...ok, extendedUntil: new Date("2029-05-01") }, now).eligible, false);
-});
-
-test("επέκταση επί πληρωμή: ίδιοι όροι χωρίς το CCCWARRANTY", () => {
+test("όροι επέκτασης: αγορά Euronics, εγγύηση σε ισχύ, μία φορά", () => {
   const now = new Date("2026-10-10");
   const ok = { registeredBy: "erp", warrantyUntil: new Date("2027-05-01"), extendedUntil: null };
   assert.equal(canExtendAtAll(ok, now).eligible, true);
@@ -71,11 +60,12 @@ test("τιμή επέκτασης: ποσοστό της τιμής αγοράς
 });
 
 test("σελίδα προϊόντος: μία διατύπωση εγγύησης για buy box, «Γιατί από Euronics», υπηρεσίες και απαντήσεις", () => {
-  assert.equal(warrantyLabel({ months: 24, extMonths: 24 }), "Εγγύηση 4 έτη");
+  assert.equal(warrantyLabel({ months: 24, extMonths: 24, extPrice: 54.1 }), "Εγγύηση 2 έτη"); // η επέκταση είναι αγορά, δεν μπαίνει στον τίτλο
   assert.equal(warrantyLabel({ months: 24, extMonths: 0 }), "Εγγύηση 2 έτη");
   assert.equal(warrantyLabel({ months: 12, extMonths: 0 }), "Εγγύηση 1 έτος");
   assert.equal(warrantyLabel({ months: 18, extMonths: 0 }), "Εγγύηση 18 μήνες");
   assert.equal(warrantyLabel(undefined), "Εγγύηση 2 έτη");
-  assert.equal(warrantyDetail({ months: 24, extMonths: 24 }), "2 έτη κατασκευαστή + 2 έτη επέκταση από Euronics, χωρίς χρέωση");
+  assert.equal(warrantyDetail({ months: 24, extMonths: 24, extPrice: 54.1 }), "2 έτη από τον κατασκευαστή, με την απόδειξη αγοράς · προαιρετική επέκταση +2 έτη με 54,10\u00a0€");
+  assert.equal(warrantyDetail({ months: 24, extMonths: 0 }), "2 έτη από τον κατασκευαστή, με την απόδειξη αγοράς");
   assert.equal(warrantyDetail({ months: 60, extMonths: 0 }), "5 έτη από τον κατασκευαστή, με την απόδειξη αγοράς");
 });

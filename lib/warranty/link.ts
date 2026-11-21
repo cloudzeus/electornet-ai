@@ -4,7 +4,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 /**
  * Προσωπικός σύνδεσμος συσκευής (SMS / email υπενθύμισης): /eg/<deviceId>.<υπογραφή>. Ανοίγει τη σελίδα της επέκτασης
  * χωρίς σύνδεση — οι πελάτες καταστημάτων δεν έχουν λογαριασμό στο site. Δείχνει μόνο τη συσκευή και την εγγύησή της·
- * οι ενέργειες (δωρεάν επέκταση, πληρωμή, διακοπή υπενθυμίσεων) ελέγχονται ξανά στον server.
+ * οι ενέργειες (αγορά επέκτασης, διακοπή υπενθυμίσεων) ελέγχονται ξανά στον server.
  */
 const secret = () => process.env.SETTINGS_KEY || process.env.AUTH_SECRET || "dev-only";
 const sign = (deviceId: string) => createHmac("sha256", secret()).update(`eg:${deviceId}`).digest("base64url").slice(0, 12);

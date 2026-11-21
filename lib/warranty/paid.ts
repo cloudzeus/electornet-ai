@@ -8,7 +8,7 @@ import { addMonths, EXTENSION_MONTHS, LEGAL_WARRANTY_MONTHS } from "./policy";
 import { extOffers } from "./server";
 
 /**
- * Επέκταση εγγύησης επί πληρωμή, από «Οι συσκευές μου» (συσκευές χωρίς δωρεάν επέκταση):
+ * Επέκταση εγγύησης επί πληρωμή, από «Οι συσκευές μου» ή τον προσωπικό σύνδεσμο της συσκευής:
  * 1. ο server ξαναϋπολογίζει όρους και τιμή (ποτέ από τον browser) → WarrantyExtension «pending» + payment order Viva
  * 2. ο πελάτης πληρώνει στη Viva
  * 3. επιστροφή ή webhook → η συναλλαγή επιβεβαιώνεται από το API της Viva (κωδικός + ποσό) → +24 μήνες στη συσκευή
@@ -22,7 +22,6 @@ export async function startPaidExtension(customerId: string, deviceId: string, p
   if (!d) return { ok: false, error: "Η συσκευή δεν βρέθηκε." };
   const until = d.warrantyUntil ?? addMonths(d.purchasedAt ?? d.createdAt, d.warrantyMonths || LEGAL_WARRANTY_MONTHS);
   const offer = (await extOffers([{ ...d, warrantyUntil: until }])).get(d.id);
-  if (offer?.kind === "free") return { ok: false, error: "Αυτή η συσκευή παίρνει την επέκταση δωρεάν." };
   if (offer?.kind !== "paid") return { ok: false, error: offer?.reason ?? "Δεν γίνεται επέκταση για αυτή τη συσκευή." };
   // μία ενεργή πληρωμή τη φορά για κάθε συσκευή: οι παλιές εκκρεμείς ακυρώνονται
   await db.warrantyExtension.updateMany({ where: { deviceId: d.id, status: "pending" }, data: { status: "cancelled" } });

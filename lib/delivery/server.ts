@@ -81,6 +81,22 @@ export async function storeZips(): Promise<Set<string>> {
 }
 export const resetStoreZipCache = () => { zipMem = null; };
 
+/**
+ * Πριν δοθεί Τ.Κ.: εκτίμηση της περιοχής του επισκέπτη (cookie GPS / «Κοντά σε», αλλιώς IP) για να του πούμε ότι η
+ * παράδοση είναι δωρεάν εκεί. ΜΟΝΟ ένδειξη — η χρέωση κρίνεται πάντα από τον Τ.Κ. που θα γράψει ο ίδιος στο ταμείο.
+ * `free` = υπάρχει ενεργό κατάστημα-μέλος μέσα σε 20 χλμ (ευθεία, αρκεί για ένδειξη).
+ */
+export async function areaHintFromRequest(): Promise<{ place: string; free: boolean } | null> {
+  const { geoFromRequest } = await import("@/lib/geo/ip");
+  const { nearestStores } = await import("@/lib/stores/repo");
+  const p = await geoFromRequest().catch(() => null);
+  if (!p || p.source === "fallback") return null;
+  const near = await nearestStores(p, 1).catch(() => []);
+  const place = p.city?.trim() || near[0]?.city?.trim() || "";
+  if (!place) return null;
+  return { place, free: !!near[0] && near[0].distanceKm <= 20 };
+}
+
 /** Στο checkout: υπάρχει συνεργάτης που φέρνει την παραγγελία σε αυτόν τον Τ.Κ.; (χωρίς έλεγχο αποθέματος, μόνο κάλυψη) */
 export async function localPartnerFor(zip: string | null | undefined, bulky: boolean): Promise<{ eta: string } | null> {
   if (!/^\d{5}$/.test(zip ?? "")) return null;

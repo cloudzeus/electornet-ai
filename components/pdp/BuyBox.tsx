@@ -24,7 +24,7 @@ const c = copyOf("buybox");
  * accessory with a running total. «Προσθήκη στο καλάθι» is the one primary
  * action; quick buy sits next to the wishlist as the secondary one.
  */
-/** warranty: εγγύηση κατασκευαστή (μήνες) και δωρεάν επέκταση (μήνες, 0 = δεν ισχύει για αυτό το είδος) */
+/** warranty: εγγύηση κατασκευαστή (μήνες) και η προαιρετική επέκταση με χρέωση (0 = δεν προσφέρεται για αυτό το είδος) */
 export function BuyBox({ product: p, addons, accessory, warranty }: { product: Product; addons: Service[]; stores: PickupStore[]; accessory?: Product | null; warranty?: WarrantyInfo; /** πραγματικό απόθεμα ανά κατάστημα (StoreStock) */ stockByStore?: Record<string, number> }) {
   const { add, openQuickBuy } = useCart();
   const [qty, setQty] = useState(1);
@@ -126,15 +126,15 @@ export function BuyBox({ product: p, addons, accessory, warranty }: { product: P
       </div>
 
       {warranty && (
-        <div className={`rounded-xl border-2 p-3.5 flex items-start gap-2.5 ${warranty.extMonths ? "border-eu-green/40 bg-eu-green/5" : "border-eu-line"}`}>
-          <ShieldCheck className={`size-5 shrink-0 mt-0.5 ${warranty.extMonths ? "text-eu-green" : "text-eu-blue"}`} aria-hidden />
+        <div className="rounded-xl border-2 border-eu-line p-3.5 flex items-start gap-2.5">
+          <ShieldCheck className="size-5 shrink-0 mt-0.5 text-eu-blue" aria-hidden />
           <span className="flex-1 min-w-0">
             <span className="flex justify-between gap-2 font-bold text-eu-ink text-[length:var(--fs-15)]">
               {warrantyLabel(warranty)}
-              {warranty.extMonths > 0 && <span className="text-eu-green shrink-0">Δωρεάν</span>}
+              {warranty.extMonths > 0 && warranty.extPrice ? <span className="text-eu-blue shrink-0">+2 έτη {priceLong(warranty.extPrice)}</span> : null}
             </span>
             <span className="block text-eu-muted text-[length:var(--fs-13-5)]">
-              {warrantyDetail(warranty)}{warranty.extMonths ? "· τη βλέπεις στις συσκευές του λογαριασμού σου" : ""}
+              {warrantyDetail(warranty)}{warranty.extMonths ? " — διάλεξέ την παρακάτω· τη βλέπεις μετά στις συσκευές του λογαριασμού σου" : ""}
             </span>
           </span>
         </div>

@@ -2,29 +2,35 @@
  * Εγγύηση και επέκταση εγγύησης — οι κανόνες του καταστήματος, χωρίς βάση:
  * - Η εγγύηση του κατασκευαστή δεν είναι σε πεδίο του SoftOne (το GUARTIME είναι κενό παντού)· γράφεται στην αναλυτική
  *   περιγραφή («Εγγύηση : 2 χρόνια», «5 Χρόνια Kenwood», «Διετής…»). Χωρίς αναφορά: η νόμιμη 2ετής.
- * - Επέκταση: ΔΩΡΕΑΝ +24 μήνες, μόνο για είδη με «Επέκταση Εγγύησης» (MTRL.CCCWARRANTY) στο SoftOne.
- * - Για παλιές αγορές (προφίλ): μόνο αγορές Euronics (e-shop ή κατάστημα, από το SoftOne), όσο η εγγύηση είναι σε ισχύ,
- *   μία φορά. Με CCCWARRANTY δωρεάν· χωρίς, επί πληρωμή (Viva), με τιμή από τις κλίμακες της διαχείρισης
- *   (κατηγορία × τιμή αγοράς: σταθερό ποσό ή ποσοστό της τιμής αγοράς — στα καταστήματα το είδος ΕΓΓΥΗΣΗ χρεώνεται
- *   15,5% της καθαρής τιμής της συσκευής· τα είδη ΚΑΡΑΝΤ 999G… είναι η δωρεάν επέκταση του προμηθευτή).
+ * - Επέκταση +24 μήνες: ΠΑΝΤΑ με χρέωση, όπως στα καταστήματα. Το «Επέκταση Εγγύησης» (MTRL.CCCWARRANTY) λέει ποια
+ *   είδη τη δέχονται (6.822 από 9.278 είδη του site) — ΟΧΙ ότι είναι δωρεάν: στα παραστατικά των καταστημάτων τα ίδια
+ *   είδη χρεώνονται με το είδος ΕΓΓΥΗΣΗ, 15,5 % της τιμής της συσκευής (ελεγμένο σε 351 γραμμές ΕΓΓΥΗΣΗ).
+ * - Τιμή: οι κλίμακες της διαχείρισης (κατηγορία × τιμή αγοράς: σταθερό ποσό ή ποσοστό) — η γενική κλίμακα είναι 15,5 %.
+ * - Πού αγοράζεται: προαιρετική επιλογή στη σελίδα προϊόντος και στο καλάθι, ή αργότερα από «Οι συσκευές μου»
+ *   (πληρωμή Viva) όσο η εγγύηση του κατασκευαστή είναι σε ισχύ, μία φορά, μόνο για αγορές Euronics.
  */
 export const LEGAL_WARRANTY_MONTHS = 24;
 export const EXTENSION_MONTHS = 24;
 export const EXTENSION_SLUG = "epektasi-eggyisis";
 
-/** Η εγγύηση ενός προϊόντος όπως τη δείχνει η σελίδα: κατασκευαστή + δωρεάν επέκταση (0 = δεν ισχύει). */
-export interface WarrantyInfo { months: number; extMonths: number }
+/**
+ * Η εγγύηση ενός προϊόντος όπως τη δείχνει η σελίδα: μήνες κατασκευαστή και η ΠΡΟΑΙΡΕΤΙΚΗ επέκταση
+ * (`extMonths` 0 = δεν προσφέρεται για αυτό το είδος, `extPrice` = η τιμή της από τις κλίμακες).
+ */
+export interface WarrantyInfo { months: number; extMonths: number; extPrice?: number | null }
 
 const span = (m: number) => (m % 12 ? `${m} μήνες` : m === 12 ? "1 έτος" : `${m / 12} έτη`);
+const eur = (n: number) => n.toLocaleString("el-GR", { style: "currency", currency: "EUR", minimumFractionDigits: n % 1 ? 2 : 0 });
 
-/** «Εγγύηση 4 έτη» — μία διατύπωση για buy box, «Γιατί από Euronics», υπηρεσίες και απαντήσεις. */
+/** «Εγγύηση 2 έτη» — η εγγύηση του κατασκευαστή (η επέκταση είναι προαιρετική αγορά, δεν μπαίνει στον τίτλο). */
 export function warrantyLabel(w: WarrantyInfo | undefined) {
-  return `Εγγύηση ${span((w?.months ?? LEGAL_WARRANTY_MONTHS) + (w?.extMonths ?? 0))}`;
+  return `Εγγύηση ${span(w?.months ?? LEGAL_WARRANTY_MONTHS)}`;
 }
-/** «2 έτη κατασκευαστή + 2 έτη επέκταση από Euronics, χωρίς χρέωση» ή «2 έτη από τον κατασκευαστή». */
+/** «2 έτη από τον κατασκευαστή… · προαιρετική επέκταση +2 έτη με 54,10 €» — μία διατύπωση για όλο το site. */
 export function warrantyDetail(w: WarrantyInfo | undefined) {
-  const m = w?.months ?? LEGAL_WARRANTY_MONTHS;
-  return w?.extMonths ? `${span(m)} κατασκευαστή + ${span(w.extMonths)} επέκταση από Euronics, χωρίς χρέωση` : `${span(m)} από τον κατασκευαστή, με την απόδειξη αγοράς`;
+  const base = `${span(w?.months ?? LEGAL_WARRANTY_MONTHS)} από τον κατασκευαστή, με την απόδειξη αγοράς`;
+  if (!w?.extMonths) return base;
+  return `${base} · προαιρετική επέκταση +${span(w.extMonths)}${w.extPrice ? ` με ${eur(w.extPrice)}` : ""}`;
 }
 
 const WORD_YEARS: [RegExp, number][] = [[/διετ|δυο ετ|δύο ετ|2ετ/i, 2], [/τριετ|3ετ/i, 3], [/τετραετ|4ετ/i, 4], [/πενταετ|5ετ/i, 5]];
@@ -54,15 +60,7 @@ export function warrantyFromSpecs(specs: { key: string; value: string }[]): { mo
 export const addMonths = (d: Date, n: number) => { const x = new Date(d.getTime()); x.setMonth(x.getMonth() + n); return x; };
 
 export interface ExtendCheck { eligible: boolean; reason: string | null }
-/** Μπορεί αυτή η συσκευή του πελάτη να πάρει τη δωρεάν επέκταση; */
-export function canExtend(d: { registeredBy: string; productEligible: boolean; warrantyUntil: Date | null; extendedUntil: Date | null }, now = new Date()): ExtendCheck {
-  const base = canExtendAtAll(d, now);
-  if (!base.eligible) return base;
-  if (!d.productEligible) return { eligible: false, reason: "Αυτό το προϊόν δεν έχει δωρεάν επέκταση εγγύησης." };
-  return base;
-}
-
-/** Οι κοινοί όροι κάθε επέκτασης (δωρεάν ή επί πληρωμή): αγορά Euronics, εγγύηση σε ισχύ, χωρίς επέκταση ως τώρα. */
+/** Οι όροι κάθε επέκτασης: αγορά Euronics, εγγύηση κατασκευαστή σε ισχύ, χωρίς επέκταση ως τώρα. */
 export function canExtendAtAll(d: { registeredBy: string; warrantyUntil: Date | null; extendedUntil: Date | null }, now = new Date()): ExtendCheck {
   if (d.extendedUntil) return { eligible: false, reason: "Έχει ήδη επέκταση εγγύησης." };
   if (d.registeredBy !== "order" && d.registeredBy !== "erp") return { eligible: false, reason: "Η επέκταση ισχύει για αγορές από Euronics." };
@@ -74,7 +72,7 @@ export function canExtendAtAll(d: { registeredBy: string; warrantyUntil: Date | 
 
 /**
  * Μία κλίμακα: κατηγορία (slug, κενό = όλες) × εύρος τιμής αγοράς (με ΦΠΑ, € — max κενό = χωρίς όριο) → τιμή
- * επέκτασης, είτε σταθερό ποσό (`price`) είτε ποσοστό της τιμής αγοράς (`pct` > 0 — έτσι χρεώνεται στα καταστήματα).
+ * επέκτασης, είτε σταθερό ποσό (`price`) είτε ποσοστό της τιμής αγοράς (`pct` > 0 — έτσι χρεώνεται στα καταστήματα: 15,5 %).
  */
 export interface ExtTier { id: string; category: string; min: number; max: number | null; price: number; pct: number }
 export interface ExtPricing { enabled: boolean; tiers: ExtTier[] }

@@ -22,7 +22,7 @@ export function ServicesDelivery({ product: p, services, warranty }: { product: 
     ...(p.tradeIn ? [{ icon: Recycle, t: "Παραλαβή παλιάς συσκευής", s: "Δωρεάν", d: "Ανακύκλωση ΑΗΗΕ κατά την παράδοση (Οδηγία 2012/19/ΕΕ)" }] : []),
   ];
   const icons: Record<string, typeof Truck> = { "epektasi-eggyisis": ShieldCheck, "paradosi-egkatastasi": Wrench, "e-support": Headset, "eggyisi-allagis": RefreshCw, "syntirisi-episkeyi": Wrench };
-  // Η δωρεάν επέκταση εγγύησης ισχύει μόνο για συγκεκριμένα είδη: όπου δεν ισχύει, δεν την υπόσχεται η σελίδα
+  // Η επέκταση εγγύησης προσφέρεται μόνο στα είδη που τη δέχονται (CCCWARRANTY): όπου δεν ισχύει, δεν την αναφέρει η σελίδα
   const svc = services
     .filter((s) => [EXTENSION_SLUG, "e-support", "eggyisi-allagis", "syntirisi-episkeyi", "eggyisi-xamiloteris-timis", "dorean-fylaxi"].includes(s.slug))
     .filter((s) => s.slug !== EXTENSION_SLUG || !!warranty?.extMonths)

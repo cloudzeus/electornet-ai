@@ -3,7 +3,7 @@ import { carrierOffers, FREIGHT_DEFAULT, freightOffer, isAtticaZip, ON_REQUEST_R
 import { shippingLimits } from "@/lib/shipping/bulky-server";
 import { atticaOffer, getAsapRules, type AtticaOffer } from "@/lib/shipping/asap-express-server";
 import { STANDARD_ETA } from "@/lib/shipping/asap-express";
-import { extEligibleMap } from "@/lib/warranty/server";
+import { extAddonPrices } from "@/lib/warranty/server";
 import { EXTENSION_SLUG } from "@/lib/warranty/policy";
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
@@ -15,7 +15,7 @@ import { getServiceList } from "@/lib/services/catalog";
 import { evaluate, type EngineResult } from "@/lib/promo/engine";
 import { activePromos, isNewCustomer, linesFor, lowest30, resolveCoupon, usesByPromo, type LineInfo } from "@/lib/promo/server";
 import { getSetting } from "@/lib/settings/store";
-import { getRateTables, localPartnerFor, nearStoresFor, storeZips, type LocalStore } from "@/lib/delivery/server";
+import { areaHintFromRequest, getRateTables, localPartnerFor, nearStoresFor, storeZips, type LocalStore } from "@/lib/delivery/server";
 import { localDeliveryFee, localRules } from "@/lib/delivery/routing";
 import { chargeableKg, quoteRate } from "@/lib/delivery/rates";
 
@@ -82,7 +82,9 @@ export async function syncCart(items: CartItemIn[]) {
 export interface QuoteInput { coupon?: string | null; payment?: string | null; delivery?: "courier" | "freight" | "click-collect" | "appointment" | null; zip?: string | null; email?: string | null; storeId?: string | null; /** το συνεργαζόμενο κατάστημα που διάλεξε ο πελάτης για παράδοση στο σπίτι */ localStoreId?: string | null; /** ο courier που διάλεξε ο πελάτης (βλ. lib/shipping/carriers) */ carrier?: string | null; /** διεύθυνση (για την τιμή ASAP Express) */ street?: string | null; number?: string | null; city?: string | null; /** παραγγελία: περιμένουμε την τιμή ASAP μέχρι τέλους */ settle?: boolean }
 /** Υπηρεσία στη γραμμή: price = τι πληρώνει (ανά τεμάχιο), value = η αξία της· free όταν τη χαρίζει προσφορά */
 export interface QuoteAddon { slug: string; title: string; price: number; value: number; free?: { promotionId: string; code: string; version: number; label: string } }
-export interface QuoteLine extends Omit<LineInfo, "categoryIds"> { listTotal: number; discPrice: number; discCoupon: number; discPayment: number; total: number; unitFinal: number; lowest30: number | null; labels: string[]; addons: QuoteAddon[] }
+export interface QuoteLine extends Omit<LineInfo, "categoryIds"> { listTotal: number; discPrice: number; discCoupon: number; discPayment: number; total: number; unitFinal: number; lowest30: number | null; labels: string[]; addons: QuoteAddon[];
+  /** τιμή της προαιρετικής επέκτασης εγγύησης για αυτή τη γραμμή (λεπτά) · null = δεν προσφέρεται */
+  extPrice: number | null }
 /** Δώρο της προσφοράς: γραμμή με την αξία του και έκπτωση 100 % */
 export interface QuoteGift { promotionId: string; code: string; version: number; label: string; productId: string; variantId: string; title: string; brand: string; image: string | null; erpCode: string; qty: number; value: number }
 export interface Quote {
@@ -103,6 +105,10 @@ export interface Quote {
   onRequest: string | null;
   /** δωρεάν μεταφορικά ανεξαρτήτως ποσού: έχουμε κατάστημα-μέλος στην περιοχή του Τ.Κ. (Euronics 20/11/2026) */
   storeArea: boolean;
+  /** δεν ξέρουμε ακόμη Τ.Κ.: δεν χρεώνουμε τίποτα — η δωρεάν παράδοση είναι ο κανόνας μέχρι να αποδειχθεί το αντίθετο */
+  zipNeeded: boolean;
+  /** χωρίς Τ.Κ.: η περιοχή του επισκέπτη από τοποθεσία/IP, μόνο ως ένδειξη στο καλάθι (η χρέωση κρίνεται από τον Τ.Κ.) */
+  areaHint: { place: string; free: boolean } | null;
   /** περιοχή του συμφωνημένου τιμοκαταλόγου (Περίπτωση 2): το όνομά της — χρεώνεται πάντα */
   pricedArea: string | null;
   /** για την παραγγελία: ποσά ανά προσφορά */
@@ -147,11 +153,16 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
     if (cur) { cur.price = 0; cur.free = free; } else list.push({ slug: s.slug, title: s.title, price: 0, value: cents(s.priceFrom ?? 0), free });
     addonsOf.set(f.lineKey, list);
   }
-  // Επέκταση εγγύησης: ΔΩΡΕΑΝ +24 μήνες μόνο σε είδη με «Επέκταση Εγγύησης» (CCCWARRANTY) — μπαίνει μόνη της· αλλού δεν υπάρχει
-  const extOk = await extEligibleMap(items.map((i) => i.productId));
+  // Επέκταση εγγύησης: ΠΡΟΑΙΡΕΤΙΚΗ και με χρέωση (15,5 % όπως στα καταστήματα), μόνο σε είδη με «Επέκταση Εγγύησης»
+  // (CCCWARRANTY) και μόνο αν υπάρχει κλίμακα· η τιμή βγαίνει πάντα εδώ, από την τιμή της γραμμής — ποτέ από τον browser
+  const extPrices = await extAddonPrices(lines.map((l) => ({ productId: l.productId, price: l.unit / 100 })));
   for (const it of items) {
+    const ext = extPrices.get(it.productId) ?? null;
+    const was = (addonsOf.get(it.key) ?? []).find((a) => a.slug === EXTENSION_SLUG);
     const list = (addonsOf.get(it.key) ?? []).filter((a) => a.slug !== EXTENSION_SLUG);
-    if (extOk.get(it.productId)) list.push({ slug: EXTENSION_SLUG, title: "Επέκταση εγγύησης +2 έτη", price: 0, value: 0 });
+    // δώρο προσφοράς: μένει στα 0 € (με την αξία της κλίμακας), αλλιώς μπαίνει μόνο αν το διάλεξε ο πελάτης
+    if (was?.free) list.push({ ...was, value: ext ? cents(ext) : was.value });
+    else if (ext && was) list.push({ slug: EXTENSION_SLUG, title: `${svc.get(EXTENSION_SLUG)?.title ?? "Επέκταση εγγύησης"} +2 έτη`, price: cents(ext), value: cents(ext) });
     addonsOf.set(it.key, list);
   }
   // δώρα: τα στοιχεία του προϊόντος-δώρου από τη βάση (αν δεν πωλείται πια, δεν μπαίνει)
@@ -160,7 +171,8 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   const out: QuoteLine[] = engine.lines.map((l) => {
     const info = lines.find((x) => x.key === l.key)!;
     const { categoryIds: _c, ...rest } = info; void _c;
-    return { ...rest, listTotal: l.listTotal, discPrice: l.discPrice, discCoupon: l.discCoupon, discPayment: l.discPayment, total: l.total, unitFinal: l.unitFinal, lowest30: low.get(l.variantId) ?? null, labels: l.adjustments.map((a) => a.label), addons: addonsOf.get(l.key) ?? [] };
+    const ext = extPrices.get(info.productId) ?? null;
+    return { ...rest, listTotal: l.listTotal, discPrice: l.discPrice, discCoupon: l.discCoupon, discPayment: l.discPayment, total: l.total, unitFinal: l.unitFinal, lowest30: low.get(l.variantId) ?? null, labels: l.adjustments.map((a) => a.label), addons: addonsOf.get(l.key) ?? [], extPrice: ext == null ? null : cents(ext) };
   });
   // υπηρεσίες ανά τεμάχιο (π.χ. επέκταση εγγύησης για κάθε συσκευή), όπως τις δείχνει και το καλάθι
   const addons = out.reduce((a, l) => a + l.addons.reduce((b, x) => b + x.price, 0) * l.qty, 0);
@@ -172,7 +184,10 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   // «ανεξάρτητα ποσού δωρεάν μεταφορικά σε περιοχές με καταστήματα» (Euronics 20/11/2026): πρώτα οι περιοχές χωρίς τιμή,
   // μετά ο συμφωνημένος τιμοκατάλογος (χρεώνεται ακόμη κι όπου έχουμε κατάστημα), και μόνο τότε το δωρεάν της περιοχής
   const priced = pricedArea(input.zip);
+  // χωρίς Τ.Κ. δεν μαντεύουμε χρέωση: το καλάθι δείχνει «δωρεάν, ανάλογα με την περιοχή» και το ποσό μπαίνει μόλις δοθεί ο Τ.Κ.
+  const zipNeeded = !/^\d{5}$/.test((input.zip ?? "").trim());
   const storeArea = !onRequest && !priced && storeAreaZip(input.zip, await storeZips());
+  const areaHint = zipNeeded && (cart?.lines?.length ?? 0) > 0 ? await areaHintFromRequest().catch(() => null) : null;
   const limits = await shippingLimits(out.map((l) => l.productId));
   const blockers = out.filter((l) => limits.get(l.productId)?.courier === false);
   const bulky = { courier: !blockers.length, locker: !blockers.length && out.every((l) => limits.get(l.productId)?.locker), reason: blockers.length ? limits.get(blockers[0].productId)!.reason : null, titles: blockers.map((l) => l.title) };
@@ -222,6 +237,7 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   // αλλιώς ο πελάτης έβλεπε τη χρέωση στη γραμμή αλλά όχι στο σύνολο
   const viaFreight = !!freight?.available && (input.delivery === "freight" || (input.delivery === "courier" && !bulky.courier));
   const baseShipping = !out.length ? 0
+    : zipNeeded ? 0 // χωρίς Τ.Κ.: καμία χρέωση — η δωρεάν παράδοση προβάλλεται πρώτη (απόφαση Euronics 21/11/2026)
     : onRequest ? 0 // περιοχή χωρίς τιμή: τα μεταφορικά συμφωνούνται στο τηλέφωνο, δεν μπαίνουν στο σύνολο τώρα
     : attica.attica ? (isExpress ? express!.fee : 0)
     : viaFreight ? freight!.fee
@@ -234,7 +250,7 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   const total = goods + shipping + codFee;
   // «σου λείπουν Χ € για δωρεάν μεταφορικά» δεν έχει νόημα όταν τα μεταφορικά είναι ήδη δωρεάν
   const hints = baseShipping === 0 ? engine.hints.filter((h) => !h.includes("δωρεάν μεταφορικά")) : engine.hints;
-  return { lines: out, missing, gifts, hints, freeShipping, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, discPayment: engine.discPayment, payment: engine.payment, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, storeArea, pricedArea: priced, carriers: carriers2, carrier: isExpress ? "asap" : attica.attica ? null : carrier?.id ?? null, bulky, freight, attica, onRequest, engine };
+  return { lines: out, missing, gifts, hints, freeShipping, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, discPayment: engine.discPayment, payment: engine.payment, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, storeArea, zipNeeded, areaHint, pricedArea: priced, carriers: carriers2, carrier: isExpress ? "asap" : attica.attica ? null : carrier?.id ?? null, bulky, freight, attica, onRequest, engine };
 }
 
 /** Για το JSON προς τον browser: χωρίς το εσωτερικό αποτέλεσμα της μηχανής. */

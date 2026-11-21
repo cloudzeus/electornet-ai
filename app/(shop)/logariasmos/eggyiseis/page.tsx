@@ -24,8 +24,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   const [{ service, ext }, me] = await Promise.all([searchParams, requireCustomer("/logariasmos/eggyiseis")]);
   // οι πραγματικές συσκευές του πελάτη (e-shop, καταστήματα από το SoftOne, καταχωρίσεις)
   const rows: DeviceRow[] = await customerDevices(me.id);
-  const extendable = rows.filter((r) => r.extendable).length;
-  const paidExt = rows.filter((r) => !r.extendable && r.extendPrice).length;
+  const paidExt = rows.filter((r) => r.extendPrice).length;
   const extMsg = ext && ext in EXT_MSG ? EXT_MSG[ext as keyof typeof EXT_MSG] : null;
   const target = service ? rows.find((r) => r.productId === service) : null;
   const active = rows.filter((r) => r.daysLeft > 0).length;
@@ -39,11 +38,6 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
             <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)]">
               {rows.length} συσκευές · {active} με ενεργή εγγύηση · αποδείξεις, πιστοποιητικά, εγχειρίδια και ιστορικό service σε ένα μέρος.
             </p>
-            {extendable > 0 && (
-              <p className="m-0 mt-2 rounded-xl bg-eu-green/10 px-3 py-2 text-eu-green font-bold text-[length:var(--fs-15)]">
-                {extendable === 1 ? "Μία συσκευή σου μπορεί" : `${extendable} συσκευές σου μπορούν`} να πάρει δωρεάν επέκταση εγγύησης +2 έτη — πάτα «Δωρεάν επέκταση» στην κάρτα της.
-              </p>
-            )}
             {paidExt > 0 && (
               <p className="m-0 mt-2 rounded-xl bg-eu-chip px-3 py-2 text-eu-blue font-bold text-[length:var(--fs-15)]">
                 {paidExt === 1 ? "Μία συσκευή σου μπορεί" : `${paidExt} συσκευές σου μπορούν`} να πάρει επέκταση εγγύησης +2 έτη όσο η εγγύησή της είναι σε ισχύ — η τιμή φαίνεται στην κάρτα της.

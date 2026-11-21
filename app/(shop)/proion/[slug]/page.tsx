@@ -8,6 +8,7 @@ import { SectionNav } from "@/components/pdp/SectionNav";
 import { Gallery } from "@/components/pdp/Gallery";
 import { BuyBox } from "@/components/pdp/BuyBox";
 import { EXTENSION_MONTHS, EXTENSION_SLUG, LEGAL_WARRANTY_MONTHS, warrantyLabel, type WarrantyInfo } from "@/lib/warranty/policy";
+import { extAddonPrices } from "@/lib/warranty/server";
 import { AdSlot } from "@/components/promo/AdSlot";
 import { SpecsTable } from "@/components/pdp/SpecsTable";
 import { CompareSimilar } from "@/components/pdp/CompareSimilar";
@@ -72,7 +73,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     getL1(p.category), getRelated(p, 5), getAccessoriesFor(p), getServicesFull(), getStores(),
     // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
     getGridFactor().catch(() => null),
-    // set ειδών (π.χ. εσωτερική + εξωτερική μονάδα), εγγύηση κατασκευαστή, δωρεάν επέκταση +2 έτη, ρύθμιση AR — στη μνήμη ανά προϊόν
+    // set ειδών (π.χ. εσωτερική + εξωτερική μονάδα), εγγύηση κατασκευαστή, αν δέχεται επέκταση +2 έτη, ρύθμιση AR — στη μνήμη ανά προϊόν
     pdpExtras(p.id, !!p.fromDb),
     // «Δες το στον χώρο σου»: κατηγορίες με AR
     getArCategories(),
@@ -83,15 +84,18 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   // προσωρινή (307): ο στόχος αλλάζει (φθηνότερο σετ) και ο διαχειριστής μπορεί να το κάνει «Ναι»
   if (!soldAlone) { if (setLinks[0]) redirect(`/proion/${setLinks[0].slug}`); notFound(); }
   const l2 = l1?.children.find((c) => c.slug === p.subcategory);
-  // η επέκταση εγγύησης δεν είναι επιλογή με χρέωση: δωρεάν και αυτόματα στα είδη με CCCWARRANTY (lib/warranty)
-  const addons = services.filter((s) => s.addonAt?.includes("pdp") && s.slug !== "paradosi-egkatastasi" && s.slug !== EXTENSION_SLUG);
+  // η επέκταση εγγύησης είναι προαιρετική επιλογή με χρέωση (15,5 % όπως στα καταστήματα): η τιμή από τις κλίμακες
+  const extPrice = extOk ? (await extAddonPrices([{ productId: p.id, price: p.price }])).get(p.id) ?? null : null;
+  const addons = services
+    .filter((s) => s.addonAt?.includes("pdp") && s.slug !== "paradosi-egkatastasi" && (s.slug !== EXTENSION_SLUG || extPrice))
+    .map((s) => (s.slug === EXTENSION_SLUG ? { ...s, title: `${s.title} +2 έτη`, priceFrom: extPrice! } : s));
   const similar = related.filter((x) => x.subcategory === p.subcategory).slice(0, 3);
   // «Με μια ματιά»: ολόκληρη ενότητα για ένα χαρακτηριστικό διαβάζεται σαν λάθος — από τρία και πάνω λέει κάτι
   const overview = p.highlights ?? (p.specs ?? []).slice(0, 4).map((x) => `${x.key}: ${x.value}`);
   const sections = [...(overview.length >= 3 ? ["overview"] : []), ...(p.description || p.sections?.length ? ["description"] : []), ...(p.videos?.length ? ["videos"] : []), ...(p.specs?.length ? ["specs"] : []), ...(similar.length ? ["compare"] : []), ...(p.noPrice ? [] : ["services"]), "reviews", "qa"];
   // Προϊόν της βάσης: οι διαστάσεις έχουν ήδη λυθεί (ERP → EPREL)· ο παλιός αναλυτής των specs είναι μόνο για τα demo προϊόντα
   const dims = p.fromDb ? p.dims ?? null : dimsFor(p);
-  const warranty: WarrantyInfo = { months: maker?.months ?? LEGAL_WARRANTY_MONTHS, extMonths: extOk ? EXTENSION_MONTHS : 0 };
+  const warranty: WarrantyInfo = { months: maker?.months ?? LEGAL_WARRANTY_MONTHS, extMonths: extPrice ? EXTENSION_MONTHS : 0, extPrice };
   // «Δες το στον χώρο σου»: μία απόφαση (arPlan) για το αν, με ποιες ελεγμένες διαστάσεις και σε ποια επιφάνεια —
   // ίδια με του server των μοντέλων. Με ρύθμιση από τη διαχείριση (/admin/ar) ισχύει εκείνη.
   const arP = arPlan(p, ar, arCats);

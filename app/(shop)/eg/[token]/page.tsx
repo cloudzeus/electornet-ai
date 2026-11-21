@@ -21,7 +21,7 @@ const EXT_MSG = {
 const date = (d: Date) => d.toLocaleDateString("el-GR", { day: "numeric", month: "long", year: "numeric" });
 
 /**
- * Η σελίδα του προσωπικού συνδέσμου μιας συσκευής (από SMS ή email υπενθύμισης): εγγύηση, επέκταση (δωρεάν ή με πληρωμή
+ * Η σελίδα του προσωπικού συνδέσμου μιας συσκευής (από SMS ή email υπενθύμισης): εγγύηση, αγορά επέκτασης (πληρωμή
  * Viva) και διακοπή υπενθυμίσεων — χωρίς σύνδεση, αφού οι πελάτες καταστημάτων δεν έχουν λογαριασμό στο site.
  */
 export default async function DeviceLinkPage({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ ext?: string }> }) {
@@ -55,12 +55,6 @@ export default async function DeviceLinkPage({ params, searchParams }: { params:
             </p>
           </div>
         </div>
-        {offer?.kind === "free" && (
-          <div className="grid gap-2">
-            <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">Η συσκευή σου δικαιούται <b>δωρεάν επέκταση εγγύησης +2 έτη</b> από τη Euronics, όσο η εγγύηση είναι σε ισχύ.</p>
-            <ExtendWarrantyButton deviceId={d.id} token={token} />
-          </div>
-        )}
         {offer?.kind === "paid" && (
           <div className="grid gap-2">
             <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">Επέκταση εγγύησης <b>+2 έτη</b>: επισκευή ή αντικατάσταση χωρίς χρέωση. Πληρώνεις με ασφάλεια μέσω Viva (κάρτα, Apple Pay, Google Pay κ.ά.).</p>

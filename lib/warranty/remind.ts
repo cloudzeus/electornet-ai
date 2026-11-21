@@ -12,7 +12,7 @@ import { extOffers } from "./server";
 
 /**
  * Υπενθύμιση «η εγγύηση λήγει»: συσκευές αγορασμένες από Euronics, χωρίς επέκταση, που λήγουν μέσα στις επόμενες
- * `days` ημέρες και μπορούν να πάρουν επέκταση (δωρεάν ή επί πληρωμή). Με email (όσοι έχουν) και SMS (όσοι έχουν κινητό
+ * `days` ημέρες και μπορούν να αγοράσουν επέκταση. Με email (όσοι έχουν) και SMS (όσοι έχουν κινητό
  * και υπάρχει πάροχος), μία φορά ανά συσκευή και κανάλι (CustomerEvent «warranty-reminder»). Παραλείπει όσους έχουν
  * αρνηθεί τις «Υπενθυμίσεις service & εγγύησης» στο αντίστοιχο κανάλι. Ο σύνδεσμος είναι προσωπικός (/eg/…) και
  * λειτουργεί χωρίς λογαριασμό. `dryRun`: μετρά χωρίς να στείλει ή να καταγράψει τίποτα.
@@ -44,12 +44,12 @@ export async function runWarrantyReminders(opts: { dryRun?: boolean; days?: numb
   const offers = await extOffers(plan.map(({ d }) => ({ ...d, warrantyUntil: d.warrantyUntil ?? addMonths(d.purchasedAt ?? d.createdAt, d.warrantyMonths || LEGAL_WARRANTY_MONTHS) })), now);
   const base = opts.dryRun || !plan.length ? "https://www.euronics.gr" : (await emailCtx()).baseUrl;
   const short = base.replace(/^https?:\/\/(www\.)?/, "");
-  const r = { dryRun: !!opts.dryRun, days, due: devs.length, smsProvider: smsOn, free: 0, paid: 0, noOffer: 0, emails: 0, sms: 0, smsNoProvider: 0, failed: 0, sample: null as string | null };
+  const r = { dryRun: !!opts.dryRun, days, due: devs.length, smsProvider: smsOn, paid: 0, noOffer: 0, emails: 0, sms: 0, smsNoProvider: 0, failed: 0, sample: null as string | null };
   for (const { d, mobile, email, sms } of plan) {
     const o = offers.get(d.id);
     if (!o || o.kind === null) { r.noOffer++; continue; }
-    if (o.kind === "free") r.free++; else r.paid++;
-    const price = o.kind === "paid" ? o.price : null;
+    r.paid++;
+    const price = o.price;
     const device = d.title.toLowerCase().startsWith(d.brand.toLowerCase()) ? d.title : `${d.brand} ${d.title}`.trim();
     const path = devicePath(d.id);
     if (sms) r.sample ??= reminderSms(device, d.warrantyUntil!, price, `${short}${path}`).replace(/\/eg\/\S+/, "/eg/…");

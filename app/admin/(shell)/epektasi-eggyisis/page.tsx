@@ -21,9 +21,10 @@ const STATUS: Record<string, { label: string; tone: string }> = {
 const eur = (n: number) => n.toLocaleString("el-GR", { style: "currency", currency: "EUR" });
 
 /**
- * Επέκταση εγγύησης +2 έτη: δωρεάν στα είδη με CCCWARRANTY (SoftOne), επί πληρωμή στα υπόλοιπα με τις κλίμακες
- * αυτής της σελίδας. Οι πελάτες την αγοράζουν από «Οι συσκευές μου» όσο η εγγύηση είναι σε ισχύ, και λαμβάνουν
- * υπενθύμιση με email 60 ημέρες πριν τη λήξη.
+ * Επέκταση εγγύησης +2 έτη: πάντα με χρέωση, με τις κλίμακες αυτής της σελίδας (η γενική είναι 15,5 % της τιμής,
+ * όπως χρεώνει το ταμείο με το είδος ΕΓΓΥΗΣΗ του SoftOne), και μόνο στα είδη με «Επέκταση Εγγύησης» (CCCWARRANTY).
+ * Οι πελάτες την αγοράζουν στη σελίδα προϊόντος, στο καλάθι ή αργότερα από «Οι συσκευές μου» όσο η εγγύηση είναι
+ * σε ισχύ, και λαμβάνουν υπενθύμιση με email και SMS 60 ημέρες πριν τη λήξη.
  */
 export default async function WarrantyExtensionAdmin() {
   const user = await requirePermission("catalog.products.read");
@@ -40,14 +41,14 @@ export default async function WarrantyExtensionAdmin() {
   const paid = totals.find((t) => t.status === "paid");
   const tiles = [
     { Icon: CreditCard, label: "Πληρωμένες επεκτάσεις", value: String(paid?._count._all ?? 0), sub: eur(Number(paid?._sum.amount ?? 0)) },
-    { Icon: Mail, label: "Υπενθυμίσεις προς αποστολή (60 ημέρες)", value: remind ? String(remind.free + remind.paid) : "—", sub: remind ? `${remind.free} δωρεάν · ${remind.paid} επί πληρωμή · ${remind.emails} email · ${remind.smsProvider ? `${remind.sms} SMS` : `${remind.smsNoProvider} SMS μόλις οριστεί πάροχος`}` : "δεν υπολογίστηκε" },
+    { Icon: Mail, label: "Υπενθυμίσεις προς αποστολή (60 ημέρες)", value: remind ? String(remind.paid) : "—", sub: remind ? `${remind.emails} email · ${remind.smsProvider ? `${remind.sms} SMS` : `${remind.smsNoProvider} SMS μόλις οριστεί πάροχος`} · ${remind.noOffer} χωρίς επέκταση` : "δεν υπολογίστηκε" },
   ];
   return (
     <div className="grid gap-6 max-w-6xl">
       <div>
         <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5"><ShieldCheck className="size-4" aria-hidden /> Εμπόριο</div>
         <h1 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)]">Επέκταση εγγύησης</h1>
-        <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[75ch]">+2 έτη για αγορές Euronics (e-shop και καταστήματα) με ενεργή εγγύηση, μία φορά. Δωρεάν στα είδη με «Επέκταση Εγγύησης» (CCCWARRANTY) στο SoftOne· στα υπόλοιπα με πληρωμή μέσω Viva, με τιμή από τις κλίμακες παρακάτω. Οι πελάτες λαμβάνουν email και SMS 60 ημέρες πριν λήξει η εγγύηση, αν δεν έχουν αρνηθεί τις «Υπενθυμίσεις service & εγγύησης».</p>
+        <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[75ch]">+2 έτη για αγορές Euronics (e-shop και καταστήματα) με ενεργή εγγύηση, μία φορά, <b>πάντα με χρέωση</b>: η τιμή βγαίνει από τις κλίμακες παρακάτω (η γενική είναι 15,5 % της τιμής αγοράς, όσο χρεώνει το ταμείο για το είδος ΕΓΓΥΗΣΗ). Προσφέρεται μόνο στα είδη με «Επέκταση Εγγύησης» (CCCWARRANTY) στο SoftOne. Οι πελάτες τη διαλέγουν στη σελίδα προϊόντος ή στο καλάθι, ή την αγοράζουν αργότερα από «Οι συσκευές μου» με πληρωμή Viva — και λαμβάνουν email και SMS 60 ημέρες πριν λήξει η εγγύηση, αν δεν έχουν αρνηθεί τις «Υπενθυμίσεις service & εγγύησης».</p>
       </div>
       <div className="grid grid-cols-1 @xl:grid-cols-2 gap-3">
         {tiles.map((t) => (
