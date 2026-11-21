@@ -24,16 +24,17 @@ const c = copyOf("miniCart");
 export function MiniCart({ suggestions = [] }: { suggestions?: Product[] }) {
   const { miniOpen, setMiniOpen, lines, count, subtotal, addonsTotal, setQty, remove, lastAdded, add } = useCart();
   const goods = subtotal + addonsTotal;
-  // τα μεταφορικά χρεώνονται πάντα· η αξία του καλαθιού δεν τα μηδενίζει (απόφαση Euronics 20/11/2026)
-  const shipping = goods === 0 ? 0 : 4.9;
+  // χωρίς Τ.Κ. δεν δείχνουμε χρέωση: δωρεάν στις περιοχές με κατάστημα, το ποσό μπαίνει στο ταμείο (Euronics 21/11/2026)
+  const shipping = 0;
   const inCart = new Set(lines.map((l) => l.product.id));
   const picks = suggestions.filter((s) => !inCart.has(s.id)).slice(0, 3);
 
   return (
     <Sheet open={miniOpen} onOpenChange={setMiniOpen}>
       <SheetContent side="right" className="w-full p-0 gap-0 border-0 shadow-[var(--shadow-overlay)] text-eu-ink eu-container max-w-[min(100vw,480px)]!" showCloseButton={false}>
-        <div className="flex flex-col h-full">
-          <div className="bg-eu-navy text-white px-5 py-4 flex items-center justify-between gap-3">
+        {/* ΕΝΑΣ κάθετος scroller: κυλά όλη η στήλη, με την κεφαλίδα και τη σύνοψη κολλημένες (όχι δεύτερη περιοχή κύλισης) */}
+        <div className="flex flex-col h-full overflow-y-auto overscroll-contain">
+          <div className="sticky top-0 z-10 bg-eu-navy text-white px-5 py-4 flex items-center justify-between gap-3">
             <SheetTitle className="m-0 font-extrabold text-white text-[length:var(--fs-17)] flex items-center gap-2 whitespace-nowrap min-w-0">
               {lastAdded ? (
                 <>
@@ -52,7 +53,7 @@ export function MiniCart({ suggestions = [] }: { suggestions?: Product[] }) {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1">
             {lines.length === 0 ? (
               <div className="p-8 text-center">
                 <p className="m-0 font-bold text-eu-ink text-[length:var(--fs-17)]">{c.to_kalathi_soy_einai}</p>
@@ -141,16 +142,17 @@ export function MiniCart({ suggestions = [] }: { suggestions?: Product[] }) {
           </div>
 
           {lines.length > 0 && (
-            <div className="border-t border-eu-line px-5 py-4 bg-white grid gap-3 shadow-[0_-8px_24px_rgba(18,42,88,0.08)]">
+            <div className="sticky bottom-0 border-t border-eu-line px-5 py-4 bg-white grid gap-3 shadow-[0_-8px_24px_rgba(18,42,88,0.08)]">
               <dl className="m-0 grid gap-1.5 text-[length:var(--fs-15)] text-eu-ink-2">
                 <div className="flex justify-between">
                   <dt>{c.proionta_ypiresies}</dt>
                   <dd className="m-0 font-semibold">{priceLong(goods)}</dd>
                 </div>
-                <div className={`flex justify-between ${shipping === 0 ? "text-eu-green" : ""}`}>
+                <div className="flex justify-between text-eu-green">
                   <dt>{c.metaforika}</dt>
-                  <dd className="m-0 font-semibold">{shipping === 0 ? "Δωρεάν" : priceLong(shipping)}</dd>
+                  <dd className="m-0 font-semibold">Δωρεάν*</dd>
                 </div>
+                <p className="m-0 -mt-1 text-eu-muted text-[length:var(--fs-12)] font-normal">* στις περιοχές με κατάστημα Euronics — το ελέγχουμε με τον Τ.Κ. σου στο ταμείο</p>
                 <div className="flex justify-between items-baseline border-t border-eu-line pt-2">
                   <dt className="font-extrabold text-eu-ink text-[length:var(--fs-16)]">{c.synolo}</dt>
                   <dd className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-24)] leading-none">{priceLong(goods + shipping)}</dd>
@@ -160,11 +162,12 @@ export function MiniCart({ suggestions = [] }: { suggestions?: Product[] }) {
               <Link href="/checkout" onClick={() => setMiniOpen(false)} className="rounded-full bg-eu-yellow text-eu-navy text-center font-extrabold text-[length:var(--fs-16)] min-h-[52px] inline-flex items-center justify-center gap-1 hover:bg-eu-yellow-dark">
                 {c.oloklirosi_agoras} <ChevronRight className="size-5" aria-hidden />
               </Link>
-              <div className="flex gap-2">
-                <Link href="/kalathi" onClick={() => setMiniOpen(false)} className="flex-1 rounded-full border-2 border-eu-navy text-eu-navy text-center font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center hover:bg-eu-surface">
+              {/* σε στενή οθόνη το ένα κάτω από το άλλο: τα ελληνικά κείμενα δεν χωρούν σε δύο στήλες στα 360–390 px */}
+              <div className="grid grid-cols-1 @[21rem]:grid-cols-2 gap-2">
+                <Link href="/kalathi" onClick={() => setMiniOpen(false)} className="rounded-full border-2 border-eu-navy text-eu-navy text-center font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center px-3 leading-tight text-balance hover:bg-eu-surface">
                   {c.des_to_kalathi}
                 </Link>
-                <button type="button" onClick={() => setMiniOpen(false)} className="flex-1 rounded-full text-eu-blue font-extrabold text-[length:var(--fs-15)] min-h-12 hover:bg-eu-surface">
+                <button type="button" onClick={() => setMiniOpen(false)} className="rounded-full text-eu-blue font-extrabold text-[length:var(--fs-15)] min-h-12 px-3 leading-tight text-balance hover:bg-eu-surface">
                   {c.synechise_tis_agores}
                 </button>
               </div>

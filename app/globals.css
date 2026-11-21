@@ -796,6 +796,14 @@ button.rounded-full:active, a.rounded-full:active {
 .eu-edit [data-selected] { outline: 3px solid var(--color-eu-blue, #1f5fbf) !important; outline-offset: 4px; }
 @media (prefers-reduced-motion: reduce) { .eu-edit [data-edit] { transition: none; } }
 
+/* ΠΟΤΕ δύο κάθετες μπάρες στην ίδια οθόνη. Όσο ένα πλαϊνό/διάλογος κλειδώνει τη σελίδα (react-remove-scroll → inline
+   `overflow: hidden` στο body), ο Chrome συνεχίζει να ζωγραφίζει τη μπάρα της σελίδας δίπλα στη μπάρα του πλαϊνού.
+   Κλειδώνουμε και τη ρίζα: μένει η κράτηση χώρου (`scrollbar-gutter: stable`, για να μην τιναχτεί η σελίδα) χωρίς
+   δεύτερη μπάρα. Ορατή μπάρα έχει μόνο το πλαϊνό. */
+html:has(> body[style*="overflow: hidden"]) { overflow: hidden !important; }
+/* …και η μπάλα του Ερμή (z-60) δεν κάθεται πάνω στα κουμπιά του πλαϊνού */
+html:has(> body[style*="overflow: hidden"]) [data-advisor-orb] { opacity: 0; pointer-events: none; }
+
 /* Κύλιση μέσα σε κάρτα/παράθυρο: λεπτή μπάρα, εσωτερικά, με στρογγυλό «χερούλι» — όχι πάνω στις γωνίες της κάρτας */
 .eu-scroll-inset { scrollbar-width: thin; scrollbar-color: var(--color-eu-line, #d6dbe6) transparent; scrollbar-gutter: stable; }
 .eu-scroll-inset::-webkit-scrollbar { width: 8px; }

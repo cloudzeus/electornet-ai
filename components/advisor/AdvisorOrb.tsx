@@ -300,6 +300,7 @@ export function AdvisorOrb() {
         onClick={() => setOpen(true)}
         aria-label={c.symvoylos_agoras}
         aria-expanded={open}
+        data-advisor-orb
         className={`fixed z-[60] right-4 bottom-24 @md:bottom-6 @md:right-6 size-16 rounded-full bg-eu-navy shadow-[0_16px_40px_rgba(18,42,88,.45)] flex items-center justify-center group ${open ? "opacity-0 pointer-events-none" : "opacity-100"} transition-opacity ${voice.speaking ? "ring-4 ring-eu-yellow/60 animate-pulse" : ""}`}
       >
         <span
