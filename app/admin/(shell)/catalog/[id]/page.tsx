@@ -255,7 +255,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
             <Section title="Τιμή & απόθεμα" hint="Η τιμή (MTREXTRA.NUM04) και το απόθεμα έρχονται από το SoftOne — αλλάζουν εκεί.">
               <dl className="m-0 grid gap-x-6 gap-y-2 [grid-template-columns:repeat(auto-fill,minmax(12rem,1fr))] text-[length:var(--fs-14)]">
                 <div><dt className="text-eu-muted text-[length:var(--fs-13)]">Τιμή eshop (με ΦΠΑ)</dt><dd className="m-0 font-bold text-eu-ink">{eur(p.price)}</dd></div>
-                <div><dt className="text-eu-muted text-[length:var(--fs-13)]">Κεντρική αποθήκη</dt><dd className="m-0 font-bold text-eu-ink">{p.stock > 0 ? `${p.stock} τεμ. — άμεσα διαθέσιμο` : "0 — κατόπιν παραγγελίας"}</dd></div>
+                <div><dt className="text-eu-muted text-[length:var(--fs-13)]">Απόθεμα (πωλήσιμες αποθήκες)</dt><dd className="m-0 font-bold text-eu-ink">{p.stock > 0 ? `${p.stock} τεμ.` : "0"}{p.availLabel ? ` — ${p.availLabel}` : ""}</dd></div>
               </dl>
             </Section>
             {can(user.permissions, "catalog.promos.write") && (

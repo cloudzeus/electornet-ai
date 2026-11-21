@@ -69,7 +69,7 @@ export function syncSets(trigger: Trigger = "manual") {
  * Γράφει μόνο ό,τι άλλαξε. Ασφαλές για επανάληψη.
  */
 export async function projectSetProducts(): Promise<{ sets: number; created: number; updated: number; deactivated: number; mainsHidden: number }> {
-  const { setErp, setPrice, setStock, setTitle, validSet, setKind, setLive, mainBlocksSet } = await import("@/lib/catalog/set-core");
+  const { setErp, setPrice, setStock, setTitle, validSet, setKind, setLive, mainBlocksSet, isGiftName } = await import("@/lib/catalog/set-core");
   const { slugify } = await import("@/lib/slug");
   const now = new Date();
   const sets = await db.s1Set.findMany({ include: { lines: { orderBy: { lineNum: "asc" } } } });
@@ -96,7 +96,9 @@ export async function projectSetProducts(): Promise<{ sets: number; created: num
     if (live && kind === "parts" && validSet(set.lines, set.mtrl)) mainOfParts.add(set.mtrl);
     const price = setPrice(set.lines.map((l) => ({ price: priceOf.get(l.mtrl) ?? null, qty: l.qty, isMain: l.mtrl === set.mtrl })), kind);
     const stock = setStock(set.lines.map((l) => ({ stock: l.stockCentral, qty: l.qty, isMain: l.mtrl === set.mtrl })), kind);
-    const active = live && price > 0 && validSet(set.lines, set.mtrl);
+    // «+ Δώρο» στο όνομα: δεν βγαίνει ως προϊόν, όπως στο παλιό site (46/46 έδειχνε μόνο το σκέτο είδος, 21/11/2026)·
+    // το κύριο μένει στη βιτρίνα γιατί δεν μπαίνει στα mainOfParts
+    const active = live && price > 0 && validSet(set.lines, set.mtrl) && !isGiftName(set.name);
     const e = bySpcs.get(set.spcs);
     if (!main) { if (e?.active) { await db.product.update({ where: { id: e.id }, data: { active: false } }); updated++; } continue; }
     const data = { price: price > 0 ? price : null, stock, active, brandId: main.brandId, categoryId: main.categoryId, vatRate: main.vatRate };

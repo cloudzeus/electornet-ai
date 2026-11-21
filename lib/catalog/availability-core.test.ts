@@ -5,8 +5,9 @@ import { resolveAvailability, parseConds, toShopAvailability, type AvailRule, ty
 const base: AvailInput = { stock: 0, brandId: "b1", categoryIds: ["c3", "c2", "c1"], hasPrice: true };
 const rule = (id: string, conditions: AvailRule["conditions"], label: string, state: AvailRule["state"] = "order", publish = true): AvailRule => ({ id, active: true, conditions, label, state, publish });
 
-test("προεπιλογή: απόθεμα → άμεσα, αλλιώς κατόπιν παραγγελίας / στο κατάστημα", () => {
-  assert.equal(resolveAvailability({ ...base, stock: 2 }, []).label, "Άμεσα διαθέσιμο");
+test("προεπιλογή: 6+ → άμεσα, 1–5 → 2-4 εργάσιμες, 0 → κατόπιν παραγγελίας / στο κατάστημα", () => {
+  assert.equal(resolveAvailability({ ...base, stock: 6 }, []).label, "Άμεσα διαθέσιμο");
+  assert.deepEqual([resolveAvailability({ ...base, stock: 5 }, []).label, resolveAvailability({ ...base, stock: 1 }, []).state], ["Διαθέσιμο σε 2-4 εργάσιμες ημέρες", "order"]);
   assert.equal(resolveAvailability(base, []).label, "Διαθέσιμο κατόπιν παραγγελίας");
   assert.equal(resolveAvailability({ ...base, hasPrice: false }, []).label, "Διαθεσιμότητα στο κατάστημα");
   assert.equal(resolveAvailability(base, []).source, "default");
@@ -15,7 +16,8 @@ test("προεπιλογή: απόθεμα → άμεσα, αλλιώς κατό
 test("η φράση του είδους υπερισχύει των κανόνων", () => {
   const r = resolveAvailability({ ...base, override: "  Μετά από   παραγγελία " }, [rule("r1", [], "Κάτι άλλο")]);
   assert.deepEqual([r.label, r.source, r.state], ["Μετά από παραγγελία", "override", "order"]);
-  assert.equal(resolveAvailability({ ...base, stock: 3, override: "Ειδική" }, []).state, "in-stock");
+  assert.equal(resolveAvailability({ ...base, stock: 6, override: "Ειδική" }, []).state, "in-stock");
+  assert.equal(resolveAvailability({ ...base, stock: 3, override: "Ειδική" }, []).state, "order");
 });
 
 test("πρώτος κανόνας που ταιριάζει κερδίζει· όλες οι συνθήκες μαζί", () => {

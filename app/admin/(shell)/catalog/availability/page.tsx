@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Διαθεσιμότητα της βιτρίνας: η φράση του είδους στο SoftOne υπερισχύει, μετά οι κανόνες με τη σειρά τους, αλλιώς η
- * προεπιλογή (απόθεμα → «Άμεσα διαθέσιμο»). Η σελίδα δείχνει την επίπτωση πριν την αποθήκευση.
+ * προεπιλογή (6+ τεμ. → «Άμεσα διαθέσιμο», 1–5 → «2-4 εργάσιμες»). Η σελίδα δείχνει την επίπτωση πριν την αποθήκευση.
  */
 export default async function AvailabilityPage() {
   const user = await requirePermission("catalog.products.read");
@@ -31,7 +31,7 @@ export default async function AvailabilityPage() {
         <Link href="/admin/catalog" className="inline-flex items-center gap-1.5 min-h-11 font-bold text-eu-blue text-[length:var(--fs-14)] hover:underline"><ArrowLeft className="size-4" aria-hidden /> Προϊόντα</Link>
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Διαθεσιμότητα</h2>
         <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[86ch]">
-          Τι γράφει η βιτρίνα δίπλα στην τιμή. Σειρά απόφασης: <b className="text-eu-ink">1.</b> η φράση του είδους στο SoftOne («Κείμενο διαθεσιμότητας», CCCAVAIL) υπερισχύει πάντα· <b className="text-eu-ink">2.</b> οι κανόνες παρακάτω, με τη σειρά τους — ο πρώτος που ταιριάζει κερδίζει· <b className="text-eu-ink">3.</b> αλλιώς απόθεμα στην κεντρική → «Άμεσα διαθέσιμο», χωρίς απόθεμα → «Διαθέσιμο κατόπιν παραγγελίας».
+          Τι γράφει η βιτρίνα δίπλα στην τιμή. Σειρά απόφασης: <b className="text-eu-ink">1.</b> η φράση του είδους στο SoftOne («Κείμενο διαθεσιμότητας», CCCAVAIL) υπερισχύει πάντα· <b className="text-eu-ink">2.</b> οι κανόνες παρακάτω, με τη σειρά τους — ο πρώτος που ταιριάζει κερδίζει· <b className="text-eu-ink">3.</b> αλλιώς απόθεμα στις πωλήσιμες αποθήκες: από 6 τεμάχια → «Άμεσα διαθέσιμο», 1–5 → «Διαθέσιμο σε 2-4 εργάσιμες ημέρες», χωρίς απόθεμα → «Διαθέσιμο κατόπιν παραγγελίας». Άλλο όριο; Πρόσθεσε κανόνα, π.χ. «απόθεμα ≥ 1 → Άμεσα διαθέσιμο».
         </p>
       </div>
       <AvailabilityRules

@@ -2,7 +2,8 @@
  * Διαθεσιμότητα που δείχνει η βιτρίνα — καθαρή συνάρτηση, χωρίς βάση. Σειρά απόφασης:
  * 1. **Φράση του είδους** (`CCCAVAIL` στο SoftOne, «Κείμενο διαθεσιμότητας» στην καρτέλα) — υπερισχύει πάντα.
  * 2. **Κανόνες** της διαχείρισης, με τη σειρά τους: ο πρώτος που ταιριάζει (όλες οι συνθήκες του) κερδίζει.
- * 3. **Προεπιλογή** όπως το ζωντανό site: απόθεμα στην κεντρική → «Άμεσα διαθέσιμο», αλλιώς «κατόπιν παραγγελίας».
+ * 3. **Προεπιλογή** όπως το παλιό euronics.gr: από 6 τεμάχια στις πωλήσιμες αποθήκες → «Άμεσα διαθέσιμο», 1–5 → «σε 2-4
+ *    εργάσιμες», 0 → «κατόπιν παραγγελίας».
  * Οι συνθήκες είναι δομημένες (όχι κώδικας που εκτελείται), ώστε να αποθηκεύονται και να ελέγχονται με ασφάλεια.
  */
 export type AvailState = "in-stock" | "low" | "order" | "unavailable";
@@ -15,6 +16,12 @@ export const AVAIL_STATES: { key: AvailState; label: string }[] = [
 export const isAvailState = (s: unknown): s is AvailState => AVAIL_STATES.some((x) => x.key === s);
 
 const IN_STOCK = "Άμεσα διαθέσιμο";
+const FEW = "Διαθέσιμο σε 2-4 εργάσιμες ημέρες";
+/**
+ * «Άμεσα» από τόσα τεμάχια, όπως το παλιό site (μέτρηση 21/11/2026 σε 2.180 σελίδες: 479/509 με 6+ «Άμεσα», 94/147 με
+ * 1–5 «2-4 εργάσιμες»). Τα λίγα τεμάχια συνήθως έχουν δεσμευτεί σε παραγγελίες καταστημάτων. Άλλο όριο → κανόνας στη διαχείριση.
+ */
+export const IN_STOCK_MIN = 6;
 export type StockOp = ">" | ">=" | "<" | "<=" | "=";
 export type AvailCond =
   | { k: "stock"; op: StockOp; n: number }
@@ -45,7 +52,8 @@ export function condMatches(c: AvailCond, x: AvailInput): boolean {
 export const ruleMatches = (r: AvailRule, x: AvailInput) => r.active && r.conditions.every((c) => condMatches(c, x));
 
 export function defaultAvailability(x: Pick<AvailInput, "stock" | "hasPrice">): Omit<AvailResult, "source"> {
-  if (x.stock > 0) return { label: IN_STOCK, state: "in-stock", publish: true };
+  if (x.stock >= IN_STOCK_MIN) return { label: IN_STOCK, state: "in-stock", publish: true };
+  if (x.stock > 0) return { label: FEW, state: "order", publish: true };
   return { label: x.hasPrice ? "Διαθέσιμο κατόπιν παραγγελίας" : "Διαθεσιμότητα στο κατάστημα", state: "order", publish: true };
 }
 
@@ -62,7 +70,7 @@ export function resolveAvailability(x: AvailInput, rules: AvailRule[]): AvailRes
   const own = (x.override ?? "").replace(/\s+/g, " ").trim();
   // η φράση του είδους ορίζει το κείμενο· η κατάσταση ακολουθεί τη φράση όταν είναι σαφής («Άμεσα Διαθέσιμο»,
   // «ΕΞΑΝΤΛΗΘΗΚΕ» — όπως το παλιό site), αλλιώς το απόθεμα
-  if (own) return { label: own, state: overrideState(own) ?? (x.stock > 0 ? "in-stock" : "order"), publish: true, source: "override" };
+  if (own) return { label: own, state: overrideState(own) ?? (x.stock >= IN_STOCK_MIN ? "in-stock" : "order"), publish: true, source: "override" };
   const r = rules.find((y) => ruleMatches(y, x));
   if (r) return { label: r.label.trim() || defaultAvailability(x).label, state: r.state, publish: r.publish, source: "rule", ruleId: r.id };
   return { ...defaultAvailability(x), source: "default" };

@@ -14,7 +14,7 @@ import type { ListFilter, ListResult, SuggestResult } from "./repo";
 import { hasEnergyLabel } from "@/lib/catalog/energy-types";
 import { fitMatters } from "@/lib/catalog/fit-types";
 import { specAttrs } from "@/lib/catalog/compare-specs";
-import { toShopAvailability } from "@/lib/catalog/availability-core";
+import { IN_STOCK_MIN, defaultAvailability, toShopAvailability } from "@/lib/catalog/availability-core";
 
 /**
  * Ο κατάλογος της βιτρίνας από τη βάση (προβολή του SoftOne): δέντρο κατηγοριών,
@@ -37,7 +37,7 @@ export const SHOP_SOURCES = ["softone", "import", "softone-set"];
 /** publishReady: ο έλεγχος πληρότητας (lib/catalog/publish-ready-server.ts) — true παντού όσο ο έλεγχος είναι κλειστός */
 /** price > 0: χωρίς τιμή το προϊόν θα έδειχνε 0,00 € («δωρεάν») και δεν μπαίνει ούτε στο καλάθι (lib/cart/server.ts) */
 /** «Άμεσα διαθέσιμα»: ό,τι δείχνει «Άμεσα» στη βιτρίνα (επιλυμένη διαθεσιμότητα)· πριν την πρώτη προβολή, το απόθεμα. */
-const IN_STOCK_WHERE: Prisma.ProductWhereInput = { OR: [{ availState: { in: ["in-stock", "low"] } }, { availState: null, stock: { gt: 0 } }] };
+const IN_STOCK_WHERE: Prisma.ProductWhereInput = { OR: [{ availState: { in: ["in-stock", "low"] } }, { availState: null, stock: { gte: IN_STOCK_MIN } }] };
 export const LISTED: Prisma.ProductWhereInput = { source: { in: SHOP_SOURCES }, active: true, publishReady: true, soldAlone: true, price: { gt: 0 }, media: { some: SHOWN } };
 const TTL = 5 * 60_000;
 
@@ -192,11 +192,11 @@ export function toProduct(r: Row, extra: { specs?: Spec[]; banners?: Product["ba
     dims: d ? { w: d.w, h: d.h, d: d.d, source: d.source === "eprel" ? "eprel" : "specs" } : undefined,
     // ενεργειακή πληροφόρηση μόνο σε τύπους που έχουν ευρωπαϊκή ετικέτα — αλλού, μια «κλάση Α» στην περιγραφή είναι θόρυβος
     energy: r.energy && ENERGY.has(r.energy.class) && hasEnergyLabel(r.category.name) ? { cls: r.energy.class as EnergyClass, fiche: r.energy.ficheUrl ?? r.energy.labelUrl ?? "", kwh: r.energy.eprel?.annualKwh ?? undefined, eprel: r.energy.eprelRegistrationNumber ?? undefined } : undefined,
-    // Όπως το ζωντανό site: απόθεμα στην κεντρική αποθήκη → «Άμεσα διαθέσιμο», αλλιώς «κατόπιν παραγγελίας»
-    // Η φράση από τους κανόνες διαθεσιμότητας (lib/catalog/availability.ts)· πριν την πρώτη προβολή, όπως το ζωντανό site
+    // Η φράση από τους κανόνες διαθεσιμότητας (lib/catalog/availability.ts)· πριν την πρώτη προβολή, η προεπιλογή τους
     availability: r.availLabel && r.availState ? toShopAvailability({ label: r.availLabel, state: r.availState }, deliveryDate(2))
-      : r.stock > 0 ? { kind: "in-stock", deliveryDate: deliveryDate(2) } : { kind: "order", label: r.price && r.price > 0 ? "Διαθέσιμο κατόπιν παραγγελίας" : "Διαθεσιμότητα στο κατάστημα" },
-    stockLeft: r.stock > 0 && r.stock <= 3 ? r.stock : undefined,
+      : toShopAvailability(defaultAvailability({ stock: r.stock, hasPrice: !!(r.price && r.price > 0) }), deliveryDate(2)),
+    // «Τελευταία N» μόνο δίπλα σε «Άμεσα» (π.χ. φράση SoftOne)· με 1–5 τεμ. η βιτρίνα γράφει ήδη «σε 2-4 εργάσιμες»
+    stockLeft: r.stock > 0 && r.stock <= 3 && (r.availState === "in-stock" || r.availState === "low") ? r.stock : undefined,
     description: [r.summary, r.description].filter(Boolean).join("\n\n") || undefined,
     highlights: (() => { const real = (Array.isArray(r.highlights) ? (r.highlights as string[]) : []).filter(isReason); const all = real.length >= 2 ? real : [...real, ...(extra.facts ?? [])]; return all.length ? all.slice(0, 4) : undefined; })(),
     specs: extra.specs, banners: extra.banners,

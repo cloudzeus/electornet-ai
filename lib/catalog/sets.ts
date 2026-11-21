@@ -2,7 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { suggestSetLabel } from "./set-labels";
-import { setKind, setLive, validSet } from "./set-core";
+import { isGiftName, setKind, setLive, validSet } from "./set-core";
 import { swr } from "@/lib/cache/swr";
 
 /**
@@ -17,8 +17,8 @@ export interface SetRow {
   main: { mtrl: number; productId: string | null; title: string | null; slug: string | null; active: boolean; image: string | null; price: number | null };
   members: SetMember[]; available: number; problems: SetProblem[];
 }
-export type SetProblem = "no-product" | "inactive" | "member-out" | "gift-out" | "expired";
-export const PROBLEM_LABEL: Record<SetProblem, string> = { "no-product": "Το κύριο είδος δεν είναι στο site", inactive: "Ανενεργό στο site", "member-out": "Μέλος χωρίς απόθεμα", "gift-out": "Το δώρο δεν έχει απόθεμα", expired: "Έληξε στο SoftOne" };
+export type SetProblem = "no-product" | "inactive" | "member-out" | "gift-out" | "expired" | "gift-hidden";
+export const PROBLEM_LABEL: Record<SetProblem, string> = { "no-product": "Το κύριο είδος δεν είναι στο site", inactive: "Ανενεργό στο site", "member-out": "Μέλος χωρίς απόθεμα", "gift-out": "Το δώρο δεν έχει απόθεμα", expired: "Έληξε στο SoftOne", "gift-hidden": "«Δώρο» στο όνομα: δεν εμφανίζεται, φαίνεται μόνο το σκέτο είδος (όπως στο παλιό site)" };
 
 export const listSets = () => buildRows({});
 
@@ -41,6 +41,7 @@ async function buildRows(where: Prisma.S1SetWhereInput): Promise<SetRow[]> {
       ...(!mp ? ["no-product" as const] : !mp.active ? ["inactive" as const] : []),
       ...(kind === "parts" && (out || members.some((m) => m.isMain && m.stock < (m.qty || 1))) ? ["member-out" as const] : kind === "gift" && out ? ["gift-out" as const] : []),
       ...(expired ? ["expired" as const] : []),
+      ...(isGiftName(s.name) ? ["gift-hidden" as const] : []),
     ];
     return { spcs: s.spcs, kind, code: s.code, name: s.name, active: s.active, finalDate: s.finalDate, syncedAt: s.syncedAt,
       main: { mtrl: s.mtrl, productId: mp?.id ?? null, title: mp?.title ?? null, slug: mp?.slug ?? null, active: !!mp?.active, image: mp?.media[0]?.thumbUrl ?? mp?.media[0]?.url ?? null, price: mp?.price ?? null },
