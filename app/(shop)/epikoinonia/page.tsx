@@ -34,7 +34,7 @@ export default async function ContactPage({ searchParams }: { searchParams: Prom
             <div className="flex items-center gap-2 text-eu-on-dark">
               <Clock className="size-4" aria-hidden /> Δευ–Παρ 09:00–17:00
             </div>
-            <a href="https://maps.google.com/?q=38.0778184,23.7510866" target="_blank" rel="noreferrer" className="rounded-full bg-eu-yellow text-eu-navy text-center font-extrabold text-[length:var(--fs-15)] py-3 min-h-11 inline-flex items-center justify-center hover:bg-eu-yellow-dark">
+            <a href="https://www.google.com/maps/dir/?api=1&destination=Euronics%20Greece%20(Mega%20Electrics%20AEBE)&destination_place_id=ChIJhZTwv0ahoRQRNkQ2NTci2jU" target="_blank" rel="noreferrer" className="rounded-full bg-eu-yellow text-eu-navy text-center font-extrabold text-[length:var(--fs-15)] py-3 min-h-11 inline-flex items-center justify-center hover:bg-eu-yellow-dark">
               Οδηγίες
             </a>
           </div>

@@ -17,7 +17,7 @@ const DEFAULT_SOCIALS = [
   { label: "Facebook", href: "https://www.facebook.com/euronics.gr/" },
   { label: "Instagram", href: "https://www.instagram.com/euronics.gr/" },
   { label: "YouTube", href: "https://www.youtube.com/euronicsgreece" },
-  { label: "Google Maps", href: "https://www.google.com/maps/place/Euronics+Greece+(Mega+Electrics+AEBE)/@38.0778184,23.7510866,15z" },
+  { label: "Google Maps", href: "https://www.google.com/maps/search/?api=1&query=Euronics%20Greece%20(Mega%20Electrics%20AEBE)&query_place_id=ChIJhZTwv0ahoRQRNkQ2NTci2jU" },
   { label: "Euronics International", href: "https://www.euronics.com/" },
 ];
 const SOCIAL_LABELS: Record<string, string> = { facebook: "Facebook", instagram: "Instagram", youtube: "YouTube", tiktok: "TikTok", linkedin: "LinkedIn", x: "X" };

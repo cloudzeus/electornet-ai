@@ -74,7 +74,7 @@ export interface Settings {
 export const defaultSettings: Settings = {
   site: {
     brand: { name: "Euronics", legalName: "MEGA ELECTRICS ΑΕΒΕ", storesCount: 350 },
-    contact: { phone: "+302104835143", phoneDisplay: "210 483 5143", phoneLabel: "Τηλ. παραγγελίες", email: "info@euronics.gr", address: "Δαμάσκου 2 Σταμάτη 12, 135 71 Αχαρνές" },
+    contact: { phone: "+302104835143", phoneDisplay: "210 483 5143", phoneLabel: "Τηλ. παραγγελίες", email: "info@euronics.gr", address: "Δαμάσκου Σταμάτη 12, 136 71 Αχαρνές" },
     commerce: { returnDays: 14, warrantyYears: 2, maxInstalments: 24, noCardInstalments: { min: 200, max: 2000, months: 24 }, codMax: 500, codFee: 2, clickCollectHours: 2, kwhPrice: 0.19 },
     announcement: { left: ["350 καταστήματα", "Δωρεάν μεταφορικά όπου έχουμε κατάστημα", "Δόσεις με ή χωρίς κάρτα"], right: ["Επιστροφή μέσα σε 14 ημέρες"], accent: { label: "Παρακολούθηση παραγγελίας", href: "/entopismos" } },
     facts: [

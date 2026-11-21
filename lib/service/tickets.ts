@@ -131,7 +131,7 @@ export async function updateServiceTicket(ticketId: string, p: TicketPatch, by: 
 
 export const EMAIL_LABEL: Record<TicketEmail, string> = { "appointment-confirmed": "ραντεβού", "service-done": "ολοκλήρωση", "service-cancelled": "ακύρωση" };
 
-const DEFAULT_STORE = { name: "Service Euronics", address: "Δαμάσκου 2", city: "Αχαρνές", zip: "13671", phone: "2104835143", hours: "Δευ–Παρ 09:00–17:00", lat: 38.08, lng: 23.73 };
+const DEFAULT_STORE = { name: "Service Euronics", address: "Δαμάσκου Σταμάτη 12", city: "Αχαρνές", zip: "13671", phone: "2104835143", hours: "Δευ–Παρ 09:00–17:00", lat: 38.0785433, lng: 23.7515796 };
 
 async function sendTicketEmail(key: TicketEmail, t: { id: string; number: string; customerId: string; storeId: string | null; mode: string | null; scheduledAt: Date | null; slot: string | null; technician: string | null; cost: Prisma.Decimal | null; inWarranty: boolean; description: string }, c: { email: string | null; firstName: string }, device: { brand: string; title: string } | null, note: string) {
   if (!c.email) return false;
