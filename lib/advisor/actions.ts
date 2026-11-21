@@ -6,13 +6,13 @@ import { addItems } from "@/lib/wishlist/repo";
 
 /**
  * Πράξεις του Ερμή πάνω στα πραγματικά συστήματα του eshop: μεταφορικά από την ΙΔΙΑ μηχανή με το καλάθι (quoteCart —
- * couriers, ογκώδη, Αττική / Express, δωρεάν μεταφορικά, προσφορές) και αποθήκευση στις λίστες αγαπημένων του πελάτη.
+ * couriers, ογκώδη, Αττική / Express, προσφορές) και αποθήκευση στις λίστες αγαπημένων του πελάτη.
  */
 
 const eur = (cents: number) => Math.round(cents) / 100;
 
 export interface ShippingAnswer {
-  place: string | null; zip: string | null; goodsEur: number; freeShippingFromEur: number;
+  place: string | null; zip: string | null; goodsEur: number; /** δωρεάν μεταφορικά: έχουμε κατάστημα στην περιοχή του Τ.Κ. */ storeArea: boolean;
   options: { name: string; feeEur: number; eta: string; available: boolean; reason: string | null }[];
   bulky: string | null; note: string | null;
 }
@@ -38,7 +38,7 @@ export async function shippingFor(productIds: string[], place: string | null, cl
   }
   options.push({ name: "Παραλαβή από κατάστημα", feeEur: 0, eta: clickCollectHours ? `έτοιμο σε ~${clickCollectHours} ώρες` : "όταν ειδοποιηθείς", available: true, reason: null });
   return {
-    place, zip, goodsEur: eur(q.goods), freeShippingFromEur: eur(q.freeShippingFrom), options,
+    place, zip, goodsEur: eur(q.goods), storeArea: q.storeArea, options,
     bulky: q.bulky.courier ? null : q.bulky.reason,
     note: !place ? "δεν δόθηκε τόπος: οι τιμές είναι οι γενικές — ζήτα Τ.Κ. για ακρίβεια" : !zip && !q.attica.attica ? "χωρίς Τ.Κ.: η τιμή μπορεί να αλλάξει σε δυσπρόσιτες περιοχές" : null,
   };

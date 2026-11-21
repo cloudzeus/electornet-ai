@@ -318,7 +318,7 @@ function SlideForm({ s, k, total, issues, showErrors, info, tab, onTab, onChange
               <Field label="Δεύτερο κουμπί" help="Κενό = χωρίς δεύτερο κουμπί." error={err("secondary")}>
                 <div className="grid gap-1"><Counted aria-label="Κείμενο δεύτερου κουμπιού" placeholder="Οδηγός επιλογής" max={60} value={s.secondary?.label ?? ""} onChange={(v) => setSecondary({ label: v })} /><input aria-label="Σύνδεσμος δεύτερου κουμπιού" placeholder="/odigoi/…" className={`${input} font-mono`} value={s.secondary?.href ?? ""} onChange={(e) => setSecondary({ href: e.target.value })} /></div>
               </Field>
-              <Field label="Σημεία κάτω από τα κουμπιά" help="Έως 3, π.χ. «Δωρεάν μεταφορά».">
+              <Field label="Σημεία κάτω από τα κουμπιά" help="Έως 3, π.χ. «Παραλαβή σε 2 ώρες».">
                 <div className="grid gap-1">{bullets.map((v, j) => <Counted key={j} aria-label={`Σημείο ${j + 1}`} placeholder={`Σημείο ${j + 1}`} max={40} value={v} onChange={(x) => setBullet(j, x)} />)}</div>
               </Field>
             </div>

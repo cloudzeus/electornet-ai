@@ -70,6 +70,17 @@ export async function nearStoresFor(a: { street?: string | null; number?: string
   return Promise.race([hit.p, new Promise<undefined>((r) => setTimeout(() => r(undefined), budgetMs))]);
 }
 
+/** Οι Τ.Κ. των ενεργών καταστημάτων-μελών, 5′ στη μνήμη: από εκεί βγαίνει το «δωρεάν στις περιοχές με κατάστημα». */
+let zipMem: { at: number; v: Set<string> } | null = null;
+export async function storeZips(): Promise<Set<string>> {
+  if (zipMem && Date.now() - zipMem.at < 5 * 60_000) return zipMem.v;
+  const rows = await db.store.findMany({ where: { active: true }, select: { zip: true } }).catch(() => []);
+  const v = new Set(rows.map((r) => (r.zip ?? "").trim()).filter((z) => /^\d{5}$/.test(z)));
+  zipMem = { at: Date.now(), v };
+  return v;
+}
+export const resetStoreZipCache = () => { zipMem = null; };
+
 /** Στο checkout: υπάρχει συνεργάτης που φέρνει την παραγγελία σε αυτόν τον Τ.Κ.; (χωρίς έλεγχο αποθέματος, μόνο κάλυψη) */
 export async function localPartnerFor(zip: string | null | undefined, bulky: boolean): Promise<{ eta: string } | null> {
   if (!/^\d{5}$/.test(zip ?? "")) return null;
@@ -194,7 +205,7 @@ export async function freightOptions(orderId: string) {
   const zip = zipOf(o);
   return carriers.map((c) => {
     const t = tables.get(`carrier:${c.id}`);
-    const q = t ? quoteRate(t, { zip, goods: Math.round(Number(o.total) * 100), kg: chargeableKg(items, t.divisor), bulky: true }) : null;
+    const q = t ? quoteRate(t, { zip, kg: chargeableKg(items, t.divisor) }) : null;
     return { ...c, cost: q ? q.cost ?? q.baseFee : null, zone: q?.zone.name ?? null };
   }).sort((a, b) => (a.cost ?? 1e9) - (b.cost ?? 1e9));
 }

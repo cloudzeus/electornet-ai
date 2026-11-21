@@ -97,8 +97,7 @@ export function RateEditor({ carriers, current, rows, defaults, canWrite }: { ca
         <label className="grid gap-1"><span className="text-eu-ink-3 text-[length:var(--fs-13)] font-bold">Ανά επιπλέον κιλό €</span><input inputMode="decimal" className={field} defaultValue={(d.extraPerKg / 100).toString()} onBlur={(e) => setD((x) => ({ ...x, extraPerKg: toC(e.target.value) }))} /></label>
         <label className="grid gap-1"><span className="text-eu-ink-3 text-[length:var(--fs-13)] font-bold">Δυσπρόσιτα: Τ.Κ.</span><input className={field} defaultValue={d.remote.prefixes.join(", ")} placeholder="π.χ. 84001, 8500" onBlur={(e) => setD((x) => ({ ...x, remote: { ...x.remote, prefixes: e.target.value.split(/[\s,;]+/).filter((s) => /^\d{1,5}$/.test(s)) } }))} /></label>
         <label className="grid gap-1"><span className="text-eu-ink-3 text-[length:var(--fs-13)] font-bold">Επιβάρυνση δυσπρόσιτων €</span><input inputMode="decimal" className={field} defaultValue={(d.remote.surcharge / 100).toString()} onBlur={(e) => setD((x) => ({ ...x, remote: { ...x.remote, surcharge: toC(e.target.value) } }))} /></label>
-        <label className="grid gap-1"><span className="text-eu-ink-3 text-[length:var(--fs-13)] font-bold">Δωρεάν από €</span><input inputMode="decimal" className={field} defaultValue={d.freeFrom != null ? (d.freeFrom / 100).toString() : ""} placeholder="ποτέ" onBlur={(e) => setD((x) => ({ ...x, freeFrom: e.target.value.trim() ? toC(e.target.value) : null }))} /></label>
-        <label className="flex items-center gap-2 @2xl:col-span-4 text-[length:var(--fs-14)] text-eu-ink min-h-11"><input type="checkbox" className="size-5" checked={d.freeExcludesBulky} onChange={(e) => setD((x) => ({ ...x, freeExcludesBulky: e.target.checked }))} /> Το «δωρεάν από» δεν ισχύει για ογκώδη (μεταφορική)</label>
+        <p className="m-0 @2xl:col-span-4 text-eu-muted text-[length:var(--fs-13)]">Κάθε αποστολή χρεώνεται με τον τιμοκατάλογο: η αξία του καλαθιού δεν μηδενίζει τα μεταφορικά (απόφαση Euronics 20/11/2026).</p>
       </section>
 
       <TestCalc data={d} />
@@ -115,24 +114,22 @@ export function RateEditor({ carriers, current, rows, defaults, canWrite }: { ca
 }
 
 function TestCalc({ data }: { data: RateData }) {
-  const [zip, setZip] = useState("54624"), [kg, setKg] = useState("12"), [goods, setGoods] = useState("450"), [bulky, setBulky] = useState(true);
+  const [zip, setZip] = useState("54624"), [kg, setKg] = useState("12");
   const [res, setRes] = useState<Awaited<ReturnType<typeof testRateAction>> | undefined>(undefined);
   const [busy, start] = useTransition();
   return (
     <section data-help="rates.test" className="rounded-2xl border border-eu-blue/30 bg-eu-chip/50 p-4 grid gap-3">
       <div className="font-heading font-bold text-eu-ink text-[length:var(--fs-17)] inline-flex items-center gap-2"><Calculator className="size-4 text-eu-blue" aria-hidden /> Δοκιμαστικός υπολογισμός</div>
-      <div className="grid grid-cols-2 @2xl:grid-cols-5 gap-2 items-end">
+      <div className="grid grid-cols-2 @2xl:grid-cols-3 gap-2 items-end">
         <label className="grid gap-1"><span className="text-eu-ink-3 text-[length:var(--fs-13)] font-bold">Τ.Κ.</span><input inputMode="numeric" maxLength={5} className={field} value={zip} onChange={(e) => setZip(e.target.value)} /></label>
         <label className="grid gap-1"><span className="text-eu-ink-3 text-[length:var(--fs-13)] font-bold">Κιλά</span><input inputMode="decimal" className={field} value={kg} onChange={(e) => setKg(e.target.value)} /></label>
-        <label className="grid gap-1"><span className="text-eu-ink-3 text-[length:var(--fs-13)] font-bold">Καλάθι €</span><input inputMode="decimal" className={field} value={goods} onChange={(e) => setGoods(e.target.value)} /></label>
-        <label className="flex items-center gap-2 min-h-11 text-[length:var(--fs-14)]"><input type="checkbox" className="size-5" checked={bulky} onChange={(e) => setBulky(e.target.checked)} /> Ογκώδες</label>
-        <button type="button" disabled={busy} onClick={() => start(async () => setRes(await testRateAction(data, zip, Number(kg.replace(",", ".")), Number(goods.replace(",", ".")), bulky)))} className="rounded-full bg-eu-blue text-white font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 disabled:opacity-60">Υπολόγισε</button>
+        <button type="button" disabled={busy} onClick={() => start(async () => setRes(await testRateAction(data, zip, Number(kg.replace(",", ".")))))} className="rounded-full bg-eu-blue text-white font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 disabled:opacity-60">Υπολόγισε</button>
       </div>
       {res === null && <p className="m-0 text-eu-amber text-[length:var(--fs-14)] font-bold">Δεν βγαίνει τιμή: έλεγξε τον Τ.Κ. (5 ψηφία) ή ότι η ζώνη έχει τιμές.</p>}
       {res && (
         <div className="flex flex-wrap gap-x-6 gap-y-1 text-[length:var(--fs-14)]">
           <span>Ζώνη <b className="text-eu-navy">{res.zone}</b>{res.remote ? " · δυσπρόσιτη" : ""}</span>
-          <span>Πληρώνει ο πελάτης <b className={res.fee === 0 ? "text-eu-green" : "text-eu-navy"}>{res.fee === 0 ? "Δωρεάν" : eur(res.fee)}</b>{res.free ? ` (κανονικά ${eur(res.baseFee)})` : ""}</span>
+          <span>Πληρώνει ο πελάτης <b className="text-eu-navy">{eur(res.fee)}</b></span>
           {res.cost != null && <span>Κόστος μας <b className="text-eu-navy">{eur(res.cost)}</b> · {res.fee - res.cost >= 0 ? <b className="text-eu-green">κέρδος {eur(res.fee - res.cost)}</b> : <b className="text-eu-red">ζημιά {eur(res.cost - res.fee)}</b>}</span>}
         </div>
       )}

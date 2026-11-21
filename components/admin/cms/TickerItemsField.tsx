@@ -45,7 +45,7 @@ export function TickerItemsField({ value, onChange, label, help, max = 12 }: { v
               </div>
               <label className="grid gap-1 px-3 pb-3">
                 <span className="sr-only">Μήνυμα {i + 1}</span>
-                <textarea value={it.text} onChange={(e) => upd(i, { text: e.target.value.replace(/\n/g, " ") })} rows={2} maxLength={120} placeholder="π.χ. Δωρεάν μεταφορά συσκευών εντός περιφέρειας"
+                <textarea value={it.text} onChange={(e) => upd(i, { text: e.target.value.replace(/\n/g, " ") })} rows={2} maxLength={120} placeholder="π.χ. Δόσεις χωρίς κάρτα έως 24 μήνες"
                   className={`w-full resize-y rounded-lg border border-eu-line px-3 py-2 text-[length:var(--fs-16)] leading-snug bg-white ${it.off ? "text-eu-muted" : "text-eu-ink"}`} />
                 <span className={`justify-self-end text-[length:var(--fs-13)] tabular-nums ${len > 60 ? "text-eu-amber font-bold" : "text-eu-muted"}`}>{len}/120{len > 60 ? " · μεγάλο για ticker — προτείνεται έως 60" : ""}</span>
               </label>

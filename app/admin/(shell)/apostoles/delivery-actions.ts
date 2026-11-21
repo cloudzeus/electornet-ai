@@ -30,10 +30,10 @@ export async function saveRateTableAction(input: { id?: string | null; carrier: 
 }
 
 /** Δοκιμαστικός υπολογισμός με τον τιμοκατάλογο της φόρμας (χωρίς αποθήκευση). */
-export async function testRateAction(data: unknown, zip: string, kg: number, goods: number, bulky: boolean) {
+export async function testRateAction(data: unknown, zip: string, kg: number) {
   await requirePermission("catalog.products.read");
-  const q = quoteRate(normalizeRates(data), { zip, kg: Math.max(0, Number(kg) || 0), goods: Math.round((Number(goods) || 0) * 100), bulky });
-  return q && { fee: q.fee, baseFee: q.baseFee, cost: q.cost, zone: q.zone.name, remote: q.remote, free: q.free };
+  const q = quoteRate(normalizeRates(data), { zip, kg: Math.max(0, Number(kg) || 0) });
+  return q && { fee: q.fee, baseFee: q.baseFee, cost: q.cost, zone: q.zone.name, remote: q.remote };
 }
 
 /** Ρόλος και στοιχεία μεταφορέα (πρακτορεία). Δεν αγγίζει το SoftOne. */

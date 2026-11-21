@@ -9,7 +9,6 @@ import { useCart } from "./CartProvider";
 import { instalment, priceLong } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
-import { sx } from "@/components/ui/sx";
 import { Price } from "@/components/commerce/Price";
 
 const c = copyOf("miniCart");
@@ -23,12 +22,10 @@ const c = copyOf("miniCart");
  * strip. Nothing under 14px, every control ≥ 44px.
  */
 export function MiniCart({ suggestions = [] }: { suggestions?: Product[] }) {
-  const { miniOpen, setMiniOpen, lines, count, subtotal, addonsTotal, setQty, remove, lastAdded, add, freeShippingFrom } = useCart();
+  const { miniOpen, setMiniOpen, lines, count, subtotal, addonsTotal, setQty, remove, lastAdded, add } = useCart();
   const goods = subtotal + addonsTotal;
-  const shipping = goods >= freeShippingFrom || goods === 0 ? 0 : 4.9;
-  const missing = Math.max(0, freeShippingFrom - goods);
-  const pct = Math.min(100, Math.round((goods / freeShippingFrom) * 100));
-  const bar = sx({ width: `${pct}%` });
+  // τα μεταφορικά χρεώνονται πάντα· η αξία του καλαθιού δεν τα μηδενίζει (απόφαση Euronics 20/11/2026)
+  const shipping = goods === 0 ? 0 : 4.9;
   const inCart = new Set(lines.map((l) => l.product.id));
   const picks = suggestions.filter((s) => !inCart.has(s.id)).slice(0, 3);
 
@@ -65,15 +62,10 @@ export function MiniCart({ suggestions = [] }: { suggestions?: Product[] }) {
               </div>
             ) : (
               <>
-                <div className={`mx-5 mt-4 rounded-xl px-4 py-3 ${missing === 0 ? "bg-eu-green text-white" : "bg-eu-yellow text-eu-navy"}`}>
+                <div className="mx-5 mt-4 rounded-xl px-4 py-3 bg-eu-chip text-eu-navy">
                   <div className="flex items-center gap-2 font-bold text-[length:var(--fs-14)]">
                     <Truck className="size-5 shrink-0" aria-hidden />
-                    <span className="flex-1">{missing === 0 ? "Έχεις δωρεάν μεταφορικά." : <>{c.akomi} <strong>{priceLong(missing)}</strong> {c.gia_dorean_metaforika}</>}<span className="block font-semibold opacity-80 text-[length:var(--fs-12)]">Αττική και νομός Θεσσαλονίκης</span></span>
-                    <span className="tabular-nums">{pct}%</span>
-                  </div>
-                  <div className="mt-2 h-2 rounded-full bg-black/10 overflow-hidden">
-                    {bar.node}
-                    <div className={`h-full rounded-full ${missing === 0 ? "bg-white" : "bg-eu-navy"} ${bar.className}`} />
+                    <span className="flex-1">Δωρεάν μεταφορικά όπου έχουμε κατάστημα.<span className="block font-semibold opacity-80 text-[length:var(--fs-12)]">Με τον Τ.Κ. σου στο ταμείο βλέπεις τι ισχύει στην περιοχή σου.</span></span>
                   </div>
                 </div>
 

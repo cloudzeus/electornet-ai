@@ -4,7 +4,6 @@ import { tpl } from "@/lib/cms/settings";
 import { useSettings } from "@/components/site/SettingsProvider";
 import Image from "@/components/ui/Image";
 import type { CartLine } from "@/components/commerce/CartProvider";
-import { priceLong } from "@/lib/format";
 import { AskAris } from "@/components/advisor/AskAris";
 import { fitMattersFor } from "@/lib/data/dims";
 
@@ -12,26 +11,22 @@ const HEAVY = new Set(["plyntiria", "psygeia", "stegnotiria", "koyzines", "air-c
 
 /**
  * @dynamic Ερμής in the cart: one useful sentence computed from the lines —
- * installation missing on a heavy appliance, free-shipping distance,
- * warranty extension — plus a question chip. Production: same rules from
+ * installation missing on a heavy appliance, warranty extension — plus a
+ * question chip. Production: same rules from
  * the CMS upsell table (category → service), with the AI engine wording.
  */
-export function CartAdvisorTip({ lines, subtotal, freeShippingFrom }: { lines: CartLine[]; subtotal: number; freeShippingFrom: number }) {
+export function CartAdvisorTip({ lines }: { lines: CartLine[] }) {
   const { advisor } = useSettings();
   if (!lines.length) return null;
   const heavy = lines.find((l) => HEAVY.has(l.product.subcategory));
   const noInstall = heavy && !l_has(heavy, "paradosi-egkatastasi");
   // η επέκταση εγγύησης δεν πωλείται πια: είναι δωρεάν και αυτόματη στα είδη που την έχουν (lib/warranty)
   const noWarranty = null as (typeof lines)[number] | null;
-  const gap = freeShippingFrom - subtotal;
   let text: string;
   let q: string;
   if (noInstall && heavy) {
     text = tpl(advisor.cartTips.install, { product: `${heavy.product.brand} ${heavy.product.title.split(" ").slice(0, 3).join(" ")}` });
     q = "Τι περιλαμβάνει η εγκατάσταση;";
-  } else if (gap > 0 && gap <= 60) {
-    text = tpl(advisor.cartTips.freeShipping, { gap: priceLong(gap) });
-    q = "Τι μπορώ να προσθέσω για δωρεάν μεταφορικά;";
   } else if (noWarranty) {
     text = tpl(advisor.cartTips.warranty, { product: `${noWarranty.product.brand} ${noWarranty.product.title.split(" ").slice(0, 3).join(" ")}` });
     q = "Αξίζει η επέκταση εγγύησης;";

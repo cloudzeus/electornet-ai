@@ -13,7 +13,6 @@ export interface SiteSettings {
   brand: { name: string; legalName: string; storesCount: number };
   contact: { phone: string; phoneDisplay: string; phoneLabel: string; email: string; address: string };
   commerce: {
-    freeShippingFrom: number;
     returnDays: number;
     warrantyYears: number;
     maxInstalments: number;
@@ -51,7 +50,7 @@ export interface AdvisorSettings {
   panel: { title: string; titleProduct: string; subtitle: string; placeholder: string; demoFallback: string };
   suggestions: { home: string[]; byCategory: Record<string, string[]>; product: string[]; search: string[] };
   exitIntent: { enabled: boolean; delayMs: number; title: string; reasons: { label: string; reply: string }[]; emailNote: string };
-  cartTips: { install: string; freeShipping: string; warranty: string; ok: string; okPlain?: string };
+  cartTips: { install: string; warranty: string; ok: string; okPlain?: string };
   handoff: { title: string; callLabel: string; chatLabel: string; done: string };
   thankYou: string;
   notFound: { title: string; body: string };
@@ -76,8 +75,8 @@ export const defaultSettings: Settings = {
   site: {
     brand: { name: "Euronics", legalName: "MEGA ELECTRICS ΑΕΒΕ", storesCount: 350 },
     contact: { phone: "+302104835143", phoneDisplay: "210 483 5143", phoneLabel: "Τηλ. παραγγελίες", email: "info@euronics.gr", address: "Δαμάσκου 2 Σταμάτη 12, 135 71 Αχαρνές" },
-    commerce: { freeShippingFrom: 100, returnDays: 14, warrantyYears: 2, maxInstalments: 24, noCardInstalments: { min: 200, max: 2000, months: 24 }, codMax: 500, codFee: 2, clickCollectHours: 2, kwhPrice: 0.19 },
-    announcement: { left: ["350 καταστήματα", "Δωρεάν μεταφορά εντός περιφέρειας", "Δόσεις με ή χωρίς κάρτα"], right: ["Επιστροφή μέσα σε 14 ημέρες"], accent: { label: "Παρακολούθηση παραγγελίας", href: "/entopismos" } },
+    commerce: { returnDays: 14, warrantyYears: 2, maxInstalments: 24, noCardInstalments: { min: 200, max: 2000, months: 24 }, codMax: 500, codFee: 2, clickCollectHours: 2, kwhPrice: 0.19 },
+    announcement: { left: ["350 καταστήματα", "Δωρεάν μεταφορικά όπου έχουμε κατάστημα", "Δόσεις με ή χωρίς κάρτα"], right: ["Επιστροφή μέσα σε 14 ημέρες"], accent: { label: "Παρακολούθηση παραγγελίας", href: "/entopismos" } },
     facts: [
       { value: 350, suffix: "", label: "καταστήματα σε όλη την Ελλάδα" },
       { value: 13, suffix: "", label: "υπηρεσίες με τιμή, πριν και μετά" },
@@ -131,14 +130,13 @@ export const defaultSettings: Settings = {
         { label: "Η τιμή", reply: "Το καταλαβαίνω. Έχεις έως 24 άτοκες δόσεις ή δόσεις χωρίς κάρτα, και αν βρεις φθηνότερα σε 14 ημέρες, το επιστρέφεις." },
         { label: "Θέλω να το σκεφτώ", reply: "Κανένα πρόβλημα. Σου κρατάω το καλάθι σε ένα email για όταν είσαι έτοιμος." },
         { label: "Δεν βρήκα αυτό που ήθελα", reply: "Πες μου τι ψάχνεις στην αναζήτηση με απλά λόγια, ή ζήτα να σε πάρει το κατάστημα." },
-        { label: "Τα μεταφορικά / παράδοση", reply: "Δωρεάν μεταφορά εντός περιφέρειας και παραλαβή σε 2 ώρες από 350 καταστήματα." },
+        { label: "Τα μεταφορικά / παράδοση", reply: "Στις περιοχές όπου έχουμε κατάστημα τα μεταφορικά είναι δωρεάν, ανεξάρτητα από το ποσό. Αλλού βάζεις τον Τ.Κ. σου στο ταμείο και βλέπεις το κόστος πριν πληρώσεις." },
         { label: "Απλώς κοιτούσα", reply: "Κανένα πρόβλημα. Σου κρατάω το καλάθι σε ένα email για όταν είσαι έτοιμος." },
       ],
       emailNote: "Ένα email με το καλάθι σου, τίποτα άλλο. Χωρίς εγγραφή σε newsletter.",
     },
     cartTips: {
       install: "Το {product} θέλει σύνδεση και αλφάδιασμα. Ο τεχνικός του καταστήματος το τοποθετεί την ημέρα παράδοσης και παίρνει και την παλιά συσκευή.",
-      freeShipping: "Σου λείπουν {gap} για δωρεάν μεταφορικά. Ένα μικρό αξεσουάρ το καλύπτει.",
       warranty: "Για το {product} η επέκταση εγγύησης σε 5 έτη κοστίζει από 19 € και καλύπτει και βλάβη από υγρά.",
       ok: "Όλα καλά με το καλάθι σου. Αν θες, ελέγχω αν χωρούν στον χώρο σου πριν την παραγγελία.",
       okPlain: "Όλα καλά με το καλάθι σου. Αν θες, σου λέω πότε φτάνει και τι επιλογές παραλαβής έχεις.",

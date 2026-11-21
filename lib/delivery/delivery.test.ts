@@ -16,14 +16,14 @@ test("χρεώσιμο βάρος: το μεγαλύτερο από πραγμα
   assert.equal(chargeableKg([{ qty: 1, weightKg: null, dimsCm: null }], 5000), 1);
 });
 
-test("τιμή: κλίμακα, επιπλέον κιλά, δυσπρόσιτα, δωρεάν από (όχι για ογκώδη)", () => {
+test("τιμή: κλίμακα, επιπλέον κιλά, δυσπρόσιτα — ποτέ δωρεάν από την αξία του καλαθιού", () => {
   const d = normalizeRates({ ...DEFAULT_RATES, remote: { prefixes: ["840"], surcharge: 300 } });
-  assert.equal(quoteRate(d, { zip: "17456", goods: 5000, kg: 4 })!.fee, 490);
-  assert.equal(quoteRate(d, { zip: "54624", goods: 5000, kg: 33 })!.fee, 1690 + 3 * 50);
-  assert.equal(quoteRate(d, { zip: "84001", goods: 5000, kg: 1 })!.fee, 590 + 300);
-  assert.equal(quoteRate(d, { zip: "17456", goods: 20000, kg: 1 })!.fee, 0);
-  assert.equal(quoteRate(d, { zip: "17456", goods: 20000, kg: 1, bulky: true })!.fee, 390);
-  assert.equal(quoteRate(d, { zip: null, goods: 0, kg: 1 }), null);
+  assert.equal(quoteRate(d, { zip: "17456", kg: 4 })!.fee, 490);
+  assert.equal(quoteRate(d, { zip: "54624", kg: 33 })!.fee, 1690 + 3 * 50);
+  assert.equal(quoteRate(d, { zip: "84001", kg: 1 })!.fee, 590 + 300);
+  // παλιός τιμοκατάλογος με «δωρεάν από 100 €»: αγνοείται, η τιμή της κλίμακας χρεώνεται
+  assert.equal(quoteRate(normalizeRates({ ...DEFAULT_RATES, freeFrom: 10000 }), { zip: "17456", kg: 1 })!.fee, 390);
+  assert.equal(quoteRate(d, { zip: null, kg: 1 }), null);
 });
 
 test("normalizeRates: αρνητικά → 0, κλίμακες αύξουσες, Τ.Κ. μόνο ψηφία", () => {

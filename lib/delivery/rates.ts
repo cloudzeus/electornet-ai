@@ -15,10 +15,6 @@ export interface RateData {
   extraPerKg: number;
   /** δυσπρόσιτες περιοχές: προθέματα Τ.Κ. και επιβάρυνση */
   remote: { prefixes: string[]; surcharge: number };
-  /** δωρεάν από (αξία καλαθιού)· null = ποτέ */
-  freeFrom: number | null;
-  /** το «δωρεάν από» δεν ισχύει για ογκώδη (μεταφορική) */
-  freeExcludesBulky: boolean;
   /** ογκομετρικό βάρος = μ × π × υ (εκ.) / divisor */
   divisor: number;
   /** ελάχιστο κόστος αποστολής */
@@ -36,8 +32,6 @@ export const DEFAULT_RATES: RateData = {
   prices: { attica: [390, 490, 690, 990, 1490], mainland: [490, 590, 790, 1190, 1690], islands: [590, 790, 990, 1490, 2190] },
   extraPerKg: 50,
   remote: { prefixes: [], surcharge: 300 },
-  freeFrom: 10000,
-  freeExcludesBulky: true,
   divisor: 5000,
   floor: 0,
 };
@@ -68,10 +62,10 @@ export function bracketFor(data: RateData, kg: number): { index: number; extraKg
   return { index: last, extraKg: Math.ceil(kg - data.brackets[last]) };
 }
 
-export interface RateQuote { fee: number; baseFee: number; cost: number | null; zone: RateZone; remote: boolean; kg: number; free: boolean }
+export interface RateQuote { fee: number; baseFee: number; cost: number | null; zone: RateZone; remote: boolean; kg: number }
 
 /** Η τιμή για ένα καλάθι. null = άγνωστος Τ.Κ. ή ζώνη χωρίς τιμές (τότε ισχύει η σταθερή τιμή των ρυθμίσεων). */
-export function quoteRate(data: RateData, input: { zip: string | null | undefined; goods: number; kg: number; bulky?: boolean }): RateQuote | null {
+export function quoteRate(data: RateData, input: { zip: string | null | undefined; kg: number }): RateQuote | null {
   const zone = zoneFor(data, input.zip);
   const row = zone && data.prices[zone.id];
   if (!zone || !row?.length) return null;
@@ -81,8 +75,8 @@ export function quoteRate(data: RateData, input: { zip: string | null | undefine
   const baseFee = Math.max(data.floor, (row[index] ?? row[row.length - 1]) + add);
   const c = data.costs?.[zone.id];
   const cost = c?.length ? (c[index] ?? c[c.length - 1]) + extraKg * data.extraPerKg : null;
-  const free = data.freeFrom != null && input.goods >= data.freeFrom && !(input.bulky && data.freeExcludesBulky);
-  return { fee: free ? 0 : baseFee, baseFee, cost, zone, remote, kg: Math.round(input.kg * 10) / 10, free };
+  // η αξία του καλαθιού δεν μηδενίζει τα μεταφορικά (απόφαση Euronics 20/11/2026): κάθε αποστολή χρεώνεται
+  return { fee: baseFee, baseFee, cost, zone, remote, kg: Math.round(input.kg * 10) / 10 };
 }
 
 const ints = (v: unknown, n: number) => (Array.isArray(v) ? v : []).slice(0, n).map((x) => Math.max(0, Math.round(Number(x) || 0)));
@@ -103,8 +97,6 @@ export function normalizeRates(raw: unknown): RateData {
     prices: table(r.prices), costs: r.costs ? table(r.costs) : undefined,
     extraPerKg: num(r.extraPerKg, DEFAULT_RATES.extraPerKg),
     remote: { prefixes: strs(remote.prefixes), surcharge: num(remote.surcharge, DEFAULT_RATES.remote.surcharge) },
-    freeFrom: r.freeFrom === null || r.freeFrom === "" ? null : num(r.freeFrom, DEFAULT_RATES.freeFrom!),
-    freeExcludesBulky: r.freeExcludesBulky !== false,
     divisor: num(r.divisor, DEFAULT_RATES.divisor) || DEFAULT_RATES.divisor,
     floor: num(r.floor, 0),
   };

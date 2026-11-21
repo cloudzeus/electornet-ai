@@ -16,7 +16,6 @@ import { CartAdvisorTip } from "./CartAdvisorTip";
 import { useServerQuote, quoteLineOf, savedCoupon, saveCoupon } from "./useServerQuote";
 import { GiftLines, PromoHints } from "./PromoPerks";
 import { copyOf } from "@/lib/cms/copy";
-import { sx } from "@/components/ui/sx";
 
 const c = copyOf("cart");
 
@@ -29,7 +28,7 @@ const c = copyOf("cart");
  * grid. Text ≥ 14px, controls ≥ 44px.
  */
 export function CartView({ services: catalog, crossSell }: { services: Service[]; crossSell: Product[] }) {
-  const { lines, setQty, remove, toggleAddon, subtotal, addonsTotal, hydrated, clear, freeShippingFrom, toggleWishlist, wishlist } = useCart();
+  const { lines, setQty, remove, toggleAddon, subtotal, addonsTotal, hydrated, clear, toggleWishlist, wishlist } = useCart();
   const [coupon, setCoupon] = useState(() => savedCoupon() ?? "");
   const [couponCode, setCouponCode] = useState<string | null>(() => savedCoupon());
   // Ο υπολογισμός είναι του server (τιμές, προσφορές, κουπόνι, μεταφορικά)· τα τοπικά ποσά μόνο μέχρι να έρθει η απάντηση
@@ -40,14 +39,10 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
   const servicesTotal = quote ? quote.addons / 100 : addonsTotal;
   const discPrice = quote ? quote.discPrice / 100 : 0;
   const discCoupon = quote ? quote.discCoupon / 100 : 0;
-  const payable = quote ? (quote.goods + quote.addons - quote.discPrice - quote.discCoupon) / 100 : localGoods;
-  const shipping = quote ? quote.shipping / 100 : localGoods >= freeShippingFrom || localGoods === 0 ? 0 : 4.9;
+  const shipping = quote ? quote.shipping / 100 : localGoods === 0 ? 0 : 4.9;
   const total = quote ? quote.total / 100 : localGoods + shipping;
   const vat = total - total / 1.24;
   const freeByPromo = !!quote?.freeShipping;
-  const missing = freeByPromo ? 0 : Math.max(0, freeShippingFrom - payable);
-  const pct = freeByPromo ? 100 : Math.min(100, Math.round((payable / freeShippingFrom) * 100));
-  const bar = sx({ width: `${pct}%` });
   const count = lines.reduce((n, l) => n + l.qty, 0);
   const couponMsg = couponCode ? (loading && !quote?.coupon.message ? "Έλεγχος κωδικού…" : quote?.coupon.message ?? null) : null;
 
@@ -104,18 +99,14 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
             </button>
           </div>
 
-          <div className={`rounded-2xl p-4 @md:p-5 ${missing === 0 ? "bg-eu-green text-white" : "bg-eu-yellow text-eu-navy"}`}>
+          {/* τα μεταφορικά χρεώνονται πάντα με τον τιμοκατάλογο — δωρεάν μόνο όταν τα χαρίζει προσφορά (απόφαση Euronics 20/11/2026) */}
+          <div className={`rounded-2xl p-4 @md:p-5 ${freeByPromo ? "bg-eu-green text-white" : "bg-eu-chip text-eu-navy"}`}>
             <div className="flex items-center gap-3">
               <Truck className="size-6 shrink-0" aria-hidden />
               <div className="flex-1 font-bold text-[length:var(--fs-16)]">
-                {missing === 0 ? (freeByPromo ? `${quote!.freeShipping!.label} — έχεις δωρεάν μεταφορικά.` : "Έχεις δωρεάν μεταφορικά.") : <>{c.prosthese_akomi} <strong className="text-[length:var(--fs-18)]">{priceLong(missing)}</strong> {c.gia_dorean_metaforika}</>}
-                {!freeByPromo && <span className="block font-semibold opacity-80 text-[length:var(--fs-13)]">Ισχύει για Αττική και νομό Θεσσαλονίκης· αλλού το κόστος φαίνεται στο ταμείο, με τον Τ.Κ. σου.</span>}
+                {freeByPromo ? `${quote!.freeShipping!.label} — έχεις δωρεάν μεταφορικά.` : "Δωρεάν μεταφορικά όπου έχουμε κατάστημα, όσο μικρή κι αν είναι η παραγγελία."}
+                {!freeByPromo && <span className="block font-semibold opacity-80 text-[length:var(--fs-13)]">Στο ταμείο βάζεις τον Τ.Κ. σου και βλέπεις αν η περιοχή σου είναι δωρεάν ή τι χρεώνεται. Η παραλαβή από κατάστημα είναι πάντα χωρίς χρέωση.</span>}
               </div>
-              <span className="font-extrabold text-[length:var(--fs-15)] tabular-nums">{pct}%</span>
-            </div>
-            <div className="mt-3 h-2.5 rounded-full bg-black/10 overflow-hidden">
-              {bar.node}
-              <div className={`h-full rounded-full transition-[width] ${missing === 0 ? "bg-white" : "bg-eu-navy"} ${bar.className}`} />
             </div>
           </div>
 
@@ -231,7 +222,7 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
             ))}
           </div>
 
-          <CartAdvisorTip lines={lines} subtotal={subtotal} freeShippingFrom={freeShippingFrom} />
+          <CartAdvisorTip lines={lines} />
           <Link href="/proionta" className="inline-flex items-center gap-1 font-bold text-eu-blue text-[length:var(--fs-15)] hover:underline min-h-10">
             {c.synechise_tis_agores}
           </Link>

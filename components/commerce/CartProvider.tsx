@@ -28,7 +28,6 @@ interface CartState {
   subtotal: number;
   addonsTotal: number;
   /** Free shipping threshold in € (dummy rule for the prototype). */
-  freeShippingFrom: number;
   add: (p: Product, opts?: { qty?: number; addons?: CartAddon[]; variant?: string; openMiniCart?: boolean }) => void;
   remove: (productId: string) => void;
   setQty: (productId: string, qty: number) => void;
@@ -206,7 +205,6 @@ export function CartProvider({ children, gates = [] }: { children: ReactNode; ga
       count,
       subtotal,
       addonsTotal,
-      freeShippingFrom: settings.site.commerce.freeShippingFrom,
       add,
       remove,
       setQty,
