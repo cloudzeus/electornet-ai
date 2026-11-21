@@ -1,0 +1,402 @@
+<!doctype html><html lang="el"><head><meta charset="utf-8"><title>Έλεγχος καταστήματος · Euronics</title><style>
+  @page { size: A4; margin: 16mm 14mm 14mm; }
+  :root{
+    --red:#E31E2A; --red-soft:#FFF1F2; --ink:#16181D; --ink2:#43474F; --muted:#767B85;
+    --line:#E4E6EA; --surface:#F4F3F2; --row:#FBFAFA; --green:#0F7B4F; --green-soft:#EAF6F0;
+    --amber:#8A5A00; --amber-soft:#FFF6E3; --blue:#123A6B; --blue-soft:#EEF3FA;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  body{font-family:Inter,"Helvetica Neue",Arial,sans-serif; color:var(--ink); font-size:9.6pt; line-height:1.5; margin:0}
+  h1{font-size:30pt; line-height:1.05; letter-spacing:-.02em; margin:0 0 10px; font-weight:800}
+  h2{font-size:14pt; margin:26px 0 8px; font-weight:800; letter-spacing:-.01em}
+  h2:first-of-type{margin-top:18px}
+  h3{font-size:10.6pt; margin:16px 0 5px; font-weight:800}
+  p{margin:0 0 8px}
+  .lead{font-size:11pt; color:var(--ink2); line-height:1.55}
+  .muted{color:var(--muted)}
+  .brand{display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid var(--red); padding-bottom:10px}
+  .brand .who{font-weight:800; font-size:12pt}
+  .brand .who span{display:block; font-weight:500; font-size:8.4pt; color:var(--muted)}
+  .kicker{color:var(--red); font-weight:800; font-size:8.4pt; letter-spacing:.14em; margin:30px 0 8px}
+  .meta{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:10px 0; margin:22px 0 4px}
+  .meta div b{display:block; font-size:7.6pt; letter-spacing:.1em; color:var(--muted); font-weight:700; margin-bottom:2px}
+  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:14px 0 4px}
+  .stat{border:1px solid var(--line); border-radius:8px; padding:11px 12px}
+  .stat b{display:block; font-size:21pt; font-weight:800; line-height:1; letter-spacing:-.02em}
+  .stat span{display:block; font-size:8.2pt; color:var(--ink2); margin-top:5px; line-height:1.35}
+  .stat.on b{color:var(--green)} .stat.wait b{color:var(--amber)} .stat.ask b{color:var(--red)}
+  table{width:100%; border-collapse:collapse; margin:8px 0 4px; font-size:8.8pt}
+  th{background:var(--surface); text-align:left; font-weight:800; padding:6px 8px; border-bottom:1px solid var(--line); font-size:8.2pt}
+  td{padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top}
+  tr:nth-child(even) td{background:var(--row)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap}
+  .tag{display:inline-block; border-radius:99px; padding:1px 7px; font-size:7.6pt; font-weight:800; white-space:nowrap}
+  .tag.on{background:var(--green-soft); color:var(--green)}
+  .tag.wait{background:var(--amber-soft); color:var(--amber)}
+  .tag.ask{background:var(--red-soft); color:var(--red)}
+  .quote{border-left:3px solid var(--red); background:var(--red-soft); padding:8px 11px; margin:8px 0; border-radius:0 6px 6px 0}
+  .quote .src{display:block; font-size:7.6pt; color:var(--muted); font-weight:700; margin-bottom:3px; letter-spacing:.04em}
+  .quote em{font-style:normal; font-weight:700}
+  .note{background:var(--blue-soft); border-radius:8px; padding:10px 12px; margin:10px 0; font-size:9pt; color:var(--ink2)}
+  .note b{color:var(--ink)}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:8.2pt; background:var(--surface); padding:1px 4px; border-radius:3px}
+  tr{page-break-inside:avoid}
+  .page{page-break-before:always}
+  .keep{page-break-inside:avoid}
+  footer{border-top:1px solid var(--line); margin-top:22px; padding-top:6px; font-size:7.6pt; color:var(--muted); display:flex; justify-content:space-between}
+  ol,ul{margin:4px 0 8px; padding-left:17px} li{margin:2px 0}
+</style>
+<style>
+  .shots{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:8px 0 14px}
+  .shots.one{grid-template-columns:1fr}
+  .shot{border:1px solid var(--line); border-radius:6px; overflow:hidden; page-break-inside:avoid; background:#fff}
+  .shot img{display:block; width:100%; max-height:225mm; object-fit:contain; object-position:top}
+  .shots.one .shot img{max-height:215mm; width:auto; max-width:100%; margin:0 auto}
+  .shot b{display:block; font-size:7.4pt; color:var(--muted); font-weight:700; padding:3px 6px; border-bottom:1px solid var(--line); background:var(--surface)}
+  .pair{display:grid; grid-template-columns:3fr 1fr; gap:8px; align-items:start}
+  .steps{font-size:8.4pt; color:var(--ink2)}
+  .mono{font-family:"SF Mono",Menlo,monospace; font-size:7.6pt; color:var(--ink2); white-space:pre-wrap}
+</style></head><body>
+<header class="brand"><div class="who">DGsoft<span>Λογισμικό &amp; ηλεκτρονικό εμπόριο</span></div><div class="muted" style="text-align:right;font-size:8.2pt">Euronics · νέο eshop<br>Αναφορά ελέγχου</div></header>
+<div class="kicker">ΑΥΤΟΜΑΤΟΣ ΕΛΕΓΧΟΣ ΜΕ ΠΡΑΓΜΑΤΙΚΟ BROWSER</div>
+<h1>Έλεγχος<br>καταστήματος</h1>
+<p class="lead">Ανοίξαμε κάθε σελίδα του καταστήματος σε υπολογιστή και κινητό, γεμίσαμε καλάθι με πραγματικά προϊόντα και περάσαμε το ταμείο με διαφορετικές διευθύνσεις, τρόπους αποστολής και τρόπους πληρωμής. Κάθε βήμα φωτογραφήθηκε.</p>
+<div class="meta">
+    <div><b>ΗΜΕΡΟΜΗΝΙΑ</b>21/11/2026</div>
+    <div><b>ΠΕΡΙΒΑΛΛΟΝ</b>Τοπικό (dev)</div>
+    <div><b>ΟΘΟΝΕΣ</b>1440 px &amp; 390 px</div>
+    <div><b>ΤΡΟΠΟΣ</b>Chrome, αυτοματοποιημένα</div>
+  </div>
+<div class="stats">
+    <div class="stat on"><b>30/30</b><span>σελίδες φόρτωσαν σωστά σε υπολογιστή και κινητό</span></div>
+    <div class="stat on"><b>18/19</b><span>έλεγχοι ροών πέρασαν (καλάθι, αποστολές, πληρωμές)</span></div>
+    <div class="stat ask"><b>12</b><span>σημεία που θέλουν προσοχή (λίστα στο τέλος)</span></div>
+  </div>
+<h2>Τι ελέγχθηκε</h2><ul>
+    <li><b>Σελίδες:</b> 30 σελίδες του καταστήματος, σε υπολογιστή (1440 px) και κινητό (390 px), με καταγραφή σφαλμάτων του browser και αιτημάτων που απέτυχαν.</li>
+    <li><b>Μεταφορικά:</b> 22 ταχυδρομικοί κώδικες από όλη την Ελλάδα, με το ίδιο καλάθι, για να φανεί τι πληρώνει ο πελάτης σε κάθε περιοχή.</li>
+    <li><b>Ροές:</b> 10 ολοκληρωμένες ροές αγοράς — προσθήκη στο καλάθι, στοιχεία, διεύθυνση, τρόπος αποστολής, παραστατικό, τρόπος πληρωμής.</li>
+  </ul>
+<div class="note"><b>Δεν καταχωρήθηκε καμία παραγγελία.</b> Οι ροές πήγαν μέχρι το βήμα της πληρωμής με επιλεγμένο τρόπο πληρωμής και τελικό ποσό. Το τελευταίο πάτημα («καταχώριση») δεν έγινε, γιατί στέλνει παραγγελία στο SoftOne, email στον πελάτη και χρέωση στη Viva.</div>
+<div class="page"></div><h2>Ροές αγοράς</h2>
+<h3>R1 · Αγορά μικρής συσκευής, Αθήνα 11527, κάρτα <span class="tag on">ΟΚ</span></h3>
+<p class="steps">Άνοιγμα σελίδας προϊόντος → Κλικ «στο καλάθι» → mini-cart → Σελίδα καλαθιού → Στοιχεία + διεύθυνση Αθήνα 11527 → Βήμα πληρωμής</p>
+<table><thead><tr><th style="width:34%">Έλεγχος</th><th>Τι βρήκαμε</th><th style="width:48px"></th></tr></thead><tbody>
+<tr><td>Το προϊόν είναι στο καλάθι</td><td class="mono">ναι</td><td><span class="tag on">ΟΚ</span></td></tr>
+<tr><td>Δωρεάν αποστολή σε περιοχή με κατάστημα</td><td class="mono">Τρόπος αποστολής | ASAP Couriers | Αυθημερόν στην Αττική | Δωρεάν | ΕΛΤΑ Courier | 2–4 εργάσιμες | Δωρεάν | Με ραντεβού | Σε καλούμε για ημέρα και ώρα | Δωρεάν</td><td><span class="tag on">ΟΚ</span></td></tr>
+<tr><td>Επιλογές πληρωμής</td><td class="mono">4 | Πληρωμή | Το ποσό που βλέπεις δεξιά είναι το τελικό. | Κάρτα | Visa · Mastercard · Amex | Apple Pay | Με Face ID / Touch ID | Google Pay | Με την κάρτα του Google λογαριασμού σου | PayPal | Με τον λογαριασμό PayPal σου | IRIS | Άμεσα από το e-banking, χωρίς προμήθεια | Κατάθεση σε τράπεζα | Euro</td><td><span class="tag on">ΟΚ</span></td></tr>
+<tr><td>Σύνοψη με σύνολο</td><td class="mono">Η παραγγελία σου | 1 τεμ. | 1 | GRUPPE | ΤΟΣΤΙΕΡΑ 180ο 750w ΚΟΚΚΙΝΗ TXS886C GRUPPE ΧΑΤΖΗΓΕΩΡΓΙΟΥ | Επέκταση εγγύησης +2 έτη · δωρεάν | 33,90 € | Εφαρμογή | Προϊόντα &amp; υπηρεσίες | 33,90 € | Μεταφορικά · ΕΛΤΑ Courier | Δωρεάν | ΦΠΑ 24% (περιλαμβάνεται) | 6,56 € </td><td><span class="tag on">ΟΚ</span></td></tr>
+</tbody></table>
+<div class="shots ">
+<div class="shot"><b>Το καλάθι μετά την προσθήκη</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r1-minicart-900.jpg"></div>
+<div class="shot"><b>Τρόποι αποστολής</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r1-ship-900.jpg"></div>
+<div class="shot"><b>Επιλεγμένη κάρτα</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r1-pay-card-900.jpg"></div>
+</div>
+<div class="shots one"><div class="shot"><b>Σελίδα καλαθιού (όλη)</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r1-cart-1000.jpg"></div></div>
+<div class="shots one"><div class="shot"><b>Ταμείο, βήμα 2 (όλο)</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r1-checkout-1000.jpg"></div></div>
+<div class="shots one"><div class="shot"><b>Βήμα πληρωμής (όλο)</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r1-pay-1000.jpg"></div></div>
+<h3>R2 · Θεσσαλονίκη 54629 — δωρεάν courier <span class="tag on">ΟΚ</span></h3>
+<p class="steps">Διεύθυνση Θεσσαλονίκη, 2 τεμάχια</p>
+<table><thead><tr><th style="width:34%">Έλεγχος</th><th>Τι βρήκαμε</th><th style="width:48px"></th></tr></thead><tbody>
+<tr><td>Δωρεάν courier</td><td class="mono">Τρόπος αποστολής | ASAP Couriers | Μόνο για διευθύνσεις στην Αττική | — | ΕΛΤΑ Courier | 2–4 εργάσιμες | Δωρεάν | Με μεταφορική | 3–7 εργάσιμες, με τηλεφωνική συνεννόηση · για ογκώδεις συσκευές | Δωρεάν | Με ραντεβού | Σ</td><td><span class="tag on">ΟΚ</span></td></tr>
+</tbody></table>
+<div class="shots one">
+<div class="shot"><b>Τρόποι αποστολής</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r2-ship-900.jpg"></div>
+</div>
+<h3>R3 · Ιωάννινα 45221 — χρέωση courier <span class="tag ask">θέλει έλεγχο</span></h3>
+<p class="steps">Διεύθυνση Ιωάννινα</p>
+<table><thead><tr><th style="width:34%">Έλεγχος</th><th>Τι βρήκαμε</th><th style="width:48px"></th></tr></thead><tbody>
+<tr><td>Εμφανίζεται χρέωση σε €</td><td class="mono">Τρόπος αποστολής | ASAP Couriers | Μόνο για διευθύνσεις στην Αττική | — | ΕΛΤΑ Courier | 2–4 εργάσιμες | 3,90 € | Με μεταφορική | 3–7 εργάσιμες, με τηλεφωνική συνεννόηση · για ογκώδεις συσκευές | 25,00 € | Με ραντεβού | </td><td><span class="tag on">ΟΚ</span></td></tr>
+<tr><td>Αντικαταβολή σε παραγγελία 33,90 € εκτός Αττικής</td><td class="mono">ΔΕΝ προσφέρεται · τρόποι: Κάρτα, Apple Pay, Google Pay, PayPal, IRIS, Κατάθεση σε τράπεζα</td><td><span class="tag ask">✗</span></td></tr>
+</tbody></table>
+<div class="shots one">
+<div class="shot"><b>Τρόποι αποστολής</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r3-ship-900.jpg"></div>
+</div>
+<div class="shots one"><div class="shot"><b>Βήμα πληρωμής (όλο)</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r3-pay-1000.jpg"></div></div>
+<h3>R4 · Χαλκιδική 63074 — τιμολογημένη περιοχή <span class="tag on">ΟΚ</span></h3>
+<table><thead><tr><th style="width:34%">Έλεγχος</th><th>Τι βρήκαμε</th><th style="width:48px"></th></tr></thead><tbody>
+<tr><td>Χρέωση παρά την παρουσία καταστήματος</td><td class="mono">Τρόπος αποστολής | ASAP Couriers | Μόνο για διευθύνσεις στην Αττική | — | ΕΛΤΑ Courier | 2–4 εργάσιμες | 3,90 € | Με μεταφορική | 3–7 εργάσιμες, με τηλεφωνική συνεννόηση · για ογκώδεις συσκευές | 25,00 € | Με ραντεβού | </td><td><span class="tag on">ΟΚ</span></td></tr>
+</tbody></table>
+<div class="shots one">
+<div class="shot"><b>Τρόποι αποστολής</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r4-ship-900.jpg"></div>
+</div>
+<h3>R5 · Καστελόριζο 85111 — κατόπιν συνεννόησης <span class="tag on">ΟΚ</span></h3>
+<table><thead><tr><th style="width:34%">Έλεγχος</th><th>Τι βρήκαμε</th><th style="width:48px"></th></tr></thead><tbody>
+<tr><td>Μήνυμα «κατόπιν συνεννόησης»</td><td class="mono">εμφανίζεται</td><td><span class="tag on">ΟΚ</span></td></tr>
+<tr><td>Παραπομπή στο κατάστημα της περιοχής</td><td class="mono">ναι</td><td><span class="tag on">ΟΚ</span></td></tr>
+<tr><td>Ολοκλήρωση χωρίς πληρωμή</td><td class="mono">Καλάθι | Στοιχεία &amp; παράδοση | 3 | Πληρωμή | 4 | Επιβεβαίωση | Στοιχεία | Δοκιμή Ελέγχου · qa@example.com · 6900000000 | Αλλαγή | Παράδοση | Λεωφόρος Δοκιμής 1, 85111 Καστελόριζο · Κατόπιν συνεννόησης · σε καλούμε για τα μεταφορικά και την ημέρα | Αλλαγή | Παραστατικό | Απόδειξη λιανικής | Αλλαγή | </td><td><span class="tag on">ΟΚ</span></td></tr>
+</tbody></table>
+<div class="shots one">
+<div class="shot"><b>Τρόποι αποστολής</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r5-ship-900.jpg"></div>
+</div>
+<div class="shots one"><div class="shot"><b>Βήμα πληρωμής (όλο)</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r5-pay-1000.jpg"></div></div>
+<h3>R6 · Κουζίνα 1.381 € στην Πάτρα — μεταφορική, αντικαταβολή &gt;500 € <span class="tag on">ΟΚ</span></h3>
+<p class="steps">Ογκώδης συσκευή, Πάτρα</p>
+<table><thead><tr><th style="width:34%">Έλεγχος</th><th>Τι βρήκαμε</th><th style="width:48px"></th></tr></thead><tbody>
+<tr><td>Εναλλακτική αντί courier (μεταφορική/ραντεβού/κατάστημα)</td><td class="mono">Τρόπος αποστολής | ASAP Couriers | Δεν αποστέλλεται με courier | — | ΕΛΤΑ Courier | Δεν αποστέλλεται με courier | — | Από κατάστημα Euronics κοντά σου | Διάλεξε κατάστημα · δωρεάν έως 15 χλμ από το κατάστημα | Δωρεάν | Ποιο κατάστημα να σου το φέρει; | Δωρεάν έως 15 χλμ οδικώς από το κατάστημα. Πιο μακριά υπάρχει χρέωσ</td><td><span class="tag on">ΟΚ</span></td></tr>
+<tr><td>Αντικαταβολή κλειστή άνω των 500 €</td><td class="mono">Καλάθι | 2 | Στοιχεία &amp; παράδοση | 3 | Πληρωμή | 4 | Επιβεβαίωση | Γρήγορη ολοκλήρωση | Διεύθυνση &amp; πληρωμή από το wallet σου | Pay | Pay | PayPal | IRIS | ή συμπλήρωσε τα στοιχεία σου | 1 | Στοιχεία </td><td><span class="tag on">ΟΚ</span></td></tr>
+</tbody></table>
+<div class="shots one">
+<div class="shot"><b>Τρόποι αποστολής</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r6-ship-900.jpg"></div>
+</div>
+<div class="shots one"><div class="shot"><b>Βήμα πληρωμής (όλο)</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r6-pay-1000.jpg"></div></div>
+<h3>R7 · Παραλαβή από κατάστημα (Click &amp; Collect) <span class="tag on">ΟΚ</span></h3>
+<p class="steps">Επιλογή παραλαβής από κατάστημα</p>
+<table><thead><tr><th style="width:34%">Έλεγχος</th><th>Τι βρήκαμε</th><th style="width:48px"></th></tr></thead><tbody>
+<tr><td>Επιλογή καταστήματος</td><td class="mono">εμφανίζεται</td><td><span class="tag on">ΟΚ</span></td></tr>
+<tr><td>Πληρωμή στο κατάστημα</td><td class="mono">4 | Πληρωμή | Το ποσό που βλέπεις δεξιά είναι το τελικό. | Κάρτα | Visa · Mastercard · Amex | Apple Pay | Με Face ID / Touch ID | Google Pay | Με την κάρτα του Google λογαριασμού σου | PayPal | Με τον λογαριασμό PayPal σου | IRIS | Άμεσα από το e-banking, χωρίς προμήθεια | Κατάθεση σε τράπεζα | Euro</td><td><span class="tag on">ΟΚ</span></td></tr>
+</tbody></table>
+<div class="shots one"><div class="shot"><b>Επιλογή καταστήματος (όλη η σελίδα)</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r7-pick-1000.jpg"></div></div>
+<div class="shots one"><div class="shot"><b>Βήμα πληρωμής (όλο)</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r7-pay-1000.jpg"></div></div>
+<h3>R8 · Τιμολόγιο — πεδία ΑΦΜ/ΑΑΔΕ <span class="tag on">ΟΚ</span></h3>
+<p class="steps">Ταμείο → Παραστατικό → Τιμολόγιο</p>
+<table><thead><tr><th style="width:34%">Έλεγχος</th><th>Τι βρήκαμε</th><th style="width:48px"></th></tr></thead><tbody>
+<tr><td>Εμφανίζονται ΑΦΜ, Επωνυμία, ΔΟΥ, Δραστηριότητα</td><td class="mono">ναι, με κουμπί «ΑΑΔΕ» για αυτόματη συμπλήρωση</td><td><span class="tag on">ΟΚ</span></td></tr>
+</tbody></table>
+<div class="shots one">
+<div class="shot"><b>Πεδία τιμολογίου</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r8-invoice-900.jpg"></div>
+</div>
+<h3>R9 · Κουπόνι με άκυρο κωδικό <span class="tag on">ΟΚ</span></h3>
+<table><thead><tr><th style="width:34%">Έλεγχος</th><th>Τι βρήκαμε</th><th style="width:48px"></th></tr></thead><tbody>
+<tr><td>Μήνυμα για άκυρο κουπόνι</td><td class="mono">Ο κωδικός ΑΚΥΡΟ123 δεν εφαρμόστηκε: ο κωδικός δεν υπάρχει. </td><td><span class="tag on">ΟΚ</span></td></tr>
+</tbody></table>
+<div class="shots one">
+<div class="shot"><b>Κουπόνι με άκυρο κωδικό</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r9-coupon-900.jpg"></div>
+</div>
+<h3>R10 · Ταμείο σε κινητό (390px) <span class="tag on">ΟΚ</span></h3>
+<p class="steps">Ταμείο σε οθόνη 390 px, διεύθυνση Αθήνα</p>
+<table><thead><tr><th style="width:34%">Έλεγχος</th><th>Τι βρήκαμε</th><th style="width:48px"></th></tr></thead><tbody>
+<tr><td>Χωρίς οριζόντια κύλιση στα 390 px</td><td class="mono">καμία υπέρβαση</td><td><span class="tag on">ΟΚ</span></td></tr>
+<tr><td>Βήμα πληρωμής στα 390 px χωρίς οριζόντια κύλιση</td><td class="mono">καμία υπέρβαση</td><td><span class="tag on">ΟΚ</span></td></tr>
+</tbody></table>
+<div class="shots one"><div class="shot"><b>Κινητό 390 px (όλη η σελίδα)</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r10-checkout-m-1000.jpg"></div></div>
+<div class="shots one"><div class="shot"><b>Κινητό 390 px · πληρωμή</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/r10-pay-m-1000.jpg"></div></div>
+<div class="page"></div><h2>Μεταφορικά ανά περιοχή</h2>
+<p>Ίδιο καλάθι (μία μικρή συσκευή 33,90 €), διαφορετικός Τ.Κ. Η τιμή του τιμοκαταλόγου φαίνεται σε παρένθεση όταν μηδενίζεται επειδή η περιοχή έχει κατάστημα Euronics.</p>
+<table><thead><tr><th>Τ.Κ.</th><th>Περιοχή</th><th>Τρόποι αποστολής &amp; χρέωση</th><th>Κανόνας</th></tr></thead><tbody>
+<tr><td class="num">11527</td><td>Αθήνα (Αττική)</td><td>ΕΛΤΑ Courier: Δωρεάν (τιμοκ. 3,90 €) · ASAP Couriers: Δωρεάν (τιμοκ. 6,90 €)</td><td><span class="tag on">περιοχή με κατάστημα</span></td></tr>
+<tr><td class="num">18050</td><td>Σπέτσες</td><td>ΕΛΤΑ Courier: 3,90 € · ASAP Couriers: — · μεταφορική 25,00 €</td><td><span class="tag wait">τιμολογημένη: Σπέτσες</span></td></tr>
+<tr><td class="num">19002</td><td>Παιανία (Αττική)</td><td>ΕΛΤΑ Courier: Δωρεάν (τιμοκ. 3,90 €) · ASAP Couriers: Δωρεάν (τιμοκ. 6,90 €)</td><td><span class="tag on">περιοχή με κατάστημα</span></td></tr>
+<tr><td class="num">26442</td><td>Πάτρα</td><td>ΕΛΤΑ Courier: Δωρεάν (τιμοκ. 3,90 €) · ASAP Couriers: — · μεταφορική Δωρεάν</td><td><span class="tag on">περιοχή με κατάστημα</span></td></tr>
+<tr><td class="num">28081</td><td>Κεφαλονιά</td><td>ΕΛΤΑ Courier: 3,90 € · ASAP Couriers: — · μεταφορική 25,00 €</td><td><span class="tag wait">χρέωση courier</span></td></tr>
+<tr><td class="num">28300</td><td>Ιθάκη</td><td>ΕΛΤΑ Courier: 3,90 € · ASAP Couriers: — · μεταφορική 25,00 €</td><td><span class="tag wait">τιμολογημένη: Ιθάκη</span></td></tr>
+<tr><td class="num">34007</td><td>Σκύρος</td><td>ΕΛΤΑ Courier: 3,90 € · ASAP Couriers: — · μεταφορική 25,00 €</td><td><span class="tag wait">τιμολογημένη: Σκύρος</span></td></tr>
+<tr><td class="num">37003</td><td>Σκόπελος</td><td>ΕΛΤΑ Courier: 3,90 € · ASAP Couriers: — · μεταφορική 25,00 €</td><td><span class="tag wait">τιμολογημένη: Σκόπελος</span></td></tr>
+<tr><td class="num">45221</td><td>Ιωάννινα</td><td>ΕΛΤΑ Courier: 3,90 € · ASAP Couriers: — · μεταφορική 25,00 €</td><td><span class="tag wait">τιμολογημένη: Ιωάννινα (όλος ο νομός)</span></td></tr>
+<tr><td class="num">50100</td><td>Κοζάνη</td><td>ΕΛΤΑ Courier: Δωρεάν (τιμοκ. 3,90 €) · ASAP Couriers: — · μεταφορική Δωρεάν</td><td><span class="tag on">περιοχή με κατάστημα</span></td></tr>
+<tr><td class="num">54629</td><td>Θεσσαλονίκη</td><td>ΕΛΤΑ Courier: Δωρεάν (τιμοκ. 3,90 €) · ASAP Couriers: — · μεταφορική Δωρεάν</td><td><span class="tag on">περιοχή με κατάστημα</span></td></tr>
+<tr><td class="num">63074</td><td>Χαλκιδική</td><td>ΕΛΤΑ Courier: 3,90 € · ASAP Couriers: — · μεταφορική 25,00 €</td><td><span class="tag wait">τιμολογημένη: Χαλκιδική</span></td></tr>
+<tr><td class="num">67100</td><td>Ξάνθη</td><td>ΕΛΤΑ Courier: Δωρεάν (τιμοκ. 3,90 €) · ASAP Couriers: — · μεταφορική Δωρεάν</td><td><span class="tag on">περιοχή με κατάστημα</span></td></tr>
+<tr><td class="num">68100</td><td>Αλεξανδρούπολη</td><td>ΕΛΤΑ Courier: Δωρεάν (τιμοκ. 3,90 €) · ASAP Couriers: — · μεταφορική Δωρεάν</td><td><span class="tag on">περιοχή με κατάστημα</span></td></tr>
+<tr><td class="num">71202</td><td>Ηράκλειο</td><td>ΕΛΤΑ Courier: 3,90 € · ASAP Couriers: — · μεταφορική 25,00 €</td><td><span class="tag wait">χρέωση courier</span></td></tr>
+<tr><td class="num">73100</td><td>Χανιά</td><td>ΕΛΤΑ Courier: 3,90 € · ASAP Couriers: — · μεταφορική 25,00 €</td><td><span class="tag wait">χρέωση courier</span></td></tr>
+<tr><td class="num">84007</td><td>Αντίπαρος</td><td>ΕΛΤΑ Courier: 3,90 € · ASAP Couriers: — · μεταφορική 25,00 €</td><td><span class="tag wait">τιμολογημένη: Αντίπαρος</span></td></tr>
+<tr><td class="num">84009</td><td>Ανάφη</td><td>ΕΛΤΑ Courier: — · ASAP Couriers: — · μεταφορική 25,00 €</td><td><span class="tag ask">κατόπιν συνεννόησης</span></td></tr>
+<tr><td class="num">84100</td><td>Σύρος</td><td>ΕΛΤΑ Courier: 3,90 € · ASAP Couriers: — · μεταφορική 25,00 €</td><td><span class="tag wait">τιμολογημένη: Σύρος</span></td></tr>
+<tr><td class="num">85100</td><td>Ρόδος</td><td>ΕΛΤΑ Courier: Δωρεάν (τιμοκ. 3,90 €) · ASAP Couriers: — · μεταφορική Δωρεάν</td><td><span class="tag on">περιοχή με κατάστημα</span></td></tr>
+<tr><td class="num">85111</td><td>Καστελόριζο</td><td>ΕΛΤΑ Courier: — · ASAP Couriers: — · μεταφορική 25,00 €</td><td><span class="tag ask">κατόπιν συνεννόησης</span></td></tr>
+<tr><td class="num">85200</td><td>Κάλυμνος</td><td>ΕΛΤΑ Courier: 3,90 € · ASAP Couriers: — · μεταφορική 25,00 €</td><td><span class="tag wait">τιμολογημένη: Κάλυμνος</span></td></tr>
+</tbody></table>
+<div class="page"></div><h2>Σελίδες</h2>
+<table><thead><tr><th>Σελίδα</th><th>Διαδρομή</th><th class="num">Κωδ.</th><th class="num">Χρόνος</th><th>Σφάλματα</th></tr></thead><tbody>
+<tr><td>Αρχική</td><td class="mono">/</td><td class="num">200</td><td class="num">4.6 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Όλα τα προϊόντα (λίστα)</td><td class="mono">/proionta</td><td class="num">200</td><td class="num">1.1 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Κατηγορία: Ψυγεία (λίστα προϊόντων)</td><td class="mono">/k/leykes-syskeyes/psygeia</td><td class="num">200</td><td class="num">5.8 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Κατηγορία: Τηλεοράσεις</td><td class="mono">/k/eikona-kai-ichos/tileoraseis-axesoyar/tileoraseis</td><td class="num">200</td><td class="num">1.8 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Προϊόν: μικρή συσκευή</td><td class="mono">/proion/tostiera-180o-750w-kokkini-txs886c-gruppe-chatzigeorgioy</td><td class="num">200</td><td class="num">3.5 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Προϊόν: τηλεόραση 75"</td><td class="mono">/proion/qe75qn70hauxxh-75-neo-qled-qn70h-4k-samsung-vision-ai-smart-tv</td><td class="num">200</td><td class="num">34.6 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Αναζήτηση «ψυγείο»</td><td class="mono">/anazitisi?q=ψυγείο</td><td class="num">200</td><td class="num">2.5 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Προσφορές</td><td class="mono">/prosfores</td><td class="num">200</td><td class="num">2.9 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Μάρκες</td><td class="mono">/brands</td><td class="num">200</td><td class="num">3.5 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Σύγκριση</td><td class="mono">/sygkrisi</td><td class="num">200</td><td class="num">1.8 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Οδηγός αγοράς</td><td class="mono">/odigos-agoras</td><td class="num">200</td><td class="num">1.9 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Καταστήματα</td><td class="mono">/katastimata</td><td class="num">200</td><td class="num">3.6 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Τρόποι αποστολής</td><td class="mono">/tropoi-apostolis</td><td class="num">200</td><td class="num">2.5 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Τρόποι πληρωμής</td><td class="mono">/tropoi-pliromis</td><td class="num">200</td><td class="num">1.9 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Επιστροφές</td><td class="mono">/epistrofes</td><td class="num">200</td><td class="num">1.6 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Συχνές ερωτήσεις</td><td class="mono">/syxnes-erotiseis</td><td class="num">200</td><td class="num">1.8 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Υπηρεσίες</td><td class="mono">/ypiresies</td><td class="num">200</td><td class="num">1.7 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Κάρτες δώρου</td><td class="mono">/kartes-dorou</td><td class="num">200</td><td class="num">2.2 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Είσοδος</td><td class="mono">/eisodos</td><td class="num">200</td><td class="num">1.8 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Εγγραφή</td><td class="mono">/eggrafi</td><td class="num">200</td><td class="num">1.2 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Ο λογαριασμός μου (χωρίς σύνδεση)</td><td class="mono">/logariasmos</td><td class="num">200</td><td class="num">2.8 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Επικοινωνία</td><td class="mono">/epikoinonia</td><td class="num">200</td><td class="num">2.5 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Νέα</td><td class="mono">/nea</td><td class="num">200</td><td class="num">1.8 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Οδηγοί</td><td class="mono">/odigoi</td><td class="num">200</td><td class="num">1.5 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Λίστα αγαπημένων</td><td class="mono">/lista</td><td class="num">200</td><td class="num">1.5 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Η εταιρεία</td><td class="mono">/etaireia</td><td class="num">200</td><td class="num">2.0 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Όροι χρήσης</td><td class="mono">/oroi-chrisis</td><td class="num">200</td><td class="num">2.3 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Απόρρητο</td><td class="mono">/aporrito</td><td class="num">200</td><td class="num">2.9 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Προσβασιμότητα</td><td class="mono">/prosvasimotita</td><td class="num">200</td><td class="num">1.9 s</td><td><span class="tag on">—</span></td></tr>
+<tr><td>Καλάθι</td><td class="mono">/kalathi</td><td class="num">200</td><td class="num">1.8 s</td><td><span class="tag on">—</span></td></tr>
+</tbody></table>
+<p class="muted">Οι χρόνοι είναι από τοπικό dev server χωρίς cache και δεν αντιπροσωπεύουν την παραγωγή.</p>
+<h3>Αρχική <span class="muted" style="font-weight:500">/</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-home-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-home-m-250.jpg"></div>
+</div>
+<h3>Όλα τα προϊόντα (λίστα) <span class="muted" style="font-weight:500">/proionta</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-proionta-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-proionta-m-250.jpg"></div>
+</div>
+<h3>Κατηγορία: Ψυγεία (λίστα προϊόντων) <span class="muted" style="font-weight:500">/k/leykes-syskeyes/psygeia</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-k_leykes_syskeyes_psygeia-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-k_leykes_syskeyes_psygeia-m-250.jpg"></div>
+</div>
+<h3>Κατηγορία: Τηλεοράσεις <span class="muted" style="font-weight:500">/k/eikona-kai-ichos/tileoraseis-axesoyar/tileoraseis</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-k_eikona_kai_ichos_tileoraseis_axesoyar_tileoraseis-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-k_eikona_kai_ichos_tileoraseis_axesoyar_tileoraseis-m-250.jpg"></div>
+</div>
+<h3>Προϊόν: μικρή συσκευή <span class="muted" style="font-weight:500">/proion/tostiera-180o-750w-kokkini-txs886c-gruppe-chatzigeorgioy</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-proion_tostiera_180o_750w_kokkini_txs886c_gruppe_chatzigeorgioy-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-proion_tostiera_180o_750w_kokkini_txs886c_gruppe_chatzigeorgioy-m-250.jpg"></div>
+</div>
+<h3>Προϊόν: τηλεόραση 75" <span class="muted" style="font-weight:500">/proion/qe75qn70hauxxh-75-neo-qled-qn70h-4k-samsung-vision-ai-smart-tv</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-proion_qe75qn70hauxxh_75_neo_qled_qn70h_4k_samsung_vision_ai_smart_tv-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-proion_qe75qn70hauxxh_75_neo_qled_qn70h_4k_samsung_vision_ai_smart_tv-m-250.jpg"></div>
+</div>
+<h3>Αναζήτηση «ψυγείο» <span class="muted" style="font-weight:500">/anazitisi?q=ψυγείο</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-anazitisi_q-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-anazitisi_q-m-250.jpg"></div>
+</div>
+<h3>Προσφορές <span class="muted" style="font-weight:500">/prosfores</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-prosfores-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-prosfores-m-250.jpg"></div>
+</div>
+<h3>Μάρκες <span class="muted" style="font-weight:500">/brands</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-brands-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-brands-m-250.jpg"></div>
+</div>
+<h3>Σύγκριση <span class="muted" style="font-weight:500">/sygkrisi</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-sygkrisi-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-sygkrisi-m-250.jpg"></div>
+</div>
+<h3>Οδηγός αγοράς <span class="muted" style="font-weight:500">/odigos-agoras</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-odigos_agoras-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-odigos_agoras-m-250.jpg"></div>
+</div>
+<h3>Καταστήματα <span class="muted" style="font-weight:500">/katastimata</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-katastimata-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-katastimata-m-250.jpg"></div>
+</div>
+<h3>Τρόποι αποστολής <span class="muted" style="font-weight:500">/tropoi-apostolis</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-tropoi_apostolis-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-tropoi_apostolis-m-250.jpg"></div>
+</div>
+<h3>Τρόποι πληρωμής <span class="muted" style="font-weight:500">/tropoi-pliromis</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-tropoi_pliromis-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-tropoi_pliromis-m-250.jpg"></div>
+</div>
+<h3>Επιστροφές <span class="muted" style="font-weight:500">/epistrofes</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-epistrofes-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-epistrofes-m-250.jpg"></div>
+</div>
+<h3>Συχνές ερωτήσεις <span class="muted" style="font-weight:500">/syxnes-erotiseis</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-syxnes_erotiseis-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-syxnes_erotiseis-m-250.jpg"></div>
+</div>
+<h3>Υπηρεσίες <span class="muted" style="font-weight:500">/ypiresies</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-ypiresies-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-ypiresies-m-250.jpg"></div>
+</div>
+<h3>Κάρτες δώρου <span class="muted" style="font-weight:500">/kartes-dorou</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-kartes_dorou-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-kartes_dorou-m-250.jpg"></div>
+</div>
+<h3>Είσοδος <span class="muted" style="font-weight:500">/eisodos</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-eisodos-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-eisodos-m-250.jpg"></div>
+</div>
+<h3>Εγγραφή <span class="muted" style="font-weight:500">/eggrafi</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-eggrafi-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-eggrafi-m-250.jpg"></div>
+</div>
+<h3>Ο λογαριασμός μου (χωρίς σύνδεση) <span class="muted" style="font-weight:500">/logariasmos</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-logariasmos-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-logariasmos-m-250.jpg"></div>
+</div>
+<h3>Επικοινωνία <span class="muted" style="font-weight:500">/epikoinonia</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-epikoinonia-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-epikoinonia-m-250.jpg"></div>
+</div>
+<h3>Νέα <span class="muted" style="font-weight:500">/nea</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-nea-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-nea-m-250.jpg"></div>
+</div>
+<h3>Οδηγοί <span class="muted" style="font-weight:500">/odigoi</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-odigoi-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-odigoi-m-250.jpg"></div>
+</div>
+<h3>Λίστα αγαπημένων <span class="muted" style="font-weight:500">/lista</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-lista-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-lista-m-250.jpg"></div>
+</div>
+<h3>Η εταιρεία <span class="muted" style="font-weight:500">/etaireia</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-etaireia-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-etaireia-m-250.jpg"></div>
+</div>
+<h3>Όροι χρήσης <span class="muted" style="font-weight:500">/oroi-chrisis</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-oroi_chrisis-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-oroi_chrisis-m-250.jpg"></div>
+</div>
+<h3>Απόρρητο <span class="muted" style="font-weight:500">/aporrito</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-aporrito-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-aporrito-m-250.jpg"></div>
+</div>
+<h3>Προσβασιμότητα <span class="muted" style="font-weight:500">/prosvasimotita</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-prosvasimotita-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-prosvasimotita-m-250.jpg"></div>
+</div>
+<h3>Καλάθι <span class="muted" style="font-weight:500">/kalathi</span></h3>
+<div class="pair">
+<div class="shot"><b>Υπολογιστής 1440 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-kalathi-d-760.jpg"></div>
+<div class="shot"><b>Κινητό 390 px</b><img src="file:///tmp/claude-501/-Users-kozyris-EURONICS-euronics-redesign/b745aee4-1a50-42a6-bb46-8015e8b92e78/scratchpad/qa/small/p-kalathi-m-250.jpg"></div>
+</div>
+<div class="page"></div><h2>Σημεία που θέλουν προσοχή</h2>
+<table><thead><tr><th style="width:92px">Σοβαρότητα</th><th style="width:26%">Πού</th><th>Τι συμβαίνει και γιατί έχει σημασία</th></tr></thead><tbody>
+<tr><td><span class="tag ask">Να διορθωθεί</span></td><td>Παντού · μπάνερ cookies + βοηθός Ερμής</td><td><b>Ο βοηθός Ερμής κάθεται πάνω από το κουμπί «Αποδοχή όλων» στο κινητό</b><br>Ο βοηθός έχει z-index 60 και το παράθυρο των cookies 50, οπότε η φούσκα του βοηθού σκεπάζει το κουμπί της συγκατάθεσης σε οθόνη 390 px. Ο επισκέπτης δεν μπορεί να πατήσει καθαρά «Αποδοχή» ή «Απόρριψη» με το δάχτυλο. Διόρθωση: το παράθυρο των cookies πάνω από τον βοηθό (ή ο βοηθός κρυμμένος όσο φαίνεται το μπάνερ).</td></tr>
+<tr><td><span class="tag ask">Να διορθωθεί</span></td><td>Όλες οι σελίδες σε υπολογιστή</td><td><b>Το μπάνερ cookies σκεπάζει την περιοχή αγοράς</b><br>Στο σταθερό του σημείο (κάτω δεξιά, 420 px πλάτος) πέφτει πάνω στο κουτί τιμής της σελίδας προϊόντος, στα προϊόντα της λίστας και στο πλακίδιο «Το κατάστημά σου» της αρχικής. Στην πρώτη επίσκεψη — δηλαδή σε κάθε νέο πελάτη — η πιο σημαντική περιοχή κάθε σελίδας είναι μισοκρυμμένη.</td></tr>
+<tr><td><span class="tag ask">Να διορθωθεί</span></td><td>Ταμείο · όλες οι παραγγελίες</td><td><b>Ο Νομός δεν ακολουθεί τον Τ.Κ.</b><br>Με Τ.Κ. 85111 (Καστελόριζο) ο Νομός έμεινε «Αττική», δηλαδή η προεπιλογή. Αν ο πελάτης δεν το προσέξει, η παραγγελία φεύγει στο SoftOne με λάθος νομό. Υπάρχει ήδη έτοιμη συνάρτηση (regionOf) που βγάζει τον νομό από τον Τ.Κ.</td></tr>
+<tr><td><span class="tag ask">Να διορθωθεί</span></td><td>Σελίδα προϊόντος &amp; κάρτες · 162 προσφορές</td><td><b>Διαγραμμένη τιμή και −% χωρίς τη «χαμηλότερη τιμή 30 ημερών»</b><br>Και στις 162 ενεργές προσφορές η αποθηκευμένη χαμηλότερη τιμή 30 ημερών είναι ίση ή μικρότερη από την τιμή πώλησης, οπότε το κατάστημα δείχνει διαγραμμένη τιμή χωρίς τη γραμμή των 30 ημερών. Η οδηγία Omnibus ζητά να αναγράφεται όποτε ανακοινώνεται μείωση τιμής. Αξίζει έλεγχος με τον νομικό σας.</td></tr>
+<tr><td><span class="tag wait">Απόφαση</span></td><td>Ταμείο · τρόποι πληρωμής</td><td><b>Η αντικαταβολή δεν προσφέρεται</b><br>Σε παραγγελία 33,90 € προς Ιωάννινα οι τρόποι πληρωμής ήταν: Κάρτα, Apple Pay, Google Pay, PayPal, IRIS, Κατάθεση σε τράπεζα. Η αντικαταβολή είναι κλειστή στις Ρυθμίσεις → Πληρωμές αυτού του περιβάλλοντος. Επιβεβαιώστε αν πρέπει να είναι ανοιχτή στο live.</td></tr>
+<tr><td><span class="tag wait">Απόφαση</span></td><td>Ταμείο · Αττική</td><td><b>Το ASAP Express βγαίνει «Δωρεάν» στις περιοχές με κατάστημα</b><br>Ο κανόνας «δωρεάν στις περιοχές με κατάστημα» μηδενίζει και τον express μεταφορέα (τιμοκατάλογος 6,90 €), όχι μόνο την κανονική αποστολή (3,90 €). Αν η Euronics θέλει να χρεώνει το express, πρέπει να εξαιρεθεί από τη δωρεάν ζώνη.</td></tr>
+<tr><td><span class="tag wait">Απόφαση</span></td><td>Μεταφορικά · Ιωάννινα</td><td><b>Τιμολογημένη περιοχή με τιμή ίδια με την κανονική</b><br>Ο Τ.Κ. 45221 βρίσκεται στον κατάλογο τιμολογημένων περιοχών («Ιωάννινα, όλος ο νομός») και χρεώνεται 3,90 €, δηλαδή όσο και η απλή αποστολή courier. Είτε η τιμή της περιοχής θέλει ενημέρωση είτε η περιοχή δεν χρειάζεται να είναι στον κατάλογο.</td></tr>
+<tr><td><span class="tag on">Παρατήρηση</span></td><td>Μεταφορικά · νησιά</td><td><b>Ο κατάλογος τιμολογημένων περιοχών ταιριάζει με πρόθεμα Τ.Κ.</b><br>Μια περιοχή με πρόθεμα δύο ψηφίων (π.χ. «63» για Χαλκιδική, «44»/«45» για Ιωάννινα) πιάνει ολόκληρο τον νομό. Στα νησιά οι κωδικοί είναι πλήρεις (84007 Αντίπαρος, 85200 Κάλυμνος) και δουλεύουν σωστά. Αξίζει έλεγχος όποτε προστίθεται νέα περιοχή με κοντό πρόθεμα.</td></tr>
+<tr><td><span class="tag on">Παρατήρηση</span></td><td>Αρχική · ticker</td><td><b>Το ίδιο μήνυμα τρεις φορές στην ίδια οθόνη</b><br>Η λωρίδα κυλά με δύο μόνο ενεργά μηνύματα, οπότε σε οθόνη 1440 px το «Black Friday euronics» φαίνεται τρεις φορές ταυτόχρονα. Με 4–6 μηνύματα η λωρίδα διαβάζεται σαν ενημέρωση και όχι σαν επανάληψη.</td></tr>
+<tr><td><span class="tag on">Παρατήρηση</span></td><td>Αρχική (κινητό)</td><td><b>Κομμένο κείμενο στο hero</b><br>Ο υπότιτλος κόβεται στη μέση της πρότασης («…έως 30…»). Το κείμενο του slide θέλει δική του, πιο σύντομη εκδοχή για κινητό.</td></tr>
+<tr><td><span class="tag on">Παρατήρηση</span></td><td>Ταμείο · ογκώδη, επιλογή καταστήματος</td><td><b>Τα καταστήματα φαίνονται με το όνομα του εμπόρου και «0 χλμ»</b><br>Ο πελάτης διαβάζει «ΚΟΥΒΕΡΙΑΝΟΣ - ΚΩΝ. ΚΑΡΑΜΑΝΛΗ 42 · Πάτρα · 0 χλμ οδικώς» και «ΑΘΑΝΑΣΟΠΟΥΛΟΣ - ΕΔΡΑ». Προτείνεται «Euronics Πάτρα — Κ. Καραμανλή 42» και «κάτω από 1 χλμ» αντί για 0.</td></tr>
+<tr><td><span class="tag on">Παρατήρηση</span></td><td>Αρχική · κάρτες Black Friday</td><td><b>Η στρογγυλή σφραγίδα κάθεται πάνω στη φωτογραφία</b><br>Σε μία οθόνη η φράση «Black Friday» εμφανίζεται ~10 φορές (τίτλος ενότητας, σήμα ανά κάρτα, σφραγίδα ανά φωτογραφία, ticker). Η σφραγίδα κρύβει μέρος του προϊόντος.</td></tr>
+</tbody></table>
+<h2>Τι δεν ελέγχθηκε</h2><ul><li>Καμία παραγγελία δεν καταχωρήθηκε: δεν πατήθηκε το τελικό κουμπί, γιατί στέλνει παραστατικό στο SoftOne, email στον πελάτη και χρέωση στη Viva.</li><li>Η ροή ASAP Express της Αττικής: στο περιβάλλον δοκιμών ο διακόπτης ASAP ήταν κλειστός, οπότε το κατάστημα έδειξε την απλή λίστα μεταφορέων και όχι την ειδική οθόνη Αττικής.</li><li>Πραγματική πληρωμή με κάρτα, Apple Pay, Google Pay, PayPal, IRIS ή Klarna: ελέγχθηκε ότι εμφανίζονται και επιλέγονται, όχι η μετάβαση στη σελίδα του παρόχου.</li><li>Σύνδεση πελάτη και οι σελίδες του λογαριασμού με δεδομένα (παραγγελίες, εγγυήσεις, επιστροφές): χρειάζονται λογαριασμό δοκιμών.</li><li>Η διαχείριση (/admin) — ο έλεγχος αφορά μόνο το κατάστημα.</li><li>Email επιβεβαίωσης, SMS παράδοσης και αποστολή στο SoftOne.</li><li>Πραγματικοί χρόνοι φόρτωσης: οι μετρήσεις είναι από τοπικό dev server χωρίς cache και είναι πολλαπλάσιες της παραγωγής.</li><li>Η εικόνα ολόκληρης σελίδας (full page) δεν χρησιμοποιήθηκε: οι ενότητες που εμφανίζονται με κύλιση βγαίνουν κενές. Οι φωτογραφίες είναι καρέ οθόνης, όπως τα βλέπει ο επισκέπτης.</li></ul>
+<footer><span>Euronics · αναφορά ελέγχου καταστήματος</span><span>DGsoft · 21/11/2026</span></footer>
+</body></html>
