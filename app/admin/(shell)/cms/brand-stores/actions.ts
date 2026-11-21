@@ -191,7 +191,7 @@ const bfDomain = (cdn: string | null) => cdn?.match(/cdn\.brandfetch\.io\/([^/]+
 /** Νέα σελίδα μάρκας: ξεκινά ως πρόχειρο με προϊόντα της μάρκας ήδη επιλεγμένα. Δεν δημοσιεύεται. */
 export async function createStoreAction(brandSlug: string) {
   const user = await requirePermission(PERM);
-  if (await getStoreDoc(brandSlug)) redirect(`/admin/cms/brand-stores/${brandSlug}`);
+  if (await getStoreDoc(brandSlug)) redirect(`/admin/cms/brand-stores/${encodeURIComponent(brandSlug)}`);
   const brand = await db.brand.findUnique({ where: { slug: brandSlug } });
   if (!brand) throw new Error("Άγνωστη μάρκα.");
   const prods = await db.product.findMany({ where: { brandId: brand.id, active: true, price: { not: null }, media: { some: { hidden: false, kind: "image" } } }, orderBy: [{ price: "desc" }], take: 40, select: { id: true, createdAt: true } });
@@ -217,7 +217,7 @@ export async function createStoreAction(brandSlug: string) {
   };
   await saveDraft(brand.slug, store, user.id);
   await audit(user.id, "cms.brandstore.create", "CmsDocument", `brand.stores/${brand.slug}`, null, { slug: brand.slug });
-  redirect(`/admin/cms/brand-stores/${brand.slug}`);
+  redirect(`/admin/cms/brand-stores/${encodeURIComponent(brand.slug)}`);
 }
 
 // ---- επιλογή εικόνας: από προϊόν · από tags · από τη βιβλιοθήκη ----

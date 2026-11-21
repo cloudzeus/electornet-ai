@@ -10,6 +10,7 @@ import { Pagination } from "@/components/catalog/Pagination";
 import { ProductGrid } from "@/components/catalog/ProductGrid";
 import { getBrand, getBrandStore, listProducts, type ListFilter } from "@/lib/data/repo";
 import { renderBrandStore } from "@/lib/cms/brand-render";
+import { decodeSlug } from "@/lib/slug";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/rbac/permissions";
@@ -30,7 +31,7 @@ async function previewStore(slug: string, sp: Record<string, string | undefined>
 }
 
 export async function generateMetadata({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | undefined>> }): Promise<Metadata> {
-  const [slug, sp] = [(await params).slug, await searchParams];
+  const [slug, sp] = [decodeSlug((await params).slug), await searchParams];
   const store = await getBrandStore(slug);
   // οι προεπισκοπήσεις του πρόχειρου δεν ευρετηριάζονται
   if (sp.pt || sp.preview) return { title: store?.seo.title ?? slug, robots: { index: false, follow: false } };
@@ -40,7 +41,8 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
 }
 
 export default async function BrandPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
-  const [{ slug }, sp] = await Promise.all([params, searchParams]);
+  const [{ slug: rawSlug }, sp] = await Promise.all([params, searchParams]);
+  const slug = decodeSlug(rawSlug);
   const brand = await getBrand(slug);
   if (!brand) notFound();
   // Brand store (CMS record) → the manufacturer's own page; ?all=1 shows the plain listing.

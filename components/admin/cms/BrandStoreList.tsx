@@ -95,7 +95,7 @@ export function BrandStoreList({ rows, brands }: { rows: StoreRow[]; brands: Bra
                   </div>
                   <div className="text-eu-muted text-[length:var(--fs-13)]">{r.blocks} ενότητες · {r.products} προϊόντα στον κατάλογο · αλλαγή {date(r.updatedAt)}{r.publishedAt ? ` · δημοσίευση ${date(r.publishedAt)}` : ""}</div>
                   <div className="flex flex-wrap gap-2">
-                    <Link href={`/admin/cms/brand-stores/${r.slug}`} className="inline-flex items-center justify-center gap-1 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-blue grow @md:grow-0">Επεξεργασία <ChevronRight className="size-4" aria-hidden /></Link>
+                    <Link href={`/admin/cms/brand-stores/${encodeURIComponent(r.slug)}`} className="inline-flex items-center justify-center gap-1 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-blue grow @md:grow-0">Επεξεργασία <ChevronRight className="size-4" aria-hidden /></Link>
                     {r.status !== "draft" && <a href={`/brands/${r.slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1 rounded-full border-2 border-eu-line font-bold text-[length:var(--fs-14)] px-4 min-h-11 hover:border-eu-navy grow @md:grow-0">Στο site <ExternalLink className="size-4" aria-hidden /></a>}
                   </div>
                 </li>

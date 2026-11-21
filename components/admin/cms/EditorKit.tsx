@@ -1,6 +1,6 @@
 "use client";
 
-import { createElement, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { createElement, useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import {
   Bell, BookOpen, Check, FileText, GalleryHorizontal, HelpCircle, Image as ImageIcon, Laptop, ListOrdered, Loader2, Mail, Megaphone, MessageSquare, Monitor, Package, Percent,
   CalendarClock, EyeOff, LayoutGrid, Rocket, Search, ShoppingBag, Smartphone, Sparkles, Store, Tablet, Tag, Ticket, Timer, Truck, Video, Wrench, X, Zap, type LucideIcon,
@@ -16,6 +16,37 @@ import { sx } from "@/components/ui/sx";
  * Κοινά κομμάτια των editors σελίδων (Ζώνες αρχικής, σελίδες μαρκών): εικονίδια components, σύνοψη και φόρμα
  * «Πότε & σε ποιους», παράθυρο προσθήκης, ζωντανή προεπισκόπηση με επιλογή στοιχείου.
  */
+export type EditorMode = "s" | "m" | "l";
+/** Ζώνη ανοχής στα όρια: όταν αλλάζουν οι στήλες εμφανίζεται/χάνεται η μπάρα κύλισης και το πλάτος κουνιέται λίγο. */
+const BAND = 40;
+const nextMode = (prev: EditorMode, w: number): EditorMode => {
+  if (w >= 1500) return "l";
+  if (prev === "l" && w >= 1500 - BAND) return "l";
+  if (w >= 900) return "m";
+  if (prev !== "s" && w >= 900 - BAND) return "m";
+  return "s";
+};
+/**
+ * Πλάτος του editor → διάταξη (s: μία στήλη · m: ρυθμίσεις + προεπισκόπηση · l: χάρτης + ρυθμίσεις + προεπισκόπηση).
+ * Η μέτρηση δένεται με callback ref, ώστε αν το στοιχείο ξαναδημιουργηθεί να περνά η παρακολούθηση στο νέο· πλάτος 0
+ * (κρυμμένο/αποσπασμένο) αγνοείται. Η αλλαγή διάταξης αλλάζει και το ίδιο το πλάτος, γι' αυτό η επιστροφή σε μικρότερη
+ * διάταξη θέλει BAND px λιγότερα — αλλιώς η οθόνη αναβοσβήνει ασταμάτητα πάνω στο όριο.
+ */
+export function useEditorMode() {
+  const [mode, setMode] = useState<EditorMode>("s");
+  const root = useRef<HTMLDivElement | null>(null);
+  const ro = useRef<ResizeObserver | null>(null);
+  const setRoot = useCallback((el: HTMLDivElement | null) => {
+    ro.current?.disconnect();
+    root.current = el;
+    if (!el) return;
+    ro.current = new ResizeObserver(([e]) => { const w = e.contentRect.width; if (w > 0) setMode((prev) => nextMode(prev, w)); });
+    ro.current.observe(el);
+  }, []);
+  useEffect(() => () => ro.current?.disconnect(), []);
+  return { mode, setRoot, root };
+}
+
 export const BLOCK_ICON: Partial<Record<BrandBlock["type"], LucideIcon>> = {
   ad: ImageIcon, "deal-hero": Zap, "promo-products": Percent, "promo-grid": Tag, countdown: Timer, "promo-landing": Megaphone, coupon: Ticket,
   "products-auto": ShoppingBag, "new-arrivals": Package, offers: Percent, series: LayoutGrid, categories: LayoutGrid,

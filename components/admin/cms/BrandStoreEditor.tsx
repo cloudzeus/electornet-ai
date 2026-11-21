@@ -17,7 +17,7 @@ import { brandHealthAction, publishAction, revertAction, saveDraftAction, unpubl
 import { clearReviewAction, plansAction, saveScenarioAction, submitReviewAction, type PlanRef } from "@/app/admin/(shell)/cms/plans-actions";
 import { ResultBanner, StatusPill } from "@/components/admin/settings/ui";
 import { HistoryDialog, KeysDialog, PlansDialog, PublishDialog, ShareDialog, type Noun } from "./EditorDialogs";
-import { AddDialog, BLOCK_ICON, ico, LivePreview, useFocusText, visSummary, VisibilityForm, type Vis } from "./EditorKit";
+import { AddDialog, BLOCK_ICON, ico, LivePreview, useEditorMode, useFocusText, visSummary, VisibilityForm, type Vis } from "./EditorKit";
 import { BLOCK_INFO, BlockFields, newBlock } from "./brand/BlockEditors";
 import { ProductList } from "./brand/ProductPicker";
 import { StylePanel } from "./brand/StylePanel";
@@ -66,20 +66,8 @@ export function BrandStoreEditor({ initial, published: pub, savedAt: initSavedAt
   const [savedAt, setSavedAt] = useState(initSavedAt);
   const [published, setPublished] = useState<BrandStore | null>(pub);
   const [selected, setSelected] = useState<string | null>(null);
-  const root = useRef<HTMLDivElement | null>(null);
-  const [mode, setMode] = useState<"s" | "m" | "l">("s");
     // m: αριστερά χάρτης ή ρυθμίσεις, η προεπισκόπηση πάντα ορατή
-  // Η μέτρηση δένεται με callback ref: αν το στοιχείο ξαναδημιουργηθεί, η παρακολούθηση περνά στο νέο. Παλιά έμενε στο
-  // αποσπασμένο στοιχείο, που μετρά πλάτος 0 → η διάταξη κολλούσε στη στενή και η προεπισκόπηση κρυβόταν πίσω από καρτέλα.
-  // Πλάτος 0 (κρυμμένο ή αποσπασμένο στοιχείο) αγνοείται: δεν είναι «στενή οθόνη».
-  const rootRo = useRef<ResizeObserver | null>(null);
-  const setRoot = useCallback((el: HTMLDivElement | null) => {
-    rootRo.current?.disconnect();
-    root.current = el;
-    if (!el) return;
-    rootRo.current = new ResizeObserver(([e]) => { const w = e.contentRect.width; if (w > 0) setMode(w >= 1500 ? "l" : w >= 900 ? "m" : "s"); });
-    rootRo.current.observe(el);
-  }, []);
+  const { mode, setRoot } = useEditorMode();
   const [adding, setAdding] = useState<{ after: string | null } | null>(null);
   const [view, setView] = useState<"page" | "preview">("page");
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
