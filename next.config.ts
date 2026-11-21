@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // αναβάθμιση ασφαλείας Next 16.4.3 → 16.4.6 (21/11/2026): δηλώνει ότι τις αναβαθμίσεις τις χειρίζεται agent
+  experimental: { agentUpgrade: "security" },
   /** Coolify / Docker: self-contained server in .next/standalone */
   output: "standalone",
   images: {
