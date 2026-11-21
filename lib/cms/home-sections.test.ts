@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { defaultHomeDoc, HOME_SECTIONS, homeServiceSlugs, orderedVisible, normalizeHomeDoc, sectionActive, sectionWidget, hideClass } from "./home-sections";
+import { defaultHomeDoc, HOME_SECTIONS, homeServiceSlugs, resolveFacts, orderedVisible, normalizeHomeDoc, sectionActive, sectionWidget, hideClass } from "./home-sections";
 
 test("προεπιλογή = η σημερινή αρχική, με τη σειρά του σχεδίου", () => {
   const d = defaultHomeDoc();
@@ -46,4 +46,12 @@ test("καμπάνιες: οι κρυφές δεν φαίνονται στο sit
 test("οδηγοί: σειρά και ορατότητα, προεπιλογές", () => {
   assert.deepEqual(orderedVisible(undefined, ["a", "b", "c"], ["c", "a", "z"]), ["c", "a"]);
   assert.deepEqual(orderedVisible([{ key: "b" }, { key: "a", hidden: true }, { key: "q" }, { key: "c" }], ["a", "b", "c"], []), ["b", "c"]);
+});
+
+test("αριθμοί υπηρεσιών: μετρούν μόνοι τους, χωρίς κείμενο δεν φαίνονται, έως 4", () => {
+  const c = { services: 12, home: 6 };
+  assert.deepEqual(resolveFacts(undefined, c).map((f) => f.value), [350, 12, 2, 24]);
+  assert.deepEqual(resolveFacts([{ value: 9, suffix: "", label: "x", count: "home" }, { value: 5, suffix: "", label: " " }, { value: -3, suffix: "+", label: "y" }], c).map((f) => [f.value, f.suffix]), [[6, ""], [0, "+"]]);
+  assert.equal(resolveFacts(Array.from({ length: 6 }, () => ({ value: 1, suffix: "", label: "z" })), c).length, 4);
+  assert.deepEqual(resolveFacts([], c), []);
 });

@@ -8,6 +8,7 @@ import { CategoryCellsField } from "./CategoryCellsField";
 import { DealsSourceField, HeroInfoField } from "./HomeInfoFields";
 import { TickerItemsField } from "./TickerItemsField";
 import { ServiceCellsField } from "./ServiceCellsField";
+import { FactsField } from "./FactsField";
 import { CampaignsField } from "./CampaignsField";
 import { OrderToggleField } from "./OrderToggleField";
 import { ListChecks } from "lucide-react";
@@ -72,6 +73,7 @@ export function SectionFields({ s, set }: { s: HomeSection; set: (props: Record<
       }
       case "order-toggle": return <OrderToggleField key={f.key} source={f.source} value={val(f.key)} onChange={(v) => put(f.key, v)} label={f.label} />;
       case "service-cells": return <ServiceCellsField key={f.key} props={s.props} set={(patch) => set({ ...(s.props ?? {}), ...patch })} label={f.label} />;
+      case "facts": return <FactsField key={f.key} props={s.props} set={(patch) => set({ ...(s.props ?? {}), ...patch })} label={f.label} help={f.help} />;
       case "ticker-items": return <TickerItemsField key={f.key} value={val(f.key)} onChange={(v) => put(f.key, v)} label={f.label} help={f.help} max={f.max} />;
       case "deals-source": return <DealsSourceField key={f.key} props={s.props} set={(patch) => set({ ...(s.props ?? {}), ...patch })} />;
       case "hero-info": return <HeroInfoField key={f.key} />;

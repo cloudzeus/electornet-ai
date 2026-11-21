@@ -1,6 +1,6 @@
 /**
  * @dynamic Site-wide settings the CMS will own. Four records, all plain
- * JSON: `site` (facts, contact, commerce thresholds), `motion` (every
+ * JSON: `site` (contact, commerce thresholds), `motion` (every
  * duration/easing/stagger/autoplay and on-off switch used by the motion
  * primitives), `advisor` (Ερμής: name, avatar, copy, suggested questions per
  * context, exit-intent, cart tips), `stickers` (labels/thresholds).
@@ -23,7 +23,6 @@ export interface SiteSettings {
     kwhPrice: number;
   };
   announcement: { left: string[]; right: string[]; accent: { label: string; href: string } };
-  facts: { value: number; suffix: string; label: string }[];
   social: { label: string; href: string }[];
 }
 
@@ -77,12 +76,6 @@ export const defaultSettings: Settings = {
     contact: { phone: "+302104835143", phoneDisplay: "210 483 5143", phoneLabel: "Τηλ. παραγγελίες", email: "info@euronics.gr", address: "Δαμάσκου Σταμάτη 12, 136 71 Αχαρνές" },
     commerce: { returnDays: 14, warrantyYears: 2, maxInstalments: 24, noCardInstalments: { min: 200, max: 2000, months: 24 }, codMax: 500, codFee: 2, clickCollectHours: 2, kwhPrice: 0.19 },
     announcement: { left: ["350 καταστήματα", "Δωρεάν μεταφορικά όπου έχουμε κατάστημα", "Δόσεις με ή χωρίς κάρτα"], right: ["Επιστροφή μέσα σε 14 ημέρες"], accent: { label: "Παρακολούθηση παραγγελίας", href: "/entopismos" } },
-    facts: [
-      { value: 350, suffix: "", label: "καταστήματα σε όλη την Ελλάδα" },
-      { value: 13, suffix: "", label: "υπηρεσίες με τιμή, πριν και μετά" },
-      { value: 2, suffix: " ώρες", label: "παραλαβή από το κοντινό κατάστημα" },
-      { value: 24, suffix: " δόσεις", label: "χωρίς κάρτα, με έγκριση online" },
-    ],
     social: [
       { label: "Facebook", href: "https://www.facebook.com/euronicsgreece" },
       { label: "Instagram", href: "https://www.instagram.com/euronics_greece" },

@@ -4,15 +4,14 @@ import { ZoneBadge } from "@/components/site/ZoneBadge";
 import { SectionHead } from "./SectionHead";
 import { CountUp } from "@/components/motion/CountUp";
 import { Spotlight } from "@/components/motion/Spotlight";
-import { getSettings } from "@/lib/cms/settings-server";
+import type { HomeFact } from "@/lib/cms/home-sections";
 
 /**
  * Zone 9 — twelve services, each with a price, as a numbered list on
  * deep blue. The colour stops the scroll; the absence of images puts the
  * weight on *what you gain and what it costs*.
  */
-export async function ServicesBand({ services, zoneNo }: { services: Service[]; zoneNo?: number }) {
-  const { site } = await getSettings();
+export function ServicesBand({ services, facts, kicker, title, link, zoneNo }: { services: Service[]; facts: HomeFact[]; kicker: string; title: string | [string, string]; link?: { label: string; href: string }; zoneNo?: number }) {
   return (
     <section className="relative bg-eu-navy text-white eu-container overflow-hidden isolate" aria-labelledby="services-title">
       <span className="eu-ambient" aria-hidden />
@@ -20,17 +19,17 @@ export async function ServicesBand({ services, zoneNo }: { services: Service[]; 
       <ZoneBadge no={zoneNo} />
       <div className="relative eu-canvas eu-gutter pt-8 @lg:pt-[38px] pb-8">
         {/* οι αριθμοί παίρνουν μέγεθος από το πλάτος του χώρου (cqw), ώστε και το πιο μακρύ («24 δόσεις») να χωρά στη στήλη του */}
-        <dl className="m-0 grid grid-cols-2 @lg:grid-cols-4 gap-x-6 gap-y-5 mb-8 @lg:mb-10 border-b border-eu-navy-line pb-6 @lg:pb-8">
-          {site.facts.map((f) => ({ v: f.value, s: f.suffix, l: f.label })).map((x) => (
-            <div key={x.l} data-reveal className="min-w-0">
+        {facts.length > 0 && <dl className="m-0 grid grid-cols-2 @lg:grid-cols-4 gap-x-6 gap-y-5 mb-8 @lg:mb-10 border-b border-eu-navy-line pb-6 @lg:pb-8">
+          {facts.map((f) => ({ v: f.value, s: f.suffix, l: f.label })).map((x, i) => (
+            <div key={i} data-reveal className="min-w-0">
               <dt className="m-0 font-heading font-extrabold text-eu-yellow text-[length:clamp(1.75rem,9cqw,3.125rem)] @lg:text-[length:clamp(1.75rem,4.6cqw,4.125rem)] leading-none tracking-[-0.04em]">
                 <CountUp value={x.v} suffix={x.s} />
               </dt>
               <dd className="m-0 mt-2 text-eu-on-dark-2 text-[length:var(--fs-15)] leading-snug">{x.l}</dd>
             </div>
           ))}
-        </dl>
-        <SectionHead id="services-title" tone="dark" kicker="Υπηρεσίες Euronics" title={["Πριν, κατά και μετά την αγορά,", "είμαστε δίπλα σου"]} link={{ label: "Όλες οι υπηρεσίες →", href: "/ypiresies" }} />
+        </dl>}
+        <SectionHead id="services-title" tone="dark" kicker={kicker} title={title} link={link} />
         <ul className="grid grid-cols-1 @sm:grid-cols-2 @lg:grid-cols-3 gap-px bg-eu-navy-line border border-eu-navy-line rounded-lg overflow-hidden m-0 p-0 list-none">
           {services.map((s) => (
             <li key={s.slug} data-reveal className="bg-eu-navy">

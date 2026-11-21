@@ -6,15 +6,18 @@ import { PageIntro } from "@/components/site/PageIntro";
 import { getServicesFull } from "@/lib/data/repo";
 import { priceLong } from "@/lib/format";
 
-export const metadata: Metadata = { title: "Υπηρεσίες", description: "13 υπηρεσίες με τιμή: επέκταση εγγύησης, εγκατάσταση, παραλαβή σε 2 ώρες, ανακύκλωση, φύλαξη, service." };
+export async function generateMetadata(): Promise<Metadata> {
+  const n = (await getServicesFull()).length;
+  return { title: "Υπηρεσίες", description: `${n} υπηρεσίες με τιμή: επέκταση εγγύησης, εγκατάσταση, παραλαβή σε 2 ώρες, ανακύκλωση, φύλαξη, service.` };
+}
 
-/** Services hub: every service has a page, a price and a place in the buying journey (today: 13 unlinked image cards). */
+/** Services hub: every service has a page, a price and a place in the buying journey . */
 export default async function ServicesPage() {
   const services = await getServicesFull();
   return (
     <div className="eu-container">
       <Breadcrumbs items={[{ label: "Υπηρεσίες" }]} />
-      <PageIntro tone="dark" kicker="Δεκατρείς υπηρεσίες, καθεμία με τιμή" title="Γιατί από Euronics και όχι από marketplace" lead="Στη Euronics σε ξέρουμε με το όνομά σου. Η αγορά δεν τελειώνει στο κουμπί: εγκατάσταση, εγγύηση, service και ανακύκλωση από το κατάστημα της γειτονιάς σου." />
+      <PageIntro tone="dark" kicker={`${services.length} υπηρεσίες, καθεμία με τιμή`} title="Γιατί από Euronics και όχι από marketplace" lead="Στη Euronics σε ξέρουμε με το όνομά σου. Η αγορά δεν τελειώνει στο κουμπί: εγκατάσταση, εγγύηση, service και ανακύκλωση από το κατάστημα της γειτονιάς σου." />
       <div className="eu-canvas eu-gutter py-8">
         <ul className="m-0 p-0 list-none grid grid-cols-1 @sm:grid-cols-2 @lg:grid-cols-3 gap-3">
           {services.map((s) => (

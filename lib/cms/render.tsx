@@ -26,7 +26,7 @@ import { bannerProducts, bannerSticker } from "@/lib/promo/banner-products";
 import { DesignedBanner } from "@/components/promo/DesignedBanner";
 import { BlockHead, BrandFrame } from "@/components/brand/BrandFrame";
 import { EURONICS_THEME } from "./info-pages";
-import { DEFAULT_GUIDE_ARTICLES, homeServiceSlugs, orderedVisible } from "./home-sections";
+import { DEFAULT_GUIDE_ARTICLES, homeServiceSlugs, orderedVisible, resolveFacts } from "./home-sections";
 import { GUIDES, type GuideKind } from "@/lib/guides/smart";
 import { getGuidesFull } from "@/lib/data/repo";
 import type { Category } from "@/lib/data/types";
@@ -96,8 +96,13 @@ const registry: Record<string, Renderer> = {
     // σειρά και ορατότητα της αρχικής (Ζώνες αρχικής) πάνω στον κατάλογο υπηρεσιών
     const all = await getServices();
     const bySlug = new Map(all.map((s) => [s.slug, s]));
-    const list = homeServiceSlugs(w.props as Record<string, unknown>, all.map((s) => s.slug)).map((slug) => bySlug.get(slug)!).filter(Boolean);
-    return list.length ? <ServicesBand key={w.id} services={list} zoneNo={w.zoneNo} /> : null;
+    const p = w.props as Record<string, unknown>;
+    const list = homeServiceSlugs(p, all.map((s) => s.slug)).map((slug) => bySlug.get(slug)!).filter(Boolean);
+    const facts = resolveFacts(p.facts, { services: all.length, home: list.length });
+    const str = (k: string, d: string) => (typeof p[k] === "string" ? (p[k] as string).trim() : d);
+    const t1 = str("title", "Πριν, κατά και μετά την αγορά,"), t2 = str("title2", "είμαστε δίπλα σου");
+    const link = p.link as { label?: string; href?: string } | undefined;
+    return list.length ? <ServicesBand key={w.id} services={list} facts={facts} kicker={str("kicker", "Υπηρεσίες Euronics")} title={t1 && t2 ? [t1, t2] : t1 || t2} link={link?.label?.trim() && link.href ? { label: link.label, href: link.href } : undefined} zoneNo={w.zoneNo} /> : null;
   },
   "store-finder": async (w) => {
     const g = await getNearestStoreWithGeo();
