@@ -8,6 +8,7 @@ import { invalidatePromos } from "@/lib/promo/server";
 import { cartGates } from "@/lib/promo/cart-gate";
 import { gateOf } from "@/lib/promo/campaign-core";
 import { getServiceList } from "@/lib/services/catalog";
+import { cleanSlots } from "./slots";
 import { saldocForOrder } from "@/lib/softone/order-doc";
 import { setPartsSnapshot, spcsOf } from "@/lib/catalog/set-core";
 import { getSetting } from "@/lib/settings/store";
@@ -34,6 +35,8 @@ import { publicOrigin } from "@/lib/account/oauth-flow";
 export interface PlaceInput {
   contact: { firstName: string; lastName: string; email: string; phone: string };
   address?: { street?: string; number?: string; floor?: string; city?: string; zip?: string; region?: string; notes?: string };
+  /** ώρες που βολεύουν τον πελάτη για την κλήση του καταστήματος (09:00–17:00, ανά ώρα)· κενό = οποιαδήποτε */
+  slots?: string[];
   invoice?: { vatNumber: string; company?: string; doy?: string; activity?: string } | null;
   fulfilment: "courier" | "freight" | "click-collect" | "appointment";
   storeId?: string | null;
@@ -86,6 +89,8 @@ export async function placeOrder(input: PlaceInput) {
   const cart = await currentCart(false);
   if (!cart?.lines.length) return { ok: false as const, error: "Το καλάθι είναι άδειο." };
   const zip = carrierDef(input.carrier)?.kind === "locker" ? input.locker?.zip ?? input.address?.zip ?? null : input.address?.zip ?? null;
+  // οι ώρες επικοινωνίας που διάλεξε ο πελάτης: μόνο ώρες του ωραρίου και μόνο για παράδοση από συνεργαζόμενο κατάστημα
+  const slots = input.fulfilment === "appointment" ? cleanSlots(input.slots) : [];
   const q = await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, storeId: input.storeId ?? null, localStoreId: input.localStoreId ?? null, zip, email, carrier: input.carrier ?? null, street: input.address?.street ?? null, number: input.address?.number ?? null, city: input.address?.city ?? null, settle: input.fulfilment === "courier" && input.carrier === "asap" }, cart);
   // περιοχή χωρίς συμφωνημένη τιμή αποστολής: η παραγγελία περνά, αλλά χωρίς courier/μεταφορική και χωρίς πληρωμή —
   // τα μεταφορικά και τον τρόπο πληρωμής τα ορίζουμε στο τηλέφωνο (απόφαση Euronics 19/11/2026)
@@ -149,7 +154,7 @@ export async function placeOrder(input: PlaceInput) {
       const order = await tx.order.create({
         data: {
           number, customerId: me?.id ?? null, guestEmail: me ? null : email, status: "pending", fulfilment: input.fulfilment, pickupStoreId: input.fulfilment === "click-collect" ? input.storeId : null,
-          shipping: { ...input.contact, ...input.address, ...carrier } as Prisma.InputJsonValue, invoice: input.invoice ? (input.invoice as Prisma.InputJsonValue) : undefined,
+          shipping: { ...input.contact, ...input.address, ...carrier, ...(slots.length ? { slots } : {}) } as Prisma.InputJsonValue, invoice: input.invoice ? (input.invoice as Prisma.InputJsonValue) : undefined,
           subtotal: eur(q.goods + q.addons), shippingFee: eur(q.shipping + q.codFee), vat: eur(q.vat), total: eur(q.total), discountTotal: eur(discountTotal),
           couponCode: q.coupon.applied, paymentMethod: input.payment,
           promoTrace: q.trace.map((t) => ({ code: t.code, name: t.name, applied: t.applied, amount: t.amount, reason: t.reason })) as Prisma.InputJsonValue,

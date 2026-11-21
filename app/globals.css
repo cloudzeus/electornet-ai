@@ -72,6 +72,9 @@
   --fs-12-5: var(--fs-14); /* floored: no text under 14px */
   --fs-13: var(--fs-14); /* floored: no text under 14px */
   --fs-13-5: var(--fs-14); /* floored: no text under 14px */
+  /* Εξαίρεση από το όριο των 14px, μόνο για αριθμητικά badges (ώρες παράδοσης): 11px σε κινητό → 12px σε desktop.
+     Δεν είναι για κείμενο — μόνο για σύντομες ετικέτες που διαβάζονται σαν δεδομένα. */
+  --fs-badge: clamp(0.6875rem, 0.6631rem + 0.1087vw, 0.75rem);
   --fs-14: clamp(0.875rem, 0.962rem - 0.1087vw, 0.9375rem);
   --fs-15: clamp(0.9375rem, 1.0245rem - 0.1087vw, 1rem);
   --fs-16: 1rem;

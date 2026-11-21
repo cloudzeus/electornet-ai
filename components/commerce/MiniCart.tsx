@@ -148,13 +148,13 @@ export function MiniCart({ suggestions = [] }: { suggestions?: Product[] }) {
                   <dt>{c.proionta_ypiresies}</dt>
                   <dd className="m-0 font-semibold">{priceLong(goods)}</dd>
                 </div>
-                <div className="flex justify-between text-eu-green">
+                <div className="flex justify-between">
                   <dt>{c.metaforika}</dt>
-                  <dd className="m-0 font-semibold">Δωρεάν*</dd>
+                  <dd className="m-0 font-semibold">{c.ypologizontai_sto_tameio}</dd>
                 </div>
-                <p className="m-0 -mt-1 text-eu-muted text-[length:var(--fs-12)] font-normal">* στις περιοχές με κατάστημα Euronics — το ελέγχουμε με τον Τ.Κ. σου στο ταμείο</p>
+                <p className="m-0 -mt-1 text-eu-muted text-[length:var(--fs-12)] font-normal">Δωρεάν στις περιοχές με κατάστημα Euronics — το ελέγχουμε με τον Τ.Κ. σου στο ταμείο</p>
                 <div className="flex justify-between items-baseline border-t border-eu-line pt-2">
-                  <dt className="font-extrabold text-eu-ink text-[length:var(--fs-16)]">{c.synolo}</dt>
+                  <dt className="font-extrabold text-eu-ink text-[length:var(--fs-16)]">{c.meriko_synolo}</dt>
                   <dd className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-24)] leading-none">{priceLong(goods + shipping)}</dd>
                 </div>
               </dl>

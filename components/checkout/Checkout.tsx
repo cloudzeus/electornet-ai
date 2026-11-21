@@ -15,6 +15,7 @@ import { ProductImage } from "@/components/commerce/ProductImage";
 import { SocialLogin } from "./SocialLogin";
 import { AppleMark, GoogleMark } from "./BrandMarks";
 import { copyOf } from "@/lib/cms/copy";
+import { DELIVERY_HOURS } from "@/lib/checkout/slots";
 import { useServerQuote, quoteLineOf, savedCoupon, saveCoupon, type ServerQuote } from "./useServerQuote";
 import { FreeShippingNote, GiftLines, PromoHints } from "./PromoPerks";
 import { BoxNowPicker, type Locker } from "./BoxNowPicker";
@@ -81,7 +82,8 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
     setFul("click-collect");
   }, [stores]);
   const chooseStore = useCallback((id: string) => { setStoreId(id); savePickup({ where: "store", storeId: id }); }, []);
-  const [slot, setSlot] = useState("morning");
+  // ώρες που βολεύουν τον πελάτη για την κλήση του καταστήματος (ωράριο 09:00–17:00) — όχι ώρα παράδοσης
+  const [slots, setSlots] = useState<string[]>([]);
   // χωρίς ρυθμισμένη Viva δεν υπάρχει online πληρωμή: μόνο αντικαταβολή / κατάθεση / στο κατάστημα
   const [pay, setPay] = useState<Pay>(viva ? "card" : cod || !bankSub ? "cod" : "bank");
   const inst = 1; // τις δόσεις τις διαλέγει ο πελάτης στη σελίδα της Viva
@@ -151,7 +153,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   const total = quote ? quote.total / 100 : Math.max(0, localGoods) + shipping + codFee;
   const maxInst = total >= 800 ? 24 : total >= 400 ? 12 : total >= 200 ? 6 : total >= 100 ? 3 : 1;
   const store = stores.find((s) => s.id === storeId);
-  const eta = onRequest && ful !== "click-collect" ? "Κατόπιν συνεννόησης · σε καλούμε για τα μεταφορικά και την ημέρα" : ful === "click-collect" ? "Θα λάβεις SMS όταν είναι έτοιμη για παραλαβή" : expressSel ? "ASAP Express · 1–2 ημέρες" : attica ? quote!.attica.standard.eta : ful === "appointment" ? "Με ραντεβού · σε καλούμε για ημέρα και ώρα" : ful === "freight" ? freight?.eta ?? "" : offer ? offer.eta : "Παράδοση σε 1–3 εργάσιμες";
+  const eta = onRequest && ful !== "click-collect" ? "Κατόπιν συνεννόησης · σε καλούμε για τα μεταφορικά και την ημέρα" : ful === "click-collect" ? "Θα λάβεις SMS όταν είναι έτοιμη για παραλαβή" : expressSel ? "ASAP Express · 1–2 ημέρες" : attica ? quote!.attica.standard.eta : ful === "appointment" ? "Από συνεργαζόμενο κατάστημα · κατόπιν συνεννόησης για ημέρα και ώρα"  : ful === "freight" ? freight?.eta ?? "" : offer ? offer.eta : "Παράδοση σε 1–3 εργάσιμες";
 
   const set = (k: keyof typeof f, v: string | boolean) =>
     setF((s) => {
@@ -223,10 +225,11 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
         fulfilment: ful, storeId: ful === "click-collect" ? storeId : null, payment: payUse, instalments: inst,
         carrier: expressSel ? "asap" : ful === "courier" ? offer?.id ?? null : null, locker: toLocker ? locker : null, localStoreId: ful === "freight" ? localStoreId : null,
         coupon: couponCode, terms: f.terms, newsletter: f.newsletter, expectedTotal: quote?.total,
+        slots: ful === "appointment" ? slots : [],
       }) });
       const j = (await r.json()) as { ok: boolean; number?: string; error?: string; quote?: ServerQuote; redirect?: string; nextCoupon?: { code: string; value: string; until: string | null } | null };
       if (!j.ok || !j.number) { if (j.quote) setQuote(j.quote); return setErr(j.error ?? "Η παραγγελία δεν ολοκληρώθηκε. Δοκίμασε ξανά."); }
-      const order = { number: j.number, date: new Date().toISOString(), lines: lines.map((l) => ({ id: l.product.id, title: l.product.title, brand: l.product.brand, image: l.product.image, qty: l.qty, unitPrice: l.product.price, addons: l.addons, variant: l.variant })), total, shipping, goods, discount, pay, inst, ful, store: store ? `${store.name} — ${store.address}, ${store.city}` : null, slot, attica: attica ? (expressSel ? "express" : "standard") : null, eta, address: { ...f, password: "" }, recycle: f.recycle, nextCoupon: j.nextCoupon ?? null };
+      const order = { number: j.number, date: new Date().toISOString(), lines: lines.map((l) => ({ id: l.product.id, title: l.product.title, brand: l.product.brand, image: l.product.image, qty: l.qty, unitPrice: l.product.price, addons: l.addons, variant: l.variant })), total, shipping, goods, discount, pay, inst, ful, store: store ? `${store.name} — ${store.address}, ${store.city}` : null, slots, attica: attica ? (expressSel ? "express" : "standard") : null, eta, address: { ...f, password: "" }, recycle: f.recycle, nextCoupon: j.nextCoupon ?? null };
       try { localStorage.setItem("euronics.lastOrder", JSON.stringify(order)); } catch {}
       clear();
       saveCoupon(null);
@@ -268,15 +271,23 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   const free = (n: number) => (n === 0 ? "Δωρεάν" : priceLong(n / 100));
   /** «0 χλμ» το διαβάζει ο πελάτης σαν σφάλμα — κάτω από χιλιόμετρο το λέμε με λόγια */
   const km = (n: number) => (n < 1 ? "κάτω από 1 χλμ" : `${String(n).replace(".", ",")} χλμ`);
+  // ογκώδη εκτός Αττικής με συνεργαζόμενο κατάστημα κοντά: στο σπίτι τα φέρνει το κατάστημα που διαλέγει ο πελάτης (παρακάτω),
+  // αλλιώς η παράδοση γίνεται από το κατάστημα της περιοχής κατόπιν συνεννόησης
+  const storeDelivery: ShipOpt | null = localStores.length || freight?.central ? null : {
+    key: "appointment", icon: CalendarClock, t: "Παράδοση από συνεργαζόμενο κατάστημα",
+    sub: heavy ? "Κατόπιν συνεννόησης για ημέρα και ώρα παράδοσης · με εγκατάσταση από τεχνικό του καταστήματος" : "Κατόπιν συνεννόησης για ημέρα και ώρα παράδοσης",
+    price: "Δωρεάν", on: ful === "appointment", pick: () => setFul("appointment"),
+  };
   const shipOpts: ShipOpt[] = onRequest ? [
     { key: "appointment", icon: Phone, t: "Κατόπιν συνεννόησης", sub: "Σε καλούμε για το κόστος αποστολής και την ημέρα παράδοσης", price: "—", on: true, pick: () => setFul("appointment") },
   ] : [
+    // παράδοση από το συνεργαζόμενο κατάστημα της περιοχής: πρώτη επιλογή όπου υπάρχει κατάστημα, γιατί είναι και η δωρεάν
+    ...(storeDelivery && quote?.storeArea ? [storeDelivery] : []),
     ...(offers.length
       ? offers.map((o): ShipOpt => ({ key: o.id, icon: Truck, t: `${o.name}${o.kind === "locker" ? " · σε θυρίδα" : ""}`, sub: courierBlocked ? "Δεν αποστέλλεται με courier" : o.reason ?? o.eta, price: courierBlocked || !o.available ? "—" : free(o.fee), on: ful === "courier" && offer?.id === o.id, disabled: courierBlocked || !o.available, pick: () => { setFul("courier"); setCarrierPick(o.id); } }))
       : [{ key: "courier", icon: Truck, t: "Με courier", sub: courierBlocked ? "Δεν αποστέλλεται με courier" : "1–3 εργάσιμες", price: courierBlocked ? "—" : "Δωρεάν ή από 3,90 €", on: ful === "courier", disabled: courierBlocked, pick: () => setFul("courier") }]),
     ...(freight ? [{ key: "freight", icon: Container, t: freight.local ? "Από κατάστημα Euronics κοντά σου" : freight.central ? "Με μεταφορική από το κεντρικό κατάστημα" : "Με μεταφορική", sub: freightOk ? (freight.central ? `${freight.eta} · δεν υπάρχει συνεργαζόμενο κατάστημα σε ${freight.localMaxKm} χλμ από εσένα${freight.devices > 1 && freight.fee > 0 ? ` · ${freight.devices} συσκευές × ${free(freight.unitFee)}` : ""}` : localStores.length ? (localPick ? `${localPick.name}, ${localPick.city} · ${km(localPick.km)} · ${freight.eta}` : `Διάλεξε κατάστημα · δωρεάν έως ${freight.localFreeKm} χλμ από το κατάστημα`) : `${freight.eta} · ${freight.local ? "σου το φέρνει συνεργάτης μας της περιοχής σου" : freight.devices > 1 && freight.fee > 0 ? `${freight.devices} συσκευές × ${free(freight.unitFee)}` : "για ογκώδεις συσκευές"}`) : freight.reason ?? "Δεν είναι διαθέσιμη για αυτό το καλάθι", price: !freightOk ? "—" : localStores.length && !localPick ? (localStores.some((x) => x.fee === 0) ? "Δωρεάν" : `από ${free(Math.min(...localStores.map((x) => x.fee)))}`) : free(freight.fee), on: ful === "freight", disabled: !freightOk, pick: () => setFul("freight") }] : []),
-    // ογκώδη εκτός Αττικής με συνεργαζόμενο κατάστημα κοντά: στο σπίτι τα φέρνει το κατάστημα που διαλέγει ο πελάτης — όχι γενικό «ραντεβού»
-    ...(localStores.length || freight?.central ? [] : [{ key: "appointment", icon: CalendarClock, t: "Με ραντεβού", sub: heavy ? "Με εγκατάσταση από τεχνικό του καταστήματος" : "Σε καλούμε για ημέρα και ώρα", price: "Δωρεάν", on: ful === "appointment", pick: () => setFul("appointment") }]),
+    ...(storeDelivery && !quote?.storeArea ? [storeDelivery] : []),
   ];
   const payments: { v: Pay; icon: typeof Truck; t: string; sub: string; disabled?: boolean; mark?: React.ReactNode }[] = onRequest && ful !== "click-collect" ? [
     { v: "later", icon: Phone, t: "Κατόπιν συνεννόησης", sub: "Δεν πληρώνεις τώρα: σε καλούμε για τα μεταφορικά και τον τρόπο πληρωμής" },
@@ -446,7 +457,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                           )}
                           {courierBlocked && !onRequest && (
                             <p role="status" className="m-0 rounded-xl bg-eu-amber/15 px-4 py-3 text-eu-ink-2 text-[length:var(--fs-15)]">
-                              <b className="text-eu-ink">{quote.bulky.titles.length === 1 ? quote.bulky.titles[0] : `${quote.bulky.titles.length} προϊόντα του καλαθιού`}</b>{quote.bulky.titles.length === 1 ? " δεν αποστέλλεται" : " δεν αποστέλλονται"} με courier ({quote.bulky.reason?.split(":")[0].toLowerCase()}). {localStores.length ? "Διάλεξε κατάστημα Euronics να σου το φέρει" : freight?.central ? "Διάλεξε μεταφορική" : freightOk ? "Διάλεξε μεταφορική ή ραντεβού" : "Διάλεξε παράδοση με ραντεβού"}, ή παραλαβή από κατάστημα.
+                              <b className="text-eu-ink">{quote.bulky.titles.length === 1 ? quote.bulky.titles[0] : `${quote.bulky.titles.length} προϊόντα του καλαθιού`}</b>{quote.bulky.titles.length === 1 ? " δεν αποστέλλεται" : " δεν αποστέλλονται"} με courier ({quote.bulky.reason?.split(":")[0].toLowerCase()}). {localStores.length ? "Διάλεξε κατάστημα Euronics να σου το φέρει" : freight?.central ? "Διάλεξε μεταφορική" : freightOk ? "Διάλεξε μεταφορική ή παράδοση από συνεργαζόμενο κατάστημα" : "Διάλεξε παράδοση από συνεργαζόμενο κατάστημα"}, ή παραλαβή από κατάστημα.
                             </p>
                           )}
                         </>
@@ -460,16 +471,21 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                     )}
                     {!attica && ful === "appointment" && (
                       <div className="grid gap-2 rounded-xl bg-eu-surface p-4">
-                        <div className="font-bold text-eu-ink text-[length:var(--fs-15)]">{c.protimisi_oras}</div>
+                        <div className="font-bold text-eu-ink text-[length:var(--fs-15)]">{c.protimomeni_ora_epikoinonias}</div>
+                        <p className="m-0 text-eu-ink-2 text-[length:var(--fs-14)]">{c.epilexe_pote_se_exypiretei}</p>
                         <div className="flex flex-wrap gap-2">
-                          {[["morning", "Πρωί 09:00–13:00"], ["noon", "Μεσημέρι 13:00–17:00"], ["evening", "Απόγευμα 17:00–20:00"]].map(([v, t]) => (
-                            <label key={v} className={`rounded-full border-2 px-4 min-h-11 inline-flex items-center text-[length:var(--fs-15)] font-bold cursor-pointer ${slot === v ? "border-eu-navy bg-eu-navy text-white" : "border-eu-line bg-white"}`}>
-                              <input type="radio" name="slot" className="sr-only" checked={slot === v} onChange={() => setSlot(v)} />
-                              {t}
-                            </label>
-                          ))}
+                          {DELIVERY_HOURS.map((t) => {
+                            const on = slots.includes(t);
+                            return (
+                              <label key={t} className={`rounded-full border-2 px-3 min-h-11 inline-flex items-center gap-1 text-[length:var(--fs-badge)] font-bold tabular-nums cursor-pointer ${on ? "border-eu-navy bg-eu-navy text-white" : "border-eu-line bg-white hover:border-eu-navy"}`}>
+                                <input type="checkbox" className="sr-only" checked={on} onChange={() => setSlots((v) => (v.includes(t) ? v.filter((x) => x !== t) : [...v, t].sort()))} />
+                                {on && <Check className="size-3 shrink-0" aria-hidden />}
+                                {t}
+                              </label>
+                            );
+                          })}
                         </div>
-                        <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">{c.o_technikos_toy_katastimatos}</p>
+                        <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">{slots.length ? `Θα σε καλέσουμε εντός 24 ωρών, ${slots.length === 1 ? "στην ώρα" : "στις ώρες"} που διάλεξες. ${c.i_imera_kai_i}` : `Θα σε καλέσουμε εντός 24 ωρών, οποιαδήποτε ώρα του ωραρίου — διάλεξε όσες σε βολεύουν. ${c.i_imera_kai_i}`}</p>
                       </div>
                     )}
                   </>
@@ -676,7 +692,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
               {(quote?.gifts.length ?? 0) > 0 && <Row k={quote!.gifts.length === 1 ? "Δώρο" : `Δώρα (${quote!.gifts.length})`} v="0,00 €" cls="text-eu-green" />}
               {onRequest && ful !== "click-collect" ? <Row k="Παράδοση" v="Κατόπιν συνεννόησης" /> : <>
                 {/* χωρίς Τ.Κ. δεν ονοματίζουμε courier: δεν έχει επιλεγεί τρόπος ακόμη, δείχνουμε μόνο ότι ισχύει η δωρεάν παράδοση */}
-                <Row k="Μεταφορικά" k2={zipOk ? (expressSel ? "ASAP Express" : attica ? "Κανονική παράδοση euronics" : ful === "courier" ? offer?.name ?? null : ful === "freight" ? (freight?.localStore ? "από κατάστημα Euronics" : "με μεταφορική") : ful === "click-collect" ? "παραλαβή από κατάστημα" : "με ραντεβού") : null}
+                <Row k="Μεταφορικά" k2={zipOk ? (expressSel ? "ASAP Express" : attica ? "Κανονική παράδοση euronics" : ful === "courier" ? offer?.name ?? null : ful === "freight" ? (freight?.localStore ? "από κατάστημα Euronics" : "με μεταφορική") : ful === "click-collect" ? "παραλαβή από κατάστημα" : "από συνεργαζόμενο κατάστημα") : null}
                   v={expressSel && xp?.state !== "ok" ? "Υπολογισμός…" : shipping === 0 ? "Δωρεάν" : priceLong(shipping)} cls={shipping === 0 && !expressSel ? "text-eu-green" : ""} />
                 {shipping === 0 && !expressSel && ful !== "click-collect" && (
                   <p className="m-0 -mt-1 text-eu-muted text-[length:var(--fs-12)]">{!zipOk ? "Δωρεάν στις περιοχές με κατάστημα Euronics — το επιβεβαιώνουμε μόλις βάλεις τον Τ.Κ." : quote?.storeArea ? "Έχουμε κατάστημα Euronics στην περιοχή σου, γι' αυτό δεν χρεώνονται μεταφορικά." : ""}</p>

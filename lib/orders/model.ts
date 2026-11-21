@@ -102,7 +102,7 @@ export function orderSteps(status: string, fulfilment: string): { label: string;
 }
 
 /** Ονοματεπώνυμο / email / τηλέφωνο από το στιγμιότυπο αποστολής της παραγγελίας. */
-export type ShipTo = { firstName?: string; lastName?: string; email?: string; phone?: string; street?: string; number?: string; floor?: string; city?: string; zip?: string; region?: string; notes?: string; carrier?: string; carrierName?: string; locker?: { id?: string; name?: string; address?: string; zip?: string } };
+export type ShipTo = { firstName?: string; lastName?: string; email?: string; phone?: string; street?: string; number?: string; floor?: string; city?: string; zip?: string; region?: string; notes?: string; /** ώρες που βολεύουν τον πελάτη για να τον καλέσει το κατάστημα (από το ταμείο) */ slots?: string[]; carrier?: string; carrierName?: string; locker?: { id?: string; name?: string; address?: string; zip?: string } };
 export const nameOf = (s: ShipTo) => `${s.firstName ?? ""} ${s.lastName ?? ""}`.trim();
 export const addressOf = (s: ShipTo) => s.locker ? `Θυρίδα BOX NOW: ${[s.locker.name, s.locker.address, s.locker.zip].filter(Boolean).join(", ")}` : [[s.street, s.number].filter(Boolean).join(" ") + (s.floor ? `, ${s.floor}ος` : ""), [s.zip, s.city].filter(Boolean).join(" ")].filter((x) => x.trim()).join(", ");
 

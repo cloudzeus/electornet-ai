@@ -219,7 +219,7 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   const central = nearList !== undefined && !localStores.length;
   const fb = near ? { ...(fo ?? { baseFee: 0 }), fee: near.fee, eta: "Σε καλεί το κατάστημα για ημέρα και ώρα" } : fo ?? (central ? { baseFee: unitFee * devices, fee: unitFee * devices, eta: FREIGHT_DEFAULT.eta } : null);
   // περιοχή με κατάστημα: και η μεταφορική / η παράδοση από το κατάστημα είναι δωρεάν (τη φέρνει το κατάστημα της περιοχής)
-  const freight = fb && { ...fb, fee: storeArea ? 0 : fb.fee, eta: near ? fb.eta : local?.eta || fb.eta, local: !!local || !!near, localStore: near, localStores, localFreeKm: lr.freeKm, central, localMaxKm: lr.maxKm, devices: fr ? 1 : devices, unitFee, available: !onRequest && (!!near || central || !noFreight), reason: onRequest ? ON_REQUEST_REASON : near || central ? null : noFreight ? `${noFreight.title}: μόνο με ραντεβού ή παραλαβή από κατάστημα` : null };
+  const freight = fb && { ...fb, fee: storeArea ? 0 : fb.fee, eta: near ? fb.eta : local?.eta || fb.eta, local: !!local || !!near, localStore: near, localStores, localFreeKm: lr.freeKm, central, localMaxKm: lr.maxKm, devices: fr ? 1 : devices, unitFee, available: !onRequest && (!!near || central || !noFreight), reason: onRequest ? ON_REQUEST_REASON : near || central ? null : noFreight ? `${noFreight.title}: μόνο με παράδοση από συνεργαζόμενο κατάστημα ή παραλαβή από κατάστημα` : null };
   // Αττική: μόνο «Κανονική παράδοση euronics» ή «ASAP Express»· η ASAP δεν είναι πια courier της λίστας
   const asapRules = await getAsapRules();
   const attica: AtticaOffer = out.length && input.delivery !== "click-collect"
@@ -228,7 +228,7 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   const express = attica.express?.state === "ok" ? attica.express : null;
   const isExpress = attica.attica && input.delivery === "courier" && input.carrier === "asap" && !!express;
   const carriers = carrierOffers(rules.data, input.zip ?? null).filter((o) => !(asapRules.on && o.id === "asap")).map((o) => { const r = rated(o.id); return r ? { ...o, fee: r.fee, baseFee: r.baseFee } : o; }).map((o) =>
-    !bulky.courier ? { ...o, available: false, reason: freight?.available ? "Το καλάθι έχει ογκώδη συσκευή: αποστολή με μεταφορική ή παραλαβή από κατάστημα" : "Το καλάθι έχει μεγάλη συσκευή: παράδοση με ραντεβού ή παραλαβή από κατάστημα" }
+    !bulky.courier ? { ...o, available: false, reason: freight?.available ? "Το καλάθι έχει ογκώδη συσκευή: αποστολή με μεταφορική ή παραλαβή από κατάστημα" : "Το καλάθι έχει μεγάλη συσκευή: παράδοση από συνεργαζόμενο κατάστημα ή παραλαβή από κατάστημα" }
     : o.kind === "locker" && !bulky.locker ? { ...o, available: false, reason: "Δεν χωράει σε θυρίδα (έως 20 κιλά, 36 × 45 × 60 εκ.)" } : o);
   const carriers2 = onRequest ? carriers.map((o) => ({ ...o, available: false, reason: ON_REQUEST_REASON })) : storeArea ? carriers.map((o) => ({ ...o, fee: 0 })) : carriers;
   const carrier = pickCarrier(carriers2, input.carrier);

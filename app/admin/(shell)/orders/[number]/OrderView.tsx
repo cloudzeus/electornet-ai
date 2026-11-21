@@ -209,6 +209,7 @@ export function OrderView({ o, draft, erp, canWrite, canRefund }: { o: OrderDeta
             <Card title="Διεύθυνση παράδοσης" icon={MapPin} data-help="order.address">
               <p data-private className="m-0 text-[length:var(--fs-13)] text-eu-ink-2 leading-relaxed">{name}<br />{addressOf(s) || "—"}{s.region ? <><br />{s.region}</> : null}</p>
               {s.notes && <p data-private className="m-0 rounded-lg bg-eu-yellow/20 px-2.5 py-1.5 text-[length:var(--fs-13)]"><b>Σχόλιο πελάτη:</b> {s.notes}</p>}
+              {s.slots?.length ? <p className="m-0 rounded-lg bg-eu-chip px-2.5 py-1.5 text-[length:var(--fs-13)]"><b>Ώρες επικοινωνίας:</b> {s.slots.join(" · ")}</p> : null}
               {(s.street || s.city) && <a href={`https://maps.google.com/?q=${encodeURIComponent(addressOf(s))}`} target="_blank" rel="noopener noreferrer" className="justify-self-start inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-12)] hover:underline print:hidden">Στον χάρτη <ExternalLink className="size-3.5" aria-hidden /></a>}
             </Card>
           )}

@@ -12,8 +12,9 @@ export const generatedCopy = {
     "katastima_paralavis": "Κατάστημα παραλαβής",
     "etoimi_se_2_ores": "Έτοιμη σε 2 ώρες.",
     "nomos": "Νομός",
-    "protimisi_oras": "Προτίμηση ώρας",
-    "o_technikos_toy_katastimatos": "Ο τεχνικός του καταστήματος σε καλεί εντός 24 ωρών για την ακριβή ημέρα.",
+    "protimomeni_ora_epikoinonias": "Προτιμώμενη ώρα επικοινωνίας",
+    "epilexe_pote_se_exypiretei": "Επίλεξε πότε σε εξυπηρετεί να επικοινωνήσει μαζί σου το κατάστημα για τον προγραμματισμό της παράδοσης.",
+    "i_imera_kai_i": "Η ημέρα και η ώρα παράδοσης καθορίζονται κατόπιν συνεννόησης μαζί σου.",
     "paralavi_palias_syskeyis_gia": "Παραλαβή παλιάς συσκευής για ανακύκλωση — δωρεάν.",
     "tin_pairnoyme_kata_tin": "Την παίρνουμε κατά την παράδοση (ΑΗΗΕ, Οδηγία 2012/19/ΕΕ).",
     "scholia_gia_ton_dianomea": "Σχόλια για τον διανομέα",
@@ -55,6 +56,9 @@ export const generatedCopy = {
     "koyponi": "Κουπόνι"
   },
   "cart": {
+    "ypologizontai_sto_tameio": "Υπολογίζονται στο ταμείο",
+    "meriko_synolo": "Μερικό σύνολο",
+    "choris_metaforika_to_synolo": "Χωρίς μεταφορικά: το σύνολο ενημερώνεται αυτόματα μόλις δώσεις τον Τ.Κ. σου στο ταμείο.",
     "fortosi_kalathioy": "Φόρτωση καλαθιού…",
     "kalathi": "Καλάθι",
     "to_kalathi_soy_einai": "Το καλάθι σου είναι άδειο",
@@ -126,6 +130,8 @@ export const generatedCopy = {
     "piso_stin_archiki": "Πίσω στην αρχική"
   },
   "miniCart": {
+    "ypologizontai_sto_tameio": "Υπολογίζονται στο ταμείο",
+    "meriko_synolo": "Μερικό σύνολο",
     "prostethike_sto_kalathi": "Προστέθηκε στο καλάθι",
     "to_kalathi_soy_einai": "Το καλάθι σου είναι άδειο.",
     "des_ta_proionta": "Δες τα προϊόντα",

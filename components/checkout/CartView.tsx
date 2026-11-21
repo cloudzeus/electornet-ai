@@ -263,13 +263,15 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
               {discPrice > 0 && <Row k="Προσφορές" v={`− ${priceLong(discPrice)}`} cls="text-eu-green" />}
               {discCoupon > 0 && <Row k={`Κουπόνι ${quote?.coupon.applied ?? ""}`} v={`− ${priceLong(discCoupon)}`} cls="text-eu-green" />}
               {(quote?.gifts.length ?? 0) > 0 && <Row k={quote!.gifts.length === 1 ? "Δώρο" : `Δώρα (${quote!.gifts.length})`} v="0,00 €" cls="text-eu-green" />}
-              <Row k="Μεταφορικά" v={zipNeeded ? "Δωρεάν*" : shipping === 0 ? "Δωρεάν" : priceLong(shipping)} cls={shipping === 0 ? "text-eu-green" : ""} />
-              {zipNeeded && <p className="m-0 -mt-1 text-eu-muted text-[length:var(--fs-12)]">{hint?.free ? `* Έχουμε κατάστημα κοντά σου (${hint.place}) — επιβεβαιώνεται με τον Τ.Κ. σου στο ταμείο.` : "* Δωρεάν στις περιοχές με κατάστημα Euronics. Βάλε τον Τ.Κ. σου στο ταμείο και το επιβεβαιώνουμε πριν πληρώσεις."}</p>}
+              {/* πριν ξέρουμε την περιοχή δεν δείχνουμε ποσό ούτε «δωρεάν»: το σύνολο είναι μερικό και ενημερώνεται στο ταμείο */}
+              <Row k="Μεταφορικά" v={zipNeeded ? c.ypologizontai_sto_tameio : shipping === 0 ? "Δωρεάν" : priceLong(shipping)} cls={!zipNeeded && shipping === 0 ? "text-eu-green" : ""} />
+              {zipNeeded && <p className="m-0 -mt-1 text-eu-muted text-[length:var(--fs-12)]">{hint?.free ? `Έχουμε κατάστημα Euronics κοντά σου (${hint.place}): εκεί η παράδοση είναι δωρεάν — το επιβεβαιώνουμε με τον Τ.Κ. σου.` : "Δωρεάν στις περιοχές με κατάστημα Euronics· αλλού ισχύει ο τιμοκατάλογος του τρόπου που θα διαλέξεις."}</p>}
               <Row k="ΦΠΑ 24% (περιλαμβάνεται)" v={priceLong(vat)} cls="text-eu-muted-2 text-[length:var(--fs-14)]" />
               <div className="flex justify-between items-baseline border-t-2 border-eu-line pt-3 mt-1">
-                <dt className="font-extrabold text-eu-ink text-[length:var(--fs-17)]">{c.synolo}</dt>
+                <dt className="font-extrabold text-eu-ink text-[length:var(--fs-17)]">{zipNeeded ? c.meriko_synolo : c.synolo}</dt>
                 <dd className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-28)] leading-none">{priceLong(total)}</dd>
               </div>
+              {zipNeeded && <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">{c.choris_metaforika_to_synolo}</p>}
             </dl>
             <div className="rounded-xl bg-eu-chip text-eu-blue px-4 py-3 text-[length:var(--fs-14)] font-bold">
               ή 12 × {priceLong(instalment(total))} χωρίς κάρτα <span className="font-normal text-eu-ink-2">{c.eos_24_atokes_me}</span>
