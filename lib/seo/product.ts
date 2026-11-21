@@ -3,6 +3,7 @@ import type { Product } from "@/lib/data/types";
 import { attributesOf } from "@/lib/data/attributes";
 import { instalment, priceLong, weekday } from "@/lib/format";
 import { warrantyDetail, warrantyLabel, type WarrantyInfo } from "@/lib/warranty/policy";
+import { ADVERTISED_COURIER_FEE } from "@/lib/shipping/carriers";
 
 /**
  * SEO · AEO · GEO per product.
@@ -133,10 +134,11 @@ export function productJsonLd(p: Product, crumbs: Crumb[], w?: WarrantyInfo) {
           availability: a.kind === "order" ? "https://schema.org/PreOrder" : "https://schema.org/InStock",
           itemCondition: p.isRenew ? "https://schema.org/RefurbishedCondition" : "https://schema.org/NewCondition",
           seller: { "@id": `${SITE}/#org` },
-          ...(p.lowest30 ? { priceSpecification: { "@type": "UnitPriceSpecification", price: p.lowest30, priceCurrency: "EUR", priceType: "https://schema.org/StrikethroughPrice", name: "Χαμηλότερη τιμή 30 ημερών (Omnibus)" } } : {}),
+          // StrikethroughPrice μόνο όταν η 30ήμερη είναι όντως πάνω από την τιμή πώλησης· αλλιώς δεν υπάρχει διαγραφή να δηλώσουμε
+          ...(p.lowest30 && p.lowest30 > p.price ? { priceSpecification: { "@type": "UnitPriceSpecification", price: p.lowest30, priceCurrency: "EUR", priceType: "https://schema.org/StrikethroughPrice", name: "Χαμηλότερη τιμή 30 ημερών (Omnibus)" } } : {}),
           shippingDetails: {
             "@type": "OfferShippingDetails",
-            shippingRate: { "@type": "MonetaryAmount", value: p.price >= 100 ? 0 : 4.9, currency: "EUR" },
+            shippingRate: { "@type": "MonetaryAmount", value: ADVERTISED_COURIER_FEE / 100, currency: "EUR" },
             shippingDestination: { "@type": "DefinedRegion", addressCountry: "GR" },
             deliveryTime: { "@type": "ShippingDeliveryTime", handlingTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 1, unitCode: "DAY" }, transitTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: a.kind === "order" ? 10 : 3, unitCode: "DAY" } },
           },

@@ -12,7 +12,6 @@ import { useCart } from "./CartProvider";
 import { EnergyChip } from "./EnergyChip";
 import { FluidContent } from "@/components/fluid/Fluid";
 import { ProductImage } from "@/components/commerce/ProductImage";
-import { Tilt } from "@/components/motion/Tilt";
 import { cutoutFor } from "@/lib/data/cutouts";
 import { flyToCart } from "@/lib/motion/flyToCart";
 import { CornerSticker, RibbonSticker, UrgencyPill, BurstSticker, ContestSticker, stickersFor } from "./Stickers";
@@ -42,7 +41,7 @@ const c = copyOf("productCard");
  * shortens and the buttons stack; nothing disappears. Every text ≥ 14px.
  */
 export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "light" }: { product: Product; priority?: boolean; dealEndsAt?: string; tone?: "light" | "dark" }) {
-  const { add, openQuickBuy, openQuickView, wishlist, toggleWishlist, compare, toggleCompare } = useCart();
+  const { add, openQuickView, wishlist, toggleWishlist, compare, toggleCompare } = useCart();
   const monthly = instalment(p.price);
   const liked = wishlist.includes(p.id);
   const compared = compare.includes(p.id);
@@ -76,14 +75,14 @@ export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "
       {({ size }) => {
         const narrow = size === "xs" || size === "sm";
         return (
-          <Tilt className="h-full" max={4}>
+          <>
             <article className={`group/card bg-white rounded-2xl overflow-hidden flex flex-col h-full border transition-shadow duration-300 hover:shadow-[var(--shadow-overlay)] ${compared ? "border-eu-blue/50 shadow-[var(--shadow-card)]" : tone === "dark" ? "border-transparent shadow-[0_10px_30px_rgba(0,0,0,.25)]" : "border-eu-line shadow-[var(--shadow-card)]"}`}>
-              <div className={`relative p-3 ${cutout ? "eu-cutout-field" : "bg-eu-surface-2"}`}>
+              <div className={`relative p-3 ${cutout ? "eu-cutout-field" : "bg-eu-surface-2"}`} data-card-photo>
                 <Link href={`/proion/${p.slug}`} className="block" aria-label={`${p.brand} ${p.title}`}>
                   <ViewTransition name={`product-${p.id}`}>
-                    <div ref={imgRef} data-tilt-layer className="relative aspect-square">
+                    <div ref={imgRef} className="relative aspect-square">
                       {cutout ? (
-                        <Image src={cutout} alt="" fill sizes="(max-width: 640px) 50vw, 320px" priority={priority} className="object-contain p-[6%] eu-cutout-shadow transition-transform duration-500 ease-out group-hover/card:scale-[1.06]" />
+                        <Image src={cutout} alt="" fill sizes="(max-width: 640px) 50vw, 320px" priority={priority} className="object-contain p-[6%] eu-cutout-shadow" />
                       ) : (
                         <ProductImage src={p.image} sizes="(max-width: 640px) 50vw, 320px" priority={priority} />
                       )}
@@ -110,6 +109,15 @@ export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "
                   // ενημερωτική ετικέτα (Best Seller, Top Rated…) όταν δεν υπάρχει tag προσφοράς
                   <span className={`absolute left-3 ${corner ? "top-14" : "top-3"} pointer-events-none inline-flex max-w-[70%] rounded-full bg-white text-eu-navy border border-eu-navy/20 font-extrabold text-[length:var(--fs-13)] px-2.5 py-1 leading-tight shadow-[0_4px_12px_rgba(18,42,88,.15)]`}>{p.infoTags[0]}</span>
                 ) : null}
+                <button
+                  type="button"
+                  aria-pressed={compared}
+                  aria-label={compared ? "Αφαίρεση από τη σύγκριση" : c.sygkrisi}
+                  onClick={() => toggleCompare(p.id, compareScope(p))}
+                  className={`absolute top-2 right-14 size-11 rounded-full bg-white shadow-[var(--shadow-card)] inline-flex items-center justify-center transition-colors ${compared ? "text-eu-blue" : "text-eu-muted hover:text-eu-blue"} ${ribbon ? "top-14" : ""}`}
+                >
+                  <Scale className="size-5" aria-hidden />
+                </button>
                 <button
                   type="button"
                   aria-pressed={liked}
@@ -160,26 +168,14 @@ export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "
                     </Link>
                   </div>
                 ) : (
-                <div className={`flex gap-2 mt-auto ${narrow ? "flex-col" : ""}`}>
-                  <button type="button" onClick={() => openQuickBuy(p)} className="flex-1 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] py-3 min-h-12 hover:bg-eu-blue transition-colors active:scale-[0.98]">
-                    {c.agora_me_1_klik}
-                  </button>
-                  <button type="button" onClick={onAdd} aria-label={c.prosthiki_sto_kalathi} className={`rounded-full border-2 border-eu-navy text-eu-navy font-extrabold flex items-center justify-center min-h-12 hover:bg-eu-surface transition-colors active:scale-95 ${narrow ? "w-full" : "w-12 shrink-0"}`}>
-                    <Plus className="size-5" aria-hidden />
-                    {narrow && <span className="ml-1 text-[length:var(--fs-15)]">{c.sto_kalathi}</span>}
-                  </button>
-                </div>
+                <button type="button" onClick={onAdd} className="mt-auto w-full rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] py-3 min-h-12 inline-flex items-center justify-center gap-1.5 hover:bg-eu-blue transition-colors active:scale-[0.98]">
+                  <Plus className="size-5" aria-hidden /> {c.sto_kalathi}
+                </button>
                 )}
-                <div className="flex justify-between items-center gap-2 mt-3 text-[length:var(--fs-14)]">
-                  <label className={`inline-flex items-center gap-1.5 font-semibold cursor-pointer min-h-9 ${compared ? "text-eu-blue" : "text-eu-muted-2 hover:text-eu-blue"}`}>
-                    <input type="checkbox" checked={compared} onChange={() => toggleCompare(p.id, compareScope(p))} className="size-4 accent-eu-blue" />
-                    <Scale className="size-4" aria-hidden /> {c.sygkrisi}
-                  </label>
-                  {!narrow && <span className="text-eu-muted-2 truncate">{p.tradeIn ? "Παραλαβή παλιάς" : p.storeStock ? `Σε ${p.storeStock} καταστήματα` : ""}</span>}
-                </div>
+                {(p.tradeIn || p.storeStock) && <div className="mt-2 text-eu-muted-2 text-[length:var(--fs-14)] truncate">{p.tradeIn ? "Παραλαβή παλιάς" : `Σε ${p.storeStock} καταστήματα`}</div>}
               </div>
             </article>
-          </Tilt>
+          </>
         );
       }}
     </FluidContent>

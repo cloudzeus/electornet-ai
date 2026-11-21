@@ -6,14 +6,10 @@ import { copyOf } from "@/lib/cms/copy";
 const c = copyOf("sectionNav");
 
 const ITEMS = [
-  ["overview", "Με μια ματιά"],
   ["description", "Περιγραφή"],
-  ["videos", "Βίντεο"],
   ["specs", "Χαρακτηριστικά"],
-  ["compare", "Σύγκριση"],
   ["services", "Υπηρεσίες & παράδοση"],
   ["reviews", "Αξιολογήσεις"],
-  ["qa", "Ερωτήσεις"],
 ];
 
 /**

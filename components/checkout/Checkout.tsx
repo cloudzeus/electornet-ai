@@ -19,6 +19,7 @@ import { useServerQuote, quoteLineOf, savedCoupon, saveCoupon, type ServerQuote 
 import { FreeShippingNote, GiftLines, PromoHints } from "./PromoPerks";
 import { BoxNowPicker, type Locker } from "./BoxNowPicker";
 import { carrierDef, noPriceArea } from "@/lib/shipping/carriers";
+import { DISTRICTS, districtByZip } from "@/lib/geo/regions";
 import { phoneDigits } from "@/lib/orders/contact";
 
 const c = copyOf("checkout");
@@ -38,7 +39,8 @@ const VIVA_OPTS: { v: Pay; icon: typeof Truck; t: string; sub: string; mark?: Re
 ];
 const VIVA_NAME: Record<string, string> = { card: "την κάρτα", apple: "Apple Pay", google: "Google Pay", paypal: "PayPal", iris: "IRIS", klarna: "Klarna", tbi: "την TBI Bank (δόσεις χωρίς κάρτα)" };
 
-const REGIONS = ["Αττική", "Θεσσαλονίκη", "Αχαΐα", "Λάρισα", "Ηράκλειο", "Χανιά", "Δωδεκάνησα", "Ιωάννινα", "Μαγνησία", "Καβάλα", "Κέρκυρα", "Εύβοια", "Μεσσηνία", "Σέρρες", "Άλλη"];
+// οι 51 νομοί της χώρας· ο σωστός διαλέγεται μόνος του από τον Τ.Κ. (βλ. set())
+const REGIONS = [...DISTRICTS.map((d) => d.name).sort((a, b) => a.localeCompare(b, "el")), "Άλλη"];
 
 /**
  * Checkout as specified in the proposal (p.9 «Checkout σε 3 βήματα»):
@@ -149,9 +151,15 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   const total = quote ? quote.total / 100 : Math.max(0, localGoods) + shipping + codFee;
   const maxInst = total >= 800 ? 24 : total >= 400 ? 12 : total >= 200 ? 6 : total >= 100 ? 3 : 1;
   const store = stores.find((s) => s.id === storeId);
-  const eta = onRequest && ful !== "click-collect" ? "Κατόπιν συνεννόησης · σε καλούμε για τα μεταφορικά και την ημέρα" : ful === "click-collect" ? "Θα λάβεις SMS όταν είναι έτοιμη για παραλαβή" : expressSel ? "ASAP Express · 1–2 ημέρες" : attica ? `Κανονική παράδοση euronics · ${quote!.attica.standard.eta}` : ful === "appointment" ? "Με ραντεβού · σε καλούμε για ημέρα και ώρα" : ful === "freight" ? `${freight?.local ? "Από κατάστημα Euronics κοντά σου" : "Μεταφορική"} · ${freight?.eta ?? ""}` : offer ? `${offer.name} · ${offer.eta}` : "Παράδοση σε 1–3 εργάσιμες";
+  const eta = onRequest && ful !== "click-collect" ? "Κατόπιν συνεννόησης · σε καλούμε για τα μεταφορικά και την ημέρα" : ful === "click-collect" ? "Θα λάβεις SMS όταν είναι έτοιμη για παραλαβή" : expressSel ? "ASAP Express · 1–2 ημέρες" : attica ? quote!.attica.standard.eta : ful === "appointment" ? "Με ραντεβού · σε καλούμε για ημέρα και ώρα" : ful === "freight" ? freight?.eta ?? "" : offer ? offer.eta : "Παράδοση σε 1–3 εργάσιμες";
 
-  const set = (k: keyof typeof f, v: string | boolean) => setF((s) => ({ ...s, [k]: v }));
+  const set = (k: keyof typeof f, v: string | boolean) =>
+    setF((s) => {
+      const next = { ...s, [k]: v };
+      // ο νομός βγαίνει από τον Τ.Κ.: χωρίς αυτό η παραγγελία φεύγει στο SoftOne με την προεπιλογή «Αττική»
+      if (k === "zip" && typeof v === "string") next.region = districtByZip(v)?.name ?? (/^\d{5}$/.test(v) ? "Άλλη" : s.region);
+      return next;
+    });
   const touch = (k: string) => setTouched((t) => ({ ...t, [k]: true }));
 
   const errors = useMemo(() => {
@@ -258,13 +266,15 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   // τρόποι αποστολής για παράδοση στο σπίτι (εκτός Αττικής· στην Αττική βλ. «attica»)
   type ShipOpt = { key: string; icon: typeof Truck; t: string; sub: string; price: string; on: boolean; disabled?: boolean; pick: () => void };
   const free = (n: number) => (n === 0 ? "Δωρεάν" : priceLong(n / 100));
+  /** «0 χλμ» το διαβάζει ο πελάτης σαν σφάλμα — κάτω από χιλιόμετρο το λέμε με λόγια */
+  const km = (n: number) => (n < 1 ? "κάτω από 1 χλμ" : `${String(n).replace(".", ",")} χλμ`);
   const shipOpts: ShipOpt[] = onRequest ? [
-    { key: "appointment", icon: Phone, t: "Κατόπιν συνεννόησης", sub: `Στην περιοχή «${onRequest}» τα μεταφορικά δεν υπολογίζονται αυτόματα: καταχωρούμε την παραγγελία χωρίς πληρωμή και σε καλούμε για το κόστος αποστολής και την ημέρα παράδοσης. Αν βιάζεσαι, επικοινώνησε με το κατάστημα Euronics της περιοχής σου.`, price: "—", on: true, pick: () => setFul("appointment") },
+    { key: "appointment", icon: Phone, t: "Κατόπιν συνεννόησης", sub: "Σε καλούμε για το κόστος αποστολής και την ημέρα παράδοσης", price: "—", on: true, pick: () => setFul("appointment") },
   ] : [
     ...(offers.length
       ? offers.map((o): ShipOpt => ({ key: o.id, icon: Truck, t: `${o.name}${o.kind === "locker" ? " · σε θυρίδα" : ""}`, sub: courierBlocked ? "Δεν αποστέλλεται με courier" : o.reason ?? o.eta, price: courierBlocked || !o.available ? "—" : free(o.fee), on: ful === "courier" && offer?.id === o.id, disabled: courierBlocked || !o.available, pick: () => { setFul("courier"); setCarrierPick(o.id); } }))
       : [{ key: "courier", icon: Truck, t: "Με courier", sub: courierBlocked ? "Δεν αποστέλλεται με courier" : "1–3 εργάσιμες", price: courierBlocked ? "—" : "4,90 €", on: ful === "courier", disabled: courierBlocked, pick: () => setFul("courier") }]),
-    ...(freight ? [{ key: "freight", icon: Container, t: freight.local ? "Από κατάστημα Euronics κοντά σου" : freight.central ? "Με μεταφορική από το κεντρικό κατάστημα" : "Με μεταφορική", sub: freightOk ? (freight.central ? `${freight.eta} · δεν υπάρχει συνεργαζόμενο κατάστημα σε ${freight.localMaxKm} χλμ από εσένα${freight.devices > 1 && freight.fee > 0 ? ` · ${freight.devices} συσκευές × ${free(freight.unitFee)}` : ""}` : localStores.length ? (localPick ? `${localPick.name}, ${localPick.city} · ${String(localPick.km).replace(".", ",")} χλμ · ${freight.eta}` : `Διάλεξε κατάστημα · δωρεάν έως ${freight.localFreeKm} χλμ από το κατάστημα`) : `${freight.eta} · ${freight.local ? "σου το φέρνει συνεργάτης μας της περιοχής σου" : freight.devices > 1 && freight.fee > 0 ? `${freight.devices} συσκευές × ${free(freight.unitFee)}` : "για ογκώδεις συσκευές"}`) : freight.reason ?? "Δεν είναι διαθέσιμη για αυτό το καλάθι", price: !freightOk ? "—" : localStores.length && !localPick ? (localStores.some((x) => x.fee === 0) ? "Δωρεάν" : `από ${free(Math.min(...localStores.map((x) => x.fee)))}`) : free(freight.fee), on: ful === "freight", disabled: !freightOk, pick: () => setFul("freight") }] : []),
+    ...(freight ? [{ key: "freight", icon: Container, t: freight.local ? "Από κατάστημα Euronics κοντά σου" : freight.central ? "Με μεταφορική από το κεντρικό κατάστημα" : "Με μεταφορική", sub: freightOk ? (freight.central ? `${freight.eta} · δεν υπάρχει συνεργαζόμενο κατάστημα σε ${freight.localMaxKm} χλμ από εσένα${freight.devices > 1 && freight.fee > 0 ? ` · ${freight.devices} συσκευές × ${free(freight.unitFee)}` : ""}` : localStores.length ? (localPick ? `${localPick.name}, ${localPick.city} · ${km(localPick.km)} · ${freight.eta}` : `Διάλεξε κατάστημα · δωρεάν έως ${freight.localFreeKm} χλμ από το κατάστημα`) : `${freight.eta} · ${freight.local ? "σου το φέρνει συνεργάτης μας της περιοχής σου" : freight.devices > 1 && freight.fee > 0 ? `${freight.devices} συσκευές × ${free(freight.unitFee)}` : "για ογκώδεις συσκευές"}`) : freight.reason ?? "Δεν είναι διαθέσιμη για αυτό το καλάθι", price: !freightOk ? "—" : localStores.length && !localPick ? (localStores.some((x) => x.fee === 0) ? "Δωρεάν" : `από ${free(Math.min(...localStores.map((x) => x.fee)))}`) : free(freight.fee), on: ful === "freight", disabled: !freightOk, pick: () => setFul("freight") }] : []),
     // ογκώδη εκτός Αττικής με συνεργαζόμενο κατάστημα κοντά: στο σπίτι τα φέρνει το κατάστημα που διαλέγει ο πελάτης — όχι γενικό «ραντεβού»
     ...(localStores.length || freight?.central ? [] : [{ key: "appointment", icon: CalendarClock, t: "Με ραντεβού", sub: heavy ? "Με εγκατάσταση από τεχνικό του καταστήματος" : "Σε καλούμε για ημέρα και ώρα", price: "Δωρεάν", on: ful === "appointment", pick: () => setFul("appointment") }]),
   ];
@@ -274,12 +284,12 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
     ...VIVA_OPTS.filter((o) => vivaPays.includes(o.v)).map((o) => (o.v === "card" ? { ...o, sub: `Visa · Mastercard · Amex${maxInst > 1 ? ` · έως ${maxInst} άτοκες` : ""}` } : o)),
     ...(klarnaDirect ? [KLARNA_OPT] : []),
     ...(bankSub ? [{ v: "bank" as Pay, icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: bankSub }] : []),
-    ...(!cod ? [] : [{ v: "cod" as Pay, icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Διαθέσιμη έως 500 €", disabled: total > 500 }]),
+    ...(!cod ? [] : [{ v: "cod" as Pay, icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Δεν ισχύει άνω των 500 € — διάλεξε κάρτα ή κατάθεση", disabled: total > 500 }]),
     ...(ful === "click-collect" ? [{ v: "store" as Pay, icon: StoreIcon, t: "Στο κατάστημα", sub: "Μετρητά ή κάρτα κατά την παραλαβή" }] : []),
   ] : [
     ...(klarnaDirect ? [KLARNA_OPT] : []),
     ...(bankSub ? [{ v: "bank" as Pay, icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: bankSub }] : []),
-    ...(!cod ? [] : [{ v: "cod" as Pay, icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Διαθέσιμη έως 500 €", disabled: total > 500 }]),
+    ...(!cod ? [] : [{ v: "cod" as Pay, icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Δεν ισχύει άνω των 500 € — διάλεξε κάρτα ή κατάθεση", disabled: total > 500 }]),
     ...(ful === "click-collect" ? [{ v: "store" as Pay, icon: StoreIcon, t: "Στο κατάστημα", sub: "Μετρητά ή κάρτα κατά την παραλαβή" }] : []),
   ];
 
@@ -362,11 +372,8 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                 ) : (
                   <>
                     <div className="grid grid-cols-1 @sm:grid-cols-6 gap-4">
-                      {field("street", "Οδός", text("street", { autoComplete: "address-line1", placeholder: "π.χ. Λεωφόρος Κηφισίας" }), "@sm:col-span-4")}
-                      {field("number", "Αριθμός", text("number"), "@sm:col-span-1")}
-                      {field("floor", "Όροφος", text("floor"), "@sm:col-span-1")}
+                      {field("zip", "Τ.Κ.", text("zip", { inputMode: "numeric", autoComplete: "postal-code", maxLength: 5 }), "@sm:col-span-2", "δείχνει αμέσως τα μεταφορικά")}
                       {field("city", "Πόλη", text("city", { autoComplete: "address-level2" }), "@sm:col-span-2")}
-                      {field("zip", "Τ.Κ.", text("zip", { inputMode: "numeric", autoComplete: "postal-code", maxLength: 5 }), "@sm:col-span-2")}
                       <label className="grid gap-1.5 text-[length:var(--fs-15)] font-bold text-eu-ink @sm:col-span-2">
                         {c.nomos}
                         <select value={f.region} onChange={(e) => set("region", e.target.value)} className={inputCls()}>
@@ -375,6 +382,9 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                           ))}
                         </select>
                       </label>
+                      {field("street", "Οδός", text("street", { autoComplete: "address-line1", placeholder: "π.χ. Λεωφόρος Κηφισίας" }), "@sm:col-span-4")}
+                      {field("number", "Αριθμός", text("number"), "@sm:col-span-1")}
+                      {field("floor", "Όροφος", text("floor"), "@sm:col-span-1")}
                     </div>
 
                     <fieldset className="m-0 p-0 border-0 grid gap-2" aria-describedby="ship-status">
@@ -407,8 +417,8 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                                 <label key={x.id} className={`flex items-center gap-3 rounded-xl border-2 bg-white px-3 py-2.5 min-h-12 cursor-pointer ${localStoreId === x.id ? "border-eu-blue" : "border-eu-line hover:border-eu-blue"}`}>
                                   <input type="radio" name="localStore" checked={localStoreId === x.id} onChange={() => setLocalStoreId(x.id)} className="accent-eu-blue size-[18px] shrink-0" />
                                   <span className="flex-1 min-w-0">
-                                    <span className="block font-bold text-eu-ink text-[length:var(--fs-15)] leading-tight">{x.name}</span>
-                                    <span className="block text-eu-muted text-[length:var(--fs-14)]">{x.city} · {String(x.km).replace(".", ",")} χλμ οδικώς</span>
+                                    <span className="block font-bold text-eu-ink text-[length:var(--fs-15)] leading-tight">Euronics {x.city}{x.address ? ` — ${x.address}` : ""}</span>
+                                    <span className="block text-eu-muted text-[length:var(--fs-14)]">{km(x.km)} οδικώς · {x.name}</span>
                                   </span>
                                   <span className={`font-extrabold text-[length:var(--fs-15)] shrink-0 ${x.fee === 0 ? "text-eu-green" : "text-eu-ink"}`}>{free(x.fee)}</span>
                                 </label>
@@ -417,9 +427,18 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                             </div>
                           )}
                           {onRequest && (
-                            <p role="status" className="m-0 rounded-xl bg-eu-amber/15 px-4 py-3 text-eu-ink-2 text-[length:var(--fs-15)]">
-                              Στην περιοχή <b className="text-eu-ink">{onRequest}</b> τα μεταφορικά ορίζονται <b className="text-eu-ink">κατόπιν συνεννόησης</b>. Ολοκληρώνεις την παραγγελία <b className="text-eu-ink">χωρίς πληρωμή</b> και σε καλούμε για το κόστος αποστολής — ή διάλεξε <b className="text-eu-ink">παραλαβή από κατάστημα</b>. Μπορείς και να <Link href="/katastimata" className="underline font-bold">επικοινωνήσεις με το κατάστημα της περιοχής σου</Link>.
-                            </p>
+                            <div role="status" className="rounded-xl bg-eu-amber/15 px-4 py-4 grid gap-2">
+                              <b className="text-eu-ink text-[length:var(--fs-16)]">Τα μεταφορικά για {onRequest} δεν υπολογίζονται αυτόματα</b>
+                              <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">Καταχωρείς την παραγγελία χωρίς πληρωμή και σε καλούμε για το κόστος αποστολής και την ημέρα παράδοσης.</p>
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                <button type="button" onClick={() => { setFul("click-collect"); savePickup({ where: "store", storeId }); }} className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-12 hover:bg-eu-blue">
+                                  Παραλαβή από κατάστημα
+                                </button>
+                                <Link href="/katastimata" className="rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-12 inline-flex items-center hover:bg-eu-surface">
+                                  Βρες το κατάστημά σου
+                                </Link>
+                              </div>
+                            </div>
                           )}
                           {courierBlocked && !onRequest && (
                             <p role="status" className="m-0 rounded-xl bg-eu-amber/15 px-4 py-3 text-eu-ink-2 text-[length:var(--fs-15)]">
@@ -503,9 +522,6 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                 <Link href="/kalathi" className="font-bold text-eu-blue text-[length:var(--fs-15)] hover:underline min-h-12 inline-flex items-center">
                   {c.piso_sto_kalathi}
                 </Link>
-                <button type="button" onClick={next} className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-17)] px-8 min-h-14 hover:bg-eu-blue">
-                  {c.synecheia_stin_pliromi}
-                </button>
               </div>
             </>
           )}
@@ -588,9 +604,6 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
               <div className="flex flex-wrap justify-between items-center gap-3 pt-2">
                 <button type="button" onClick={() => setStep(2)} className="font-bold text-eu-blue text-[length:var(--fs-15)] hover:underline min-h-12">
                   {c.stoicheia_paradosi}
-                </button>
-                <button type="button" onClick={submit} disabled={placing} className="hidden @3xl:inline-flex rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-17)] px-8 min-h-14 items-center hover:bg-eu-yellow-dark disabled:opacity-60">
-                  {placing ? "Καταχώρηση παραγγελίας…" : payUse === "later" ? "Καταχώρηση παραγγελίας" : `Πληρωμή ${priceLong(total)} & ολοκλήρωση`}
                 </button>
               </div>
             </>

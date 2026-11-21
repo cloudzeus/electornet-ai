@@ -19,6 +19,12 @@ export const CARRIERS: CarrierDef[] = [
   { id: "asap", name: "ASAP Couriers", kind: "address", eta: "Αυθημερόν στην Αττική", fee: 690 },
   { id: "boxnow", name: "BOX NOW", kind: "locker", eta: "1–2 εργάσιμες σε θυρίδα", fee: 290 },
 ];
+/**
+ * Η χρέωση courier που δηλώνουμε όπου δεν ξέρουμε την περιοχή του επισκέπτη (δομημένα δεδομένα για τη Google):
+ * η ακριβότερη κανονική χρέωση διεύθυνσης, ώστε ποτέ να μη δηλώνουμε λιγότερα από όσα θα πληρώσει ο πελάτης.
+ * Η δωρεάν αποστολή ισχύει μόνο στις περιοχές με κατάστημα και δεν εκφράζεται ανά επισκέπτη στο schema.org.
+ */
+export const ADVERTISED_COURIER_FEE = 490;
 export const carrierDef = (id: string | null | undefined) => CARRIERS.find((c) => c.id === id) ?? null;
 export const isCarrierId = (v: unknown): v is CarrierId => CARRIERS.some((c) => c.id === v);
 

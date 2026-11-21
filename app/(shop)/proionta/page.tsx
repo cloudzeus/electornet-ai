@@ -66,7 +66,8 @@ export default async function AllProducts({ searchParams }: { searchParams: Prom
       </div>
 
       <div className="eu-canvas eu-gutter pb-12 flex flex-col @3xl:flex-row gap-5 @3xl:gap-6 items-stretch">
-        <Facets result={result} showCategories />
+        {/* οι κατηγορίες είναι ήδη chips πάνω από τη λίστα — δεν ξαναμπαίνουν στη στήλη */}
+        <Facets result={result} />
         <div className="flex-1 min-w-0 eu-container">
           <SortBar total={result.total} page={result.page} pages={result.pages} fit={result.items.some(fitMattersFor)} />
           <ProductGrid products={result.items} view={sp.view === "list" ? "list" : "grid"} />

@@ -38,11 +38,11 @@ export const resetPartnerCache = () => { partnerMem = null; };
  * Συνεργαζόμενα καταστήματα κοντά στη διεύθυνση του πελάτη, ταξινομημένα με ΟΔΙΚΗ απόσταση (για την παράδοση στο σπίτι
  * από κατάστημα, εκτός Αττικής). [] = κανένα κοντά · undefined = άγνωστο ακόμη (ο χάρτης αργεί ή δεν απαντά) — ποτέ ευθεία.
  */
-export interface LocalStore { id: string; partnerId: string; name: string; city: string; km: number }
-let coopMem: { at: number; v: { id: string; partnerId: string; name: string; city: string; lat: number; lng: number }[] } | null = null;
+export interface LocalStore { id: string; partnerId: string; name: string; /** η διεύθυνση του καταστήματος: αυτή διαβάζει ο πελάτης, όχι το επώνυμο του συνεργάτη */ address: string; city: string; km: number }
+let coopMem: { at: number; v: { id: string; partnerId: string; name: string; address: string; city: string; lat: number; lng: number }[] } | null = null;
 async function coopStores() {
   if (coopMem && Date.now() - coopMem.at < 60_000) return coopMem.v;
-  const rows = await db.store.findMany({ where: { active: true, partner: { active: true, cooperating: true }, NOT: { lat: 0 } }, select: { id: true, partnerId: true, name: true, city: true, lat: true, lng: true } });
+  const rows = await db.store.findMany({ where: { active: true, partner: { active: true, cooperating: true }, NOT: { lat: 0 } }, select: { id: true, partnerId: true, name: true, address: true, city: true, lat: true, lng: true } });
   coopMem = { at: Date.now(), v: rows.map((r) => ({ ...r, partnerId: r.partnerId! })) };
   return coopMem.v;
 }
@@ -61,7 +61,7 @@ export async function nearStoresFor(a: { street?: string | null; number?: string
       if (!pt) { if (street) await new Promise((r) => setTimeout(r, 1100)); pt = await geocodeAddress(`${zip} ${city}, Ελλάδα`, { timeoutMs: 6000, preferPlace: true }).catch(() => null); }
       if (!pt) return undefined;
       const r = await rankByRoad(pt, await coopStores());
-      return r?.map((x) => ({ id: x.item.id, partnerId: x.item.partnerId, name: x.item.name, city: x.item.city, km: x.km }));
+      return r?.map((x) => ({ id: x.item.id, partnerId: x.item.partnerId, name: x.item.name, address: x.item.address, city: x.item.city, km: x.km }));
     };
     const entry: NonNullable<typeof hit> = { at: Date.now(), p: run().catch(() => undefined) };
     void entry.p.then((v) => { if (v === undefined) nearMem.delete(key); else entry.done = true; });

@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Minus, Plus, Trash2, Heart, ShieldCheck, Truck, RotateCcw, Store as StoreIcon, Sparkles, Tag, Check, ChevronRight, Gift } from "lucide-react";
+import { Minus, Plus, Trash2, Heart, ShieldCheck, Truck, RotateCcw, Store as StoreIcon, Compass, Tag, Check, ChevronRight, Gift } from "lucide-react";
 import type { Product, Service } from "@/lib/data/types";
 import { instalment, priceLong, priceShort, weekday } from "@/lib/format";
 import { useCart } from "@/components/commerce/CartProvider";
@@ -53,22 +53,16 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
   if (lines.length === 0)
     return (
       <div className="eu-canvas eu-gutter py-8 pb-14">
-        <Stepper step={1} />
-        <div className="rounded-3xl bg-eu-navy text-white p-8 @md:p-12 text-center relative overflow-hidden">
-          <div className="absolute -top-16 -right-16 size-64 rounded-full bg-eu-blue/40" aria-hidden />
-          <div className="absolute -bottom-20 -left-10 size-56 rounded-full bg-eu-yellow/20" aria-hidden />
-          <div className="relative">
-            <div className="font-extrabold text-eu-yellow text-[length:var(--fs-14)] tracking-wide mb-2">{c.kalathi}</div>
-            <h1 className="m-0 font-heading font-bold text-[length:var(--fs-30)] mb-2">{c.to_kalathi_soy_einai}</h1>
-            <p className="m-0 text-eu-on-dark text-[length:var(--fs-17)] max-w-[40em] mx-auto">{c.des_tis_prosfores_tis}</p>
-            <div className="flex flex-wrap justify-center gap-2.5 mt-6">
-              <Link href="/prosfores" className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] px-6 min-h-12 inline-flex items-center hover:bg-eu-yellow-dark">
-                {c.prosfores_tis_evdomadas}
-              </Link>
-              <Link href="/odigos-agoras" className="rounded-full border-2 border-white/60 text-white font-extrabold text-[length:var(--fs-16)] px-6 min-h-12 inline-flex items-center gap-2 hover:bg-white/10">
-                <Sparkles className="size-4 text-eu-yellow" aria-hidden /> {c.exypnos_odigos_agoras}
-              </Link>
-            </div>
+        <div className="rounded-3xl bg-eu-navy text-white p-8 @md:p-12 text-center">
+          <h1 className="m-0 font-heading font-bold text-[length:var(--fs-30)] mb-2">{c.to_kalathi_soy_einai}</h1>
+          <p className="m-0 text-eu-on-dark text-[length:var(--fs-17)] max-w-[40em] mx-auto">{c.des_tis_prosfores_tis}</p>
+          <div className="flex flex-wrap justify-center gap-2.5 mt-6">
+            <Link href="/prosfores" className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] px-6 min-h-12 inline-flex items-center hover:bg-eu-yellow-dark">
+              {c.prosfores_tis_evdomadas}
+            </Link>
+            <Link href="/odigos-agoras" className="rounded-full border-2 border-white/60 text-white font-extrabold text-[length:var(--fs-16)] px-6 min-h-12 inline-flex items-center gap-2 hover:bg-white/10">
+              <Compass className="size-4 text-eu-yellow" aria-hidden /> {c.exypnos_odigos_agoras}
+            </Link>
           </div>
         </div>
         {crossSell.length > 0 && (

@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "@/components/ui/Image";
 import { Plus, Zap } from "lucide-react";
@@ -10,10 +9,8 @@ import { useCart } from "@/components/commerce/CartProvider";
 import { Countdown } from "@/components/commerce/Countdown";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { cutoutFor } from "@/lib/data/cutouts";
-import { Tilt } from "@/components/motion/Tilt";
 import { flyToCart } from "@/lib/motion/flyToCart";
 import { copyOf } from "@/lib/cms/copy";
-import { sx } from "@/components/ui/sx";
 import { Price } from "@/components/commerce/Price";
 
 const c = copyOf("dealTile");
@@ -21,7 +18,7 @@ const c = copyOf("dealTile");
 /**
  * @dynamic Bento tile «Προσφορά ημέρας» (v4): the product as a floating
  * cutout on a light stage with rotating rays, the discount as a red corner
- * sticker with the euro saving, a real countdown plus a thin progress line
+ * sticker with the euro saving and a real countdown
  * of the day that has passed, big price and Quick buy. Tilts with the
  * pointer; «+» flies the photo to the cart. Data: deal-of-day from the CMS
  * schedule, price/Omnibus from the ERP.
@@ -30,21 +27,8 @@ export function DealOfDayTile({ product: p, endsAt }: { product: Product; endsAt
   const { openQuickBuy, add } = useCart();
   const pct = discountPct(p.price, p.wasPrice);
   const cutout = cutoutFor(p.image);
-  const [progress, setProgress] = useState(0);
-  useEffect(() => {
-    const end = new Date(endsAt).getTime();
-    const start = end - 24 * 3600 * 1000;
-    const tick = () => setProgress(Math.min(100, Math.max(0, ((Date.now() - start) / (end - start)) * 100)));
-    const t = setTimeout(tick, 0);
-    const i = setInterval(tick, 30000);
-    return () => {
-      clearTimeout(t);
-      clearInterval(i);
-    };
-  }, [endsAt]);
-  const bar = sx({ width: `${progress}%` });
   return (
-    <Tilt max={3} className="h-full">
+    <>
       <div className="group/deal relative h-full bg-white rounded-lg overflow-hidden shadow-[var(--shadow-card)] grid grid-rows-[auto_minmax(0,1fr)_auto] isolate">
         <div className="relative flex justify-between items-center px-4 pt-3.5 z-10">
           <span className="inline-flex items-center gap-1.5 font-extrabold text-eu-red text-[length:var(--fs-13)] tracking-wide uppercase">
@@ -82,10 +66,6 @@ export function DealOfDayTile({ product: p, endsAt }: { product: Product; endsAt
           </div>
         </div>
         <div className="relative px-4 pb-3.5 grid gap-2.5">
-          <div className="h-1 rounded-full bg-eu-surface-3 overflow-hidden" aria-hidden>
-            {bar.node}
-            <div className={`h-full rounded-full bg-eu-yellow transition-[width] duration-1000 ${bar.className}`} />
-          </div>
           <div className="flex gap-1.5">
             <button type="button" onClick={() => openQuickBuy(p)} className="flex-1 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] py-3 min-h-11 hover:bg-eu-blue">
               {c.agora_me_1_klik}
@@ -104,6 +84,6 @@ export function DealOfDayTile({ product: p, endsAt }: { product: Product; endsAt
           </div>
         </div>
       </div>
-    </Tilt>
+    </>
   );
 }

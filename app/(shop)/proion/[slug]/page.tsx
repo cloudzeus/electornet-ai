@@ -86,7 +86,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   // η επέκταση εγγύησης δεν είναι επιλογή με χρέωση: δωρεάν και αυτόματα στα είδη με CCCWARRANTY (lib/warranty)
   const addons = services.filter((s) => s.addonAt?.includes("pdp") && s.slug !== "paradosi-egkatastasi" && s.slug !== EXTENSION_SLUG);
   const similar = related.filter((x) => x.subcategory === p.subcategory).slice(0, 3);
-  const sections = ["overview", ...(p.description || p.sections?.length ? ["description"] : []), ...(p.videos?.length ? ["videos"] : []), ...(p.specs?.length ? ["specs"] : []), ...(similar.length ? ["compare"] : []), ...(p.noPrice ? [] : ["services"]), "reviews", "qa"];
+  // «Με μια ματιά»: ολόκληρη ενότητα για ένα χαρακτηριστικό διαβάζεται σαν λάθος — από τρία και πάνω λέει κάτι
+  const overview = p.highlights ?? (p.specs ?? []).slice(0, 4).map((x) => `${x.key}: ${x.value}`);
+  const sections = [...(overview.length >= 3 ? ["overview"] : []), ...(p.description || p.sections?.length ? ["description"] : []), ...(p.videos?.length ? ["videos"] : []), ...(p.specs?.length ? ["specs"] : []), ...(similar.length ? ["compare"] : []), ...(p.noPrice ? [] : ["services"]), "reviews", "qa"];
   // Προϊόν της βάσης: οι διαστάσεις έχουν ήδη λυθεί (ERP → EPREL)· ο παλιός αναλυτής των specs είναι μόνο για τα demo προϊόντα
   const dims = p.fromDb ? p.dims ?? null : dimsFor(p);
   const warranty: WarrantyInfo = { months: maker?.months ?? LEGAL_WARRANTY_MONTHS, extMonths: extOk ? EXTENSION_MONTHS : 0 };
@@ -142,14 +144,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       <SectionNav available={sections} />
 
       <div className="eu-canvas eu-gutter py-8 @lg:py-10 grid grid-cols-1 gap-12 @lg:gap-16 [&>*]:min-w-0">
-        <section id="overview" className="scroll-mt-24" aria-labelledby="ov-title">
+        <section id="overview" className={`scroll-mt-24 ${overview.length < 3 ? "hidden" : ""}`} aria-labelledby="ov-title">
           <h2 id="ov-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight mb-4">
             Με μια ματιά
           </h2>
           {/* Οι κάρτες μοιράζονται όλο το διαθέσιμο πλάτος ανάλογα με το πλήθος τους: 1 → όλο, 2 → μισό-μισό, 3 → τρίτα, 4 → τέταρτα */}
           <ul className="m-0 p-0 list-none grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
             {/* χωρίς αρίθμηση: είναι χαρακτηριστικά, όχι βήματα ή κατάταξη */}
-            {(p.highlights ?? (p.specs ?? []).slice(0, 4).map((s) => `${s.key}: ${s.value}`)).map((h) => (
+            {overview.map((h) => (
               // «Χαρακτηριστικό: τιμή» → μικρή ετικέτα πάνω, τιμή μεγάλη κάτω: όσο στενή κι αν γίνει η κάρτα, η τιμή δεν μένει μόνη της σε δεύτερη γραμμή
               <li key={h} className="rounded-xl bg-eu-surface p-4 text-eu-ink text-[length:var(--fs-17)] leading-snug font-semibold grid gap-1 content-start">
                 {h.includes(": ") ? <><span className="font-normal text-eu-ink-3 text-[length:var(--fs-14)] text-balance">{h.slice(0, h.indexOf(": "))}</span><span className="text-[length:var(--fs-19)] leading-tight text-balance">{h.slice(h.indexOf(": ") + 2)}</span></> : h}

@@ -150,7 +150,8 @@ function offerFields(r: Row): Partial<Product> {
   if (price < list) {
     out.price = price;
     const st = strikePrice(price, list, o.lowest30 != null ? Number(o.lowest30) : null);
-    if (st) { out.wasPrice = st.was; if (st.omnibus) out.lowest30 = st.was; out.badge = { kind: "discount" }; }
+    // Omnibus: η 30ήμερη χαμηλότερη φαίνεται σε ΚΑΘΕ διαγραμμένη τιμή, όχι μόνο όταν είναι αυτή η διαγραμμένη
+    if (st) { out.wasPrice = st.was; if (o.lowest30 != null) out.lowest30 = Number(o.lowest30); out.badge = { kind: "discount" }; }
   }
   if (o.memberPrice != null) out.memberPrice = Number(o.memberPrice);
   const extraTags: string[] = [];

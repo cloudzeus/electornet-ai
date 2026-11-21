@@ -9,7 +9,6 @@ import type { Product } from "@/lib/data/types";
 import { EnergyChip } from "@/components/commerce/EnergyChip";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { cutoutFor } from "@/lib/data/cutouts";
-import { Tilt } from "@/components/motion/Tilt";
 import { copyOf } from "@/lib/cms/copy";
 import { ZoomImage } from "./ZoomImage";
 
@@ -77,7 +76,7 @@ export function Gallery({
             ))}
           </ul>
         )}
-        <Tilt max={3} scale={1} className="order-1 @md:order-2 min-w-0">
+        <div className="order-1 @md:order-2 min-w-0">
           <div
             className={`relative aspect-[3/2] @md:aspect-square rounded-2xl border border-eu-line-2 overflow-hidden ${cutout ? "eu-cutout-field" : "bg-white"}`}
           >
@@ -109,7 +108,7 @@ export function Gallery({
               </>
             )}
             {badge?.kind === "discount" && (
-              <span className="absolute top-3 left-3 bg-eu-red text-white font-extrabold text-[length:var(--fs-14)] px-3 py-1.5 rounded-md eu-shimmer">
+              <span className="absolute top-3 left-3 bg-eu-red text-white font-extrabold text-[length:var(--fs-14)] px-3 py-1.5 rounded-md">
                 {c.prosfora}
               </span>
             )}
@@ -129,7 +128,7 @@ export function Gallery({
               </div>
             )}
           </div>
-        </Tilt>
+        </div>
       </div>
       {actions && (
         <div className="flex flex-wrap items-center gap-2">{actions}</div>

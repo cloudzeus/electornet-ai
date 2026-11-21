@@ -13,7 +13,8 @@ import { CategoryFaq } from "@/components/catalog/CategoryFaq";
 import { filterFromParams, getL1, getL2, listProducts, resolveCategory } from "@/lib/data/repo";
 import { getCategories } from "@/lib/data/catalog";
 import { getSettings } from "@/lib/cms/settings-server";
-import { Sparkles } from "lucide-react";
+import { Compass } from "lucide-react";
+import { AskAris } from "@/components/advisor/AskAris";
 import { isEnergyQuestion } from "@/lib/catalog/energy-types";
 import { isFitQuestion } from "@/lib/catalog/fit-types";
 
@@ -74,7 +75,7 @@ export default async function CategoryPage({ params, searchParams }: { params: P
   return (
     <div className="eu-container">
       <Breadcrumbs items={[{ label: "Προϊόντα", href: "/proionta" }, ...crumbs]} />
-      <CategoryOpener kicker={cat && cat.path.length > 1 ? cat.path[cat.path.length - 2].name : l2 ? l1.label : "Κατηγορία"} title={title} no={catNo} count={result.total} lead="δόσεις χωρίς κάρτα · παραλαβή σε 2 ώρες από το κατάστημα της περιοχής σου" products={result.items.slice(0, 3)} questions={questions} />
+      <CategoryOpener title={title} no={catNo} count={result.total} lead="δόσεις χωρίς κάρτα · παραλαβή σε 2 ώρες από το κατάστημα της περιοχής σου" products={result.items.slice(0, 3)} />
 
       {tiles.length > 0 && (
         <div className="eu-canvas eu-gutter pt-6 pb-6 @3xl:hidden">
@@ -91,21 +92,26 @@ export default async function CategoryPage({ params, searchParams }: { params: P
         </div>
       )}
 
-      {l2 && GUIDE_FOR[l2.slug] && (
-        <div className="eu-canvas eu-gutter pt-6 pb-5">
-          <Link href={`/odigos-agoras/${GUIDE_FOR[l2.slug].kind}`} className="flex flex-wrap items-center gap-3 rounded-2xl bg-eu-blue text-white px-5 py-4 shadow-[var(--shadow-raised)] hover:bg-eu-blue-dark transition-colors">
-            <Sparkles className="size-6 text-eu-yellow shrink-0" aria-hidden />
-            <span className="flex-1 min-w-[16em] font-bold text-[length:var(--fs-16)]">{GUIDE_FOR[l2.slug].t}</span>
-            <span className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 inline-flex items-center">Έξυπνος οδηγός αγοράς →</span>
-          </Link>
-        </div>
-      )}
       <div className="eu-canvas eu-gutter pb-12 flex flex-col @3xl:flex-row gap-5 @3xl:gap-6 items-stretch">
         <Facets result={result} nav={nav} />
         <div className="flex-1 min-w-0 eu-container">
           <AdSlot slot="listing-top" category={l1.slug} productsIn={{ cats: [here?.slug, l2?.slug, l1.slug] }} className="mt-5 mb-5" />
           <SortBar total={result.total} page={result.page} pages={result.pages} fit={cat ? cat.fit : result.items.some(fitMattersFor)} />
           <ProductGrid products={result.items} view={sp.view === "list" ? "list" : "grid"} />
+          {l2 && GUIDE_FOR[l2.slug] && (
+            <Link href={`/odigos-agoras/${GUIDE_FOR[l2.slug].kind}`} className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl bg-eu-blue text-white px-5 py-4 hover:bg-eu-blue-dark transition-colors">
+              <Compass className="size-6 text-eu-yellow shrink-0" aria-hidden />
+              <span className="flex-1 min-w-[16em] font-bold text-[length:var(--fs-16)]">{GUIDE_FOR[l2.slug].t}</span>
+              <span className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 inline-flex items-center">Έξυπνος οδηγός αγοράς →</span>
+            </Link>
+          )}
+          {questions.length > 0 && (
+            <div className="mt-5 flex flex-wrap gap-1.5" aria-label="Ρώτα τον Ερμή">
+              {questions.map((q) => (
+                <AskAris key={q} q={q} />
+              ))}
+            </div>
+          )}
           <Pagination page={result.page} pages={result.pages} basePath={basePath} params={Object.fromEntries(Object.entries(sp).filter(([, v]) => v != null)) as Record<string, string>} />
           <CategoryFaq name={title} />
         </div>

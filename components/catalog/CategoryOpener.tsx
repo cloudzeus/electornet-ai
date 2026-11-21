@@ -4,7 +4,6 @@ import { cutoutFor } from "@/lib/data/cutouts";
 import { Spotlight } from "@/components/motion/Spotlight";
 import { StarLight } from "@/components/motion/StarLight";
 import { CountUp } from "@/components/motion/CountUp";
-import { AskAris } from "@/components/advisor/AskAris";
 
 // θέση/μέγεθος/καθυστέρηση των τριών cutouts — σταθερές κλάσεις αντί για style (το «!» στην καθυστέρηση: να μην τη
 // μηδενίζει το shorthand `animation` της eu-float, όπως υπερίσχυε πριν το inline style)
@@ -21,7 +20,7 @@ const CUT_POS = [
  * questions this category gets most (from the Demand Radar). Adaptive: the
  * cutouts move under the text below @lg; nothing overlaps the title.
  */
-export function CategoryOpener({ kicker, title, no, count, lead, products, questions }: { kicker: string; title: string; no?: string; count: number; lead?: string; products: Product[]; questions: string[] }) {
+export function CategoryOpener({ title, no, count, lead, products }: { title: string; no?: string; count: number; lead?: string; products: Product[] }) {
   const cuts = products.map((p) => ({ id: p.id, src: cutoutFor(p.image), alt: `${p.brand} ${p.title}` })).filter((c) => c.src).slice(0, 3);
   return (
     <header className="relative bg-eu-navy text-white eu-container overflow-hidden isolate">
@@ -32,26 +31,18 @@ export function CategoryOpener({ kicker, title, no, count, lead, products, quest
           {no}
         </span>
       )}
-      <div className="relative eu-canvas eu-gutter py-7 @lg:py-9 grid grid-cols-1 @lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] gap-6 items-center">
+      <div className="relative eu-canvas eu-gutter py-5 @lg:py-6 grid grid-cols-1 @lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] gap-6 items-center">
         <div className="min-w-0">
-          <div className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide uppercase mb-2">{kicker}</div>
-          <h1 className="m-0 font-heading font-extrabold text-[length:var(--fs-44)] @lg:text-[length:var(--fs-58)] leading-[1] tracking-[-0.035em]">{title}</h1>
-          <p className="m-0 mt-3 text-eu-on-dark text-[length:var(--fs-16)] leading-relaxed max-w-[40em]">
+          <h1 className="m-0 font-heading font-extrabold text-[length:var(--fs-32)] @lg:text-[length:var(--fs-40)] leading-[1.05] tracking-[-0.03em]">{title}</h1>
+          <p className="m-0 mt-2 text-eu-on-dark text-[length:var(--fs-16)] leading-relaxed max-w-[40em]">
             <span className="font-extrabold text-white tabular-nums">
               <CountUp value={count} />
             </span>{" "}
             προϊόντα{lead ? ` · ${lead}` : ""}
           </p>
-          {questions.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-1.5">
-              {questions.map((q) => (
-                <AskAris key={q} q={q} />
-              ))}
-            </div>
-          )}
         </div>
         {cuts.length > 0 && (
-          <div className="relative h-[200px] @md:h-[240px] @lg:h-[280px] min-w-0">
+          <div className="relative h-[130px] @md:h-[150px] @lg:h-[170px] min-w-0">
             <StarLight size={48} className="right-[38%] top-[-2%] hidden @lg:block" />
             {cuts.map((c, i) => (
               <span key={c.id} className={`absolute eu-float ${CUT_POS[i]}`}>

@@ -494,7 +494,8 @@ html:not([data-zones="1"]) .eu-zone-badge {
 }
 /* Soft light field behind a cutout on white surfaces */
 @utility eu-cutout-field {
-  background: radial-gradient(70% 60% at 50% 62%, #ffffff 0%, var(--eu-surface-2) 70%, var(--eu-surface-2) 100%);
+  /* όχι λευκό στο κέντρο: λευκές και ασημί συσκευές χάνονταν μέσα στην κάρτα */
+  background: radial-gradient(70% 60% at 50% 62%, var(--eu-surface) 0%, var(--eu-surface-2) 62%, var(--eu-surface-3) 100%);
 }
 /* Cutout image shadow */
 @utility eu-cutout-shadow {

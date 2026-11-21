@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LayoutGrid, List, Ruler } from "lucide-react";
+import { ChevronDown, LayoutGrid, List, Ruler } from "lucide-react";
 import { useMySpace } from "@/components/space/MySpaceProvider";
 import { copyOf } from "@/lib/cms/copy";
 
@@ -44,13 +44,16 @@ export function SortBar({ total, page, pages, fit = false }: { total: number; pa
         <label htmlFor="sort" className="sr-only">
           {c.taxinomisi}
         </label>
-        <select id="sort" value={sp.get("sort") ?? "relevance"} onChange={(e) => setParam("sort", e.target.value === "relevance" ? null : e.target.value)} className="rounded-full border border-eu-line bg-white px-3 py-2 text-[length:var(--fs-15)] font-semibold min-h-10">
-          {SORTS.map((s) => (
-            <option key={s.v} value={s.v}>
-              {s.label}
-            </option>
-          ))}
-        </select>
+        <div className="relative">
+          <select id="sort" value={sp.get("sort") ?? "relevance"} onChange={(e) => setParam("sort", e.target.value === "relevance" ? null : e.target.value)} className="appearance-none rounded-full border border-eu-line bg-white pl-4 pr-9 py-2 text-[length:var(--fs-15)] font-semibold text-eu-ink min-h-10 cursor-pointer hover:border-eu-navy focus-visible:border-eu-blue outline-none">
+            {SORTS.map((s) => (
+              <option key={s.v} value={s.v}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 size-4 text-eu-muted" aria-hidden />
+        </div>
         <div className="hidden @md:inline-flex rounded-full border border-eu-line overflow-hidden" role="group" aria-label={c.provoli}>
           <button type="button" aria-pressed={view === "grid"} onClick={() => setParam("view", null)} className={`size-10 inline-flex items-center justify-center ${view === "grid" ? "bg-eu-navy text-white" : "text-eu-muted hover:bg-eu-surface"}`} aria-label={c.plegma}>
             <LayoutGrid className="size-4" aria-hidden />

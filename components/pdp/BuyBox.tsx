@@ -195,8 +195,8 @@ export function BuyBox({ product: p, addons, accessory, warranty }: { product: P
         <button type="button" onClick={addAll} className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-17)] py-4 min-h-[56px] hover:bg-eu-yellow-dark transition-colors">
           {hasSolution ? "Προσθήκη όλων στο καλάθι" : "Προσθήκη στο καλάθι"}
         </button>
-        <div className="flex gap-2">
-          <button type="button" onClick={() => openQuickBuy({ ...p, price })} className="flex-1 rounded-full border-2 border-eu-navy text-eu-navy font-bold text-[length:var(--fs-16)] min-h-12 hover:bg-eu-surface transition-colors">
+        <div className="flex items-center justify-between gap-2">
+          <button type="button" onClick={() => openQuickBuy({ ...p, price })} className="font-bold text-eu-blue text-[length:var(--fs-15)] underline underline-offset-2 min-h-11 hover:text-eu-navy">
             {c.agora_me_1_klik}
           </button>
           <WishlistButton id={p.id} className="size-12" />

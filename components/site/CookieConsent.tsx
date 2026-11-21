@@ -36,7 +36,7 @@ export function CookieConsent() {
 
   if (!show) return null;
   return (
-    <div role="dialog" aria-label={c.rythmiseis_cookies} className="fixed inset-x-3 bottom-3 sm:left-auto sm:right-4 sm:bottom-4 sm:w-[420px] z-50 bg-white rounded-xl shadow-[var(--shadow-overlay)] border border-eu-line p-4">
+    <div role="dialog" aria-label={c.rythmiseis_cookies} className="fixed inset-x-3 bottom-3 sm:left-auto sm:right-4 sm:bottom-4 sm:w-[420px] z-[80] bg-white rounded-xl shadow-[var(--shadow-overlay)] border border-eu-line p-4">
       <div className="font-extrabold text-eu-ink text-[length:var(--fs-16)] mb-1">Cookies</div>
       <p className="m-0 text-eu-ink-2 text-[length:var(--fs-14)] leading-relaxed">
         Χρησιμοποιούμε απαραίτητα cookies για να λειτουργεί το κατάστημα. Τα cookies μέτρησης και marketing ενεργοποιούνται μόνο αν το επιλέξεις.{" "}

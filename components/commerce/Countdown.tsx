@@ -29,12 +29,13 @@ export function Countdown({ endsAt, variant = "inline", tone = "light", classNam
   const label = `Απομένουν ${p.d ? `${p.d} ημέρες ` : ""}${p.h} ώρες ${p.m} λεπτά`;
 
   if (variant === "blocks") {
-    const cells = p.d > 0 ? [p.d, p.h, p.m] : [p.h, p.m, p.s];
+    const cells: [number, string][] = p.d > 0 ? [[p.d, "ημ."], [p.h, "ώρ."], [p.m, "λεπ."]] : [[p.h, "ώρ."], [p.m, "λεπ."], [p.s, "δευτ."]];
     return (
       <div className={`flex gap-1.5 items-end ${className}`} role="timer" aria-label={label}>
-        {cells.map((c, i) => (
-          <span key={i} className={`rounded-md px-3 py-2.5 font-extrabold text-[length:var(--fs-17)] leading-none tabular-nums ${tone === "dark" ? "bg-eu-yellow text-eu-navy" : "bg-eu-navy text-white"}`}>
-            {pad(c)}
+        {cells.map(([v, unit]) => (
+          <span key={unit} className={`rounded-md px-2.5 py-2 grid justify-items-center gap-0.5 ${tone === "dark" ? "bg-eu-yellow text-eu-navy" : "bg-eu-navy text-white"}`}>
+            <span className="font-extrabold text-[length:var(--fs-17)] leading-none tabular-nums">{pad(v)}</span>
+            <span className="font-semibold text-[length:var(--fs-12)] leading-none opacity-75">{unit}</span>
           </span>
         ))}
       </div>
