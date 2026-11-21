@@ -60,3 +60,7 @@ public/uploads/
 
 # μοντέλα AI που κατεβαίνουν στο build (scripts/fetch-bg-model.ts)
 .models/
+
+# παραδοτέα προς τον πελάτη: μένουν τοπικά (scripts/… τα ξαναφτιάχνουν)
+/docs/politiki-metaforikon.html
+/docs/politiki-metaforikon-euronics.pdf

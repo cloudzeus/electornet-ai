@@ -44,6 +44,20 @@
       ],
       "port": 3222,
       "autoPort": false
+    },
+    {
+      "name": "b2b-engine-local",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "ALLOW_PRIVATE_NETWORK=1",
+        "npm",
+        "--prefix",
+        "/Volumes/EXTERNALSSD/b2buronics",
+        "run",
+        "dev"
+      ],
+      "port": 3100,
+      "autoPort": false
     }
   ]
 }
