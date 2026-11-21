@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { CategoryOpener } from "@/components/catalog/CategoryOpener";
-import { Facets } from "@/components/catalog/Facets";
+import { Facets } from "@/components/catalog/FacetsServer";
 import { SortBar } from "@/components/catalog/SortBar";
 import { AdSlot } from "@/components/promo/AdSlot";
 import { fitMattersFor } from "@/lib/data/dims";

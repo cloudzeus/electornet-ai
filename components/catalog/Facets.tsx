@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronDown, ChevronLeft, Search, SlidersHorizontal, X } from "lucide-react";
@@ -25,7 +25,15 @@ const c = copyOf("facets");
 /** Πλοήγηση στο δέντρο κατηγοριών μέσα στη στήλη των φίλτρων: υποκατηγορίες της τρέχουσας ή, στον τύπο, τα αδέλφια του. Κανονικοί σύνδεσμοι, όχι φίλτρα. */
 export interface FacetNav { title: string; up?: { label: string; href: string }; items: { name: string; href: string; count: number; current?: boolean }[] }
 
-export function Facets({ result, showCategories = false, nav }: { result: ListResult; showCategories?: boolean; nav?: FacetNav }) {
+/** Ρυθμίσεις › Γενικά › «Απόκρυψη πλήθους στα φίλτρα»: κρύβει τους αριθμούς δίπλα σε κάθε επιλογή (όχι το πλήθος των επιλεγμένων). */
+const HideCounts = createContext(false);
+
+export function Facets({ hideCounts = false, ...p }: { result: ListResult; showCategories?: boolean; nav?: FacetNav; hideCounts?: boolean }) {
+  return <HideCounts.Provider value={hideCounts}><FacetsBody {...p} /></HideCounts.Provider>;
+}
+
+function FacetsBody({ result, showCategories = false, nav }: { result: ListResult; showCategories?: boolean; nav?: FacetNav }) {
+  const hideCounts = useContext(HideCounts);
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -91,7 +99,7 @@ export function Facets({ result, showCategories = false, nav }: { result: ListRe
             {nav.items.map((it) => (
               <Link key={it.href} href={it.href} aria-current={it.current ? "page" : undefined} className={`flex items-center gap-2.5 min-h-11 md:min-h-9 rounded-md px-1 -mx-1 text-[length:var(--fs-15)] hover:bg-eu-surface ${it.current ? "font-extrabold text-eu-navy" : "text-eu-ink-2 hover:text-eu-blue"}`}>
                 <span className="flex-1">{it.name}</span>
-                {it.count > 0 && <span className="text-eu-muted-2 text-[length:var(--fs-13)] tabular-nums">{it.count.toLocaleString("el-GR")}</span>}
+                {!hideCounts && it.count > 0 && <span className="text-eu-muted-2 text-[length:var(--fs-13)] tabular-nums">{it.count.toLocaleString("el-GR")}</span>}
               </Link>
             ))}
           </nav>
@@ -127,9 +135,9 @@ export function Facets({ result, showCategories = false, nav }: { result: ListRe
             {result.energies.map((e) => {
               const on = has("energy", e.cls);
               return (
-                <button key={e.cls} type="button" aria-pressed={on} aria-label={`Ενεργειακή κλάση ${e.cls}, ${e.count} προϊόντα`} onClick={() => toggleIn("energy", e.cls)} className={`inline-flex items-center gap-1.5 rounded-lg border-2 pl-1 pr-2 min-h-11 md:min-h-9 ${on ? "border-eu-navy bg-eu-chip" : "border-eu-line hover:border-eu-blue"}`}>
+                <button key={e.cls} type="button" aria-pressed={on} aria-label={hideCounts ? `Ενεργειακή κλάση ${e.cls}` : `Ενεργειακή κλάση ${e.cls}, ${e.count} προϊόντα`} onClick={() => toggleIn("energy", e.cls)} className={`inline-flex items-center gap-1.5 rounded-lg border-2 pl-1 pr-2 min-h-11 md:min-h-9 ${on ? "border-eu-navy bg-eu-chip" : "border-eu-line hover:border-eu-blue"}`}>
                   <EnergyChip cls={e.cls as EnergyClass} fiche="" compact />
-                  <span className="text-eu-muted-2 text-[length:var(--fs-13)] tabular-nums">{e.count}</span>
+                  {!hideCounts && <span className="text-eu-muted-2 text-[length:var(--fs-13)] tabular-nums">{e.count}</span>}
                 </button>
               );
             })}
@@ -237,21 +245,23 @@ function Group({ title, open = false, count = 0, children }: { title: string; op
 }
 
 function Check({ label, count, checked, onChange }: { label: string; count?: number; checked: boolean; onChange: () => void }) {
+  const hidden = useContext(HideCounts);
   return (
     <label className={`flex items-center gap-2.5 text-[length:var(--fs-15)] min-h-11 md:min-h-9 cursor-pointer rounded-md px-1 -mx-1 hover:bg-eu-surface ${checked ? "text-eu-ink font-semibold" : "text-eu-ink-2"}`}>
       <input type="checkbox" checked={checked} onChange={onChange} className="size-[18px] accent-eu-blue" />
       <span className="flex-1">{label}</span>
-      {count != null && <span className="text-eu-muted-2 text-[length:var(--fs-13)] tabular-nums">{count}</span>}
+      {count != null && !hidden && <span className="text-eu-muted-2 text-[length:var(--fs-13)] tabular-nums">{count}</span>}
     </label>
   );
 }
 
 function Radio({ label, count, checked, onChange }: { label: string; count?: number; checked: boolean; onChange: () => void }) {
+  const hidden = useContext(HideCounts);
   return (
     <label className={`flex items-center gap-2.5 text-[length:var(--fs-15)] min-h-11 md:min-h-9 cursor-pointer rounded-md px-1 -mx-1 hover:bg-eu-surface ${checked ? "text-eu-blue font-bold" : "text-eu-ink-2"}`}>
       <input type="checkbox" checked={checked} onChange={onChange} className="size-[18px] accent-eu-blue rounded-full" />
       <span className="flex-1">{label}</span>
-      {count != null && <span className="text-eu-muted-2 text-[length:var(--fs-13)] tabular-nums">{count}</span>}
+      {count != null && !hidden && <span className="text-eu-muted-2 text-[length:var(--fs-13)] tabular-nums">{count}</span>}
     </label>
   );
 }

@@ -138,7 +138,8 @@ export const SECTIONS: Section[] = [
       { key: "phone", label: "Τηλέφωνο εξυπηρέτησης", type: "text", public: true, width: "half", group: "contact", placeholder: "210 1234567", rule: R.phone },
       { key: "email", label: "Email εξυπηρέτησης", type: "email", public: true, width: "half", group: "contact", placeholder: "info@euronics.gr", rule: R.email },
       yesNo("maintenance", "Λειτουργία συντήρησης", "Οι πελάτες βλέπουν σελίδα «Επιστρέφουμε σύντομα»· το /admin μένει ανοιχτό. Άνοιξέ το μόνο για προγραμματισμένη συντήρηση.", true),
-    ] as Field[]).map((f) => (f.key === "maintenance" ? { ...f, group: "ops" } : f)),
+      yesNo("hideFacetCounts", "Απόκρυψη πλήθους στα φίλτρα", "Κρύβει τον αριθμό προϊόντων δίπλα σε κάθε επιλογή φίλτρου (μάρκα, ενεργειακή κλάση, χαρακτηριστικά, υποκατηγορίες) σε λίστες, μάρκες και αναζήτηση. Τα φίλτρα δουλεύουν κανονικά. Κλείσ' το για να ξαναφανούν οι αριθμοί· η αλλαγή φαίνεται μέσα σε ένα λεπτό.", true),
+    ] as Field[]).map((f) => (["maintenance", "hideFacetCounts"].includes(f.key) ? { ...f, group: "ops" } : f)),
   },
   {
     key: "social",
