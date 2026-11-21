@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
 import { s1 } from "@/lib/softone";
 import { getTable, selectorRows, friendlyError } from "@/lib/softone/lookups";
-import { EXTRA_OFFER_COLS, EXTRA_OFFER_FILTER, offersFromExtra } from "@/lib/softone/offers-core";
+import { EXTRA_OFFER_COLS, EXTRA_OFFER_FILTER, offersFromExtra, saleableStock } from "@/lib/softone/offers-core";
 
 /**
  * Συγχρονισμός καταλόγου SoftOne → καθρέφτης (S1WebCategory, S1SpecGroup,
@@ -250,7 +250,7 @@ export function syncItem(mtrl: number, trigger: Trigger = "manual") {
     for (const r of bal) if (int(r[0]) === mtrl) w[r[1]] = (w[r[1]] ?? 0) + (num(r[2]) ?? 0) - (num(r[3]) ?? 0);
     const offers = {
       ...offersFromExtra(e),
-      stockCentral: CENTRAL_WAREHOUSES.reduce((a, k) => a + Math.max(0, w[k] ?? 0), 0),
+      stockCentral: saleableStock(w),
       stockByWh: Object.fromEntries(Object.entries(w).filter(([, v]) => v > 0).map(([k, v]) => [k, Math.round(v * 100) / 100])),
       offersAt: new Date(),
     };
@@ -261,14 +261,12 @@ export function syncItem(mtrl: number, trigger: Trigger = "manual") {
 
 // ---------- Τιμή eshop και απόθεμα ----------
 
-/** Οι αποθήκες που σημαίνουν «το έχουμε»: 1 «Κεντρικός», 10 «Κεντρική 2». Οι υπόλοιπες 70+ είναι αποθήκες προμηθευτών / τριγωνικές. */
-export const CENTRAL_WAREHOUSES = ["1", "10"];
 
 /**
  * Πού ζουν η τιμή και η διαθεσιμότητα του site (βρέθηκαν και επιβεβαιώθηκαν στο ζωντανό euronics.gr, 21/09/2026):
  * - **Τιμή eshop με ΦΠΑ** = `MTREXTRA.NUM04` (πρόσθετα πεδία είδους). Το `MTRL.PRICER` είναι 0 παντού, και οι «συμφωνίες»
  *   (`PRCRDATA`, κανόνας 1001 «ΕΙΔΙΚΕΣ ΤΙΜΕΣ ΑΠΟΘΗΚΗΣ») είναι τιμές **χονδρικής προς τα καταστήματα-μέλη** — δεν τις διαβάζουμε.
- * - **Διαθεσιμότητα** = υπόλοιπο κεντρικής αποθήκης από το `MTRBALSHEET` της τρέχουσας χρήσης, Σ(IMPQTY1 − EXPQTY1) με την
+ * - **Διαθεσιμότητα** = πωλήσιμο υπόλοιπο (όλες οι αποθήκες εκτός `NON_SALEABLE_WAREHOUSES`, 21/11/2026) από το `MTRBALSHEET` της τρέχουσας χρήσης, Σ(IMPQTY1 − EXPQTY1) με την
  *   περίοδο 0 (απογραφή έναρξης): > 0 → «Άμεσα Διαθέσιμο», αλλιώς «Διαθέσιμο κατόπιν παραγγελίας».
  * Και τα δύο είναι μικρές αναγνώσεις (1–2 s η καθεμία ανά κομμάτι), οπότε διαβάζονται πάντα ολόκληρα: μια αλλαγή τιμής
  * δεν αλλάζει το `MTRL.UPDDATE`, άρα το delta των ειδών δεν θα την έπιανε.
@@ -301,7 +299,7 @@ export function syncOffers(trigger: Trigger = "manual") {
       const params = part.flatMap((m) => {
         const o = marks.get(m) ?? offersFromExtra(null), w = bal.get(m) ?? {};
         const positive = Object.fromEntries(Object.entries(w).filter(([, v]) => v > 0).map(([k, v]) => [k, Math.round(v * 100) / 100]));
-        const central = CENTRAL_WAREHOUSES.reduce((a, k) => a + Math.max(0, w[k] ?? 0), 0);
+        const central = saleableStock(w);
         return [m, o.eshopPrice, o.eshopDate01, o.eshopFlag1, o.eshopFlag2, o.webExcluded, central, JSON.stringify(positive)];
       });
       updated += await db.$executeRawUnsafe(

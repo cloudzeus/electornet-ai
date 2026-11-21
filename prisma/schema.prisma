@@ -513,7 +513,7 @@ model S1Item {
   /// MTREXTRA.BOOL04 «Εξαίρεση Web»: true = το είδος ΔΕΝ ανεβαίνει στο site. Η σημαία της βιτρίνας —
   /// το προϊόν γίνεται `active=false` στην προβολή (onSite). Βλ. docs/softone-catalog-sync.md §7.
   webExcluded      Boolean      @default(false)
-  /// Υπόλοιπο κεντρικής αποθήκης (WHOUSE 1 «Κεντρικός» + 10 «Κεντρική 2») από MTRBALSHEET της τρέχουσας χρήσης: Σ(IMPQTY1 − EXPQTY1).
+  /// Πωλήσιμο υπόλοιπο (όλες οι αποθήκες εκτός NON_SALEABLE_WAREHOUSES — και των προμηθευτών, 21/11/2026· το όνομα έμεινε) από MTRBALSHEET της τρέχουσας χρήσης: Σ(IMPQTY1 − EXPQTY1).
   /// > 0 → το site γράφει «Άμεσα Διαθέσιμο», αλλιώς «Διαθέσιμο κατόπιν παραγγελίας» (επιβεβαιωμένο σε 3 είδη).
   stockCentral     Float?
   stockByWh        Json? // θετικά υπόλοιπα ανά αποθήκη {"1": 84, "56": 3}

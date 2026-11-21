@@ -40,3 +40,13 @@ export function offersFromExtra(row: string[] | null | undefined): Offers {
 
 /** Μπαίνει το είδος στη βιτρίνα; Ενεργό στο ERP, υπαρκτό στον καθρέφτη και χωρίς «Εξαίρεση Web». */
 export const onSite = (it: { active: boolean; missing: boolean; webExcluded: boolean }) => it.active && !it.missing && !it.webExcluded;
+
+/**
+ * Αποθήκες που ΔΕΝ είναι πωλήσιμο απόθεμα: 2 Transit, 9 Επιστροφές, 55 Ανταλλακτικά, 90 Διαφημιστικά, 91 Showroom,
+ * 99 Ελαττωματικά, 1000 Eshop. Όλες οι άλλες μετράνε — και οι αποθήκες προμηθευτών (π.χ. 56 «Γ.Ε. ΔΗΜΗΤΡΙΟΥ», όπου ζουν
+ * τα Toyotomi), όπως στο παλιό euronics.gr. Μόνο με 1 + 10 χάναμε ~100 «Άμεσα διαθέσιμα» (αντιπαραβολή 21/11/2026).
+ */
+export const NON_SALEABLE_WAREHOUSES = ["2", "9", "55", "90", "91", "99", "1000"];
+/** Πωλήσιμο απόθεμα από τα υπόλοιπα ανά αποθήκη (αρνητικό υπόλοιπο αποθήκης = 0, δεν τρώει τις άλλες). */
+export const saleableStock = (byWh: Record<string, number>) =>
+  Object.entries(byWh).reduce((a, [wh, q]) => a + (NON_SALEABLE_WAREHOUSES.includes(wh) ? 0 : Math.max(0, q)), 0);

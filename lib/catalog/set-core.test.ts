@@ -67,6 +67,8 @@ test("είδος σετ: με δώρο αν το λέει το όνομα ή α�
   assert.equal(setKind("LG 43UR + soundbar", lines, 1, (m) => m === 2), "gift");
   // το κύριο που πουλιέται δεν κάνει το σετ «με δώρο»
   assert.equal(setKind("TOYOTOMI", lines, 1, (m) => m === 1), "parts");
+  // κλιματιστικό + ανεμιστήρας: η εξωτερική δεν πουλιέται μόνη της → εξαρτήματα (η εσωτερική δεν βγαίνει μόνη της)
+  assert.equal(setKind("CTN/CTG-356BRM ERAI", [{ mtrl: 1 }, { mtrl: 2 }, { mtrl: 3 }], 1, (m) => m === 3), "parts");
 });
 
 test("μαζική αλλαγή «Πωλείται και μόνο του»: πόσα αλλάζουν, πόσα κρύβονται, πόσα εμφανίζονται", () => {
@@ -96,10 +98,9 @@ test("αποστολή σετ: βάρος = άθροισμα μελών × πο�
   assert.deepEqual(setShipFacts([{ weightKg: 9, dims: null, qty: 1 }, { weightKg: null, dims: null, qty: 1 }]), { weightKg: null, dimsCm: null });
 });
 
-test("mainBlocksSet: η «Εξαίρεση Web» του κύριου είδους ΔΕΝ ρίχνει το σετ", () => {
-  // Επαληθευμένο στο ζωντανό site: το «TOYOTOMI TRN/TRG-871ZR» πωλείται ως σετ, ενώ η εσωτερική
-  // του μονάδα είναι εξαιρεμένη από το web — η εξαίρεση σημαίνει «όχι μόνη της», όχι «όχι σε σετ».
-  assert.equal(mainBlocksSet({ active: true, missing: false, webExcluded: true }), false);
+test("mainBlocksSet: η «Εξαίρεση Web» του κύριου είδους ρίχνει το σετ", () => {
+  // Το παλιό euronics.gr δεν δείχνει κανένα σετ με εξαιρεμένο κύριο (1 στα 523, 21/11/2026) — π.χ. LG GMX945MC9F + φριτέζα.
+  assert.equal(mainBlocksSet({ active: true, missing: false, webExcluded: true }), true);
   assert.equal(mainBlocksSet({ active: true, missing: false, webExcluded: false }), false);
 });
 

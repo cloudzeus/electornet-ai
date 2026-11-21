@@ -35,13 +35,16 @@ export function inputOf(p: Omit<Row, "id" | "availLabel" | "availState">, overri
 
 async function loadInputs(where: object) {
   const [chain, products] = await Promise.all([categoryChains(), db.product.findMany({ where, select }) as Promise<Row[]>]);
-  const mtrls = products.filter((p) => p.source === "softone" && /^\d+$/.test(p.erpCode)).map((p) => Number(p.erpCode));
+  // το σετ παίρνει τη φράση CCCAVAIL του κύριου είδους του (π.χ. «ΜΗ ΔΙΑΘΕΣΙΜΟ»), όπως η σελίδα του στο παλιό site
+  const spcs = products.flatMap((p) => (p.source === "softone-set" && /^SET-\d+$/.test(p.erpCode) ? [Number(p.erpCode.slice(4))] : []));
+  const setMain = new Map((spcs.length ? await db.s1Set.findMany({ where: { spcs: { in: spcs } }, select: { spcs: true, mtrl: true } }) : []).map((x) => [`SET-${x.spcs}`, String(x.mtrl)]));
+  const mtrls = [...products.filter((p) => p.source === "softone" && /^\d+$/.test(p.erpCode)).map((p) => Number(p.erpCode)), ...[...setMain.values()].map(Number)];
   const own = new Map<string, string | null>();
   for (let i = 0; i < mtrls.length; i += 5000) {
     const part = await db.s1Item.findMany({ where: { mtrl: { in: mtrls.slice(i, i + 5000) }, availText: { not: null } }, select: { mtrl: true, availText: true } });
     for (const s of part) own.set(String(s.mtrl), s.availText);
   }
-  return products.map((p) => ({ p, input: inputOf(p, p.source === "softone" ? own.get(p.erpCode) : null, chain) }));
+  return products.map((p) => ({ p, input: inputOf(p, p.source === "softone" ? own.get(p.erpCode) : p.source === "softone-set" ? own.get(setMain.get(p.erpCode) ?? "") : null, chain) }));
 }
 
 /** Χωρίς `productIds`: όλος ο κατάλογος. Επιστρέφει πόσα προϊόντα άλλαξαν. */

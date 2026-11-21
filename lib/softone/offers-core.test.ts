@@ -29,3 +29,11 @@ test("στη βιτρίνα μπαίνει μόνο ενεργό, υπαρκτό
   assert.equal(onSite({ active: false, missing: false, webExcluded: false }), false);
   assert.equal(onSite({ active: true, missing: true, webExcluded: false }), false);
 });
+
+test("saleableStock: όλες οι αποθήκες εκτός των μη πωλήσιμων, χωρίς αρνητικά", async () => {
+  const { saleableStock } = await import("./offers-core");
+  assert.equal(saleableStock({ "1": 3, "10": 2, "56": 29 }), 34); // κεντρική + αποθήκη προμηθευτή
+  assert.equal(saleableStock({ "99": 5, "1000": 1, "91": 1, "2": 4 }), 0); // ελαττωματικά, eshop, showroom, transit
+  assert.equal(saleableStock({ "1": -2, "100": 6 }), 6);
+  assert.equal(saleableStock({}), 0);
+});

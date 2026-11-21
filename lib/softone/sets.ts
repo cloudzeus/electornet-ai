@@ -1,14 +1,15 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { getTable } from "@/lib/softone/lookups";
-import { CENTRAL_WAREHOUSES, logged, type Trigger } from "@/lib/softone/catalog";
+import { logged, type Trigger } from "@/lib/softone/catalog";
+import { NON_SALEABLE_WAREHOUSES, saleableStock } from "@/lib/softone/offers-core";
 
 /**
  * «Set ειδών» του SoftOne → καθρέφτης `S1Set` / `S1SetLine`. Μόνο αναγνώσεις (GetTable):
  * - SPCS (SODTYPE=70): κεφαλίδα — κωδικός, όνομα, ενεργό, κύριο είδος (MTRL), ημερομηνίες ισχύος
  * - SPCLINES: μέλη — είδος, ποσότητα
  * - MTRL: κωδικός και όνομα των μελών (τα περισσότερα — π.χ. εξωτερικές μονάδες — δεν είναι στον κατάλογο του site)
- * - MTRBALSHEET: υπόλοιπο κεντρικών αποθηκών (1, 10) κάθε μέλους, για το απόθεμα του set (= το μικρότερο των μελών)
+ * - MTRBALSHEET: πωλήσιμο υπόλοιπο (όλες οι αποθήκες εκτός των μη πωλήσιμων) κάθε μέλους, για το απόθεμα του set (= το μικρότερο των μελών)
  * Η ετικέτα «Περιλαμβάνει» (`label`) είναι της διαχείρισης και δεν αλλάζει από εδώ.
  */
 const int = (v: string | undefined) => { const n = Number(v); return Number.isFinite(n) && v !== "" ? Math.trunc(n) : null; };
@@ -26,16 +27,16 @@ export function syncSets(trigger: Trigger = "manual") {
 
     // ονόματα και απόθεμα μελών, σε κομμάτια (μικρές αναγνώσεις)
     const info = new Map<number, { code: string; name: string }>();
-    const stock = new Map<number, number>();
+    const byWh = new Map<number, Record<string, number>>();
     const year = new Date().getFullYear();
     for (let i = 0; i < mtrls.length; i += 300) {
       const part = mtrls.slice(i, i + 300), list = part.join(",");
       const [names, bal] = await Promise.all([
         getTable("MTRL", ["MTRL", "CODE", "NAME"], `MTRL IN (${list})`),
-        getTable("MTRBALSHEET", ["MTRL", "WHOUSE", "IMPQTY1", "EXPQTY1"], `FISCPRD=${year} AND MTRL IN (${list}) AND WHOUSE IN (${CENTRAL_WAREHOUSES.join(",")})`),
+        getTable("MTRBALSHEET", ["MTRL", "WHOUSE", "IMPQTY1", "EXPQTY1"], `FISCPRD=${year} AND MTRL IN (${list}) AND WHOUSE NOT IN (${NON_SALEABLE_WAREHOUSES.join(",")})`),
       ]);
       for (const r of names) { const m = int(r[0]); if (m != null) info.set(m, { code: r[1] ?? "", name: r[2] ?? "" }); }
-      for (const r of bal) { const m = int(r[0]); if (m != null) stock.set(m, (stock.get(m) ?? 0) + num(r[2]) - num(r[3])); }
+      for (const r of bal) { const m = int(r[0]); if (m == null) continue; const w = byWh.get(m) ?? {}; w[r[1]] = (w[r[1]] ?? 0) + num(r[2]) - num(r[3]); byWh.set(m, w); }
       await sleep(250);
     }
 
@@ -43,7 +44,7 @@ export function syncSets(trigger: Trigger = "manual") {
     // της διαχείρισης κρατιούνται ανά (set, γραμμή).
     const now = new Date();
     const setRows = heads.flatMap((h) => { const spcs = int(h[0]), mtrl = int(h[4]); return spcs == null || mtrl == null ? [] : [{ spcs, code: h[1] ?? "", name: h[2] ?? "", active: h[3] === "1", mtrl, fromDate: date(h[5]), finalDate: date(h[6]), syncedAt: now }]; });
-    const lineRows = mine.flatMap((l) => { const spcs = int(l[0]), lineNum = int(l[1]), m = int(l[2]); return spcs == null || lineNum == null || m == null ? [] : [{ spcs, lineNum, mtrl: m, qty: num(l[3]) || 1, code: info.get(m)?.code ?? null, name: info.get(m)?.name ?? String(m), stockCentral: Math.max(0, Math.round((stock.get(m) ?? 0) * 100) / 100) }]; });
+    const lineRows = mine.flatMap((l) => { const spcs = int(l[0]), lineNum = int(l[1]), m = int(l[2]); return spcs == null || lineNum == null || m == null ? [] : [{ spcs, lineNum, mtrl: m, qty: num(l[3]) || 1, code: info.get(m)?.code ?? null, name: info.get(m)?.name ?? String(m), stockCentral: Math.round(saleableStock(byWh.get(m) ?? {}) * 100) / 100 }]; });
     const before = new Set((await db.s1Set.findMany({ select: { spcs: true } })).map((x) => x.spcs));
     const labels = new Map((await db.s1SetLine.findMany({ where: { label: { not: null } }, select: { spcs: true, lineNum: true, label: true } })).map((x) => [`${x.spcs}:${x.lineNum}`, x.label]));
     const keep = setRows.map((x) => x.spcs);
@@ -74,7 +75,7 @@ export async function projectSetProducts(): Promise<{ sets: number; created: num
   const sets = await db.s1Set.findMany({ include: { lines: { orderBy: { lineNum: "asc" } } } });
   const mtrls = [...new Set(sets.flatMap((x) => [x.mtrl, ...x.lines.map((l) => l.mtrl)]))];
   const [items, prods, existing] = await Promise.all([
-    db.s1Item.findMany({ where: { mtrl: { in: mtrls } }, select: { mtrl: true, eshopPrice: true, active: true, missing: true } }),
+    db.s1Item.findMany({ where: { mtrl: { in: mtrls } }, select: { mtrl: true, eshopPrice: true, active: true, missing: true, webExcluded: true } }),
     db.product.findMany({ where: { erpCode: { in: mtrls.map(String) } }, select: { id: true, erpCode: true, active: true, brandId: true, categoryId: true, vatRate: true, brand: { select: { name: true } } } }),
     db.product.findMany({ where: { OR: [{ kind: "set" }, { erpCode: { startsWith: "SET-" } }] }, select: { id: true, setSpcs: true, erpCode: true, price: true, stock: true, active: true, brandId: true, categoryId: true, _count: { select: { media: true } } } }),
   ]);
@@ -90,8 +91,7 @@ export async function projectSetProducts(): Promise<{ sets: number; created: num
   for (const set of sets) {
     const main = prodOf.get(set.mtrl);
     const kind = setKind(set.name, set.lines, set.mtrl, (m) => !!prodOf.get(m)?.active);
-    // Το σετ ζει με βάση το ΕΙΔΟΣ στο ERP, όχι το αν το προϊόν του κύριου είναι ορατό στο site: η «Εξαίρεση Web»
-    // του κύριου σημαίνει «όχι μόνο του» και την αναλαμβάνει το «Πωλείται και μόνο του».
+    // Το σετ ζει όσο το κύριο είδος είναι ενεργό στο ERP και ΧΩΡΙΣ «Εξαίρεση Web» (όπως το παλιό site, βλ. mainBlocksSet).
     const live = setLive(set, now) && !mainBlocksSet(itemOf.get(set.mtrl));
     if (live && kind === "parts" && validSet(set.lines, set.mtrl)) mainOfParts.add(set.mtrl);
     const price = setPrice(set.lines.map((l) => ({ price: priceOf.get(l.mtrl) ?? null, qty: l.qty, isMain: l.mtrl === set.mtrl })), kind);

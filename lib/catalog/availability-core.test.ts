@@ -63,3 +63,12 @@ test("guessAvail: τιμές διαθεσιμότητας του feed", async ()
   assert.equal(guessAvail("In stock"), "in-stock");
   assert.equal(guessAvail("xyz"), null);
 });
+
+test("η φράση CCCAVAIL ορίζει την κατάσταση όταν είναι σαφής", async () => {
+  const { overrideState } = await import("./availability-core");
+  assert.equal(resolveAvailability({ ...base, stock: 0, override: "Άμεσα Διαθέσιμο" }, []).state, "in-stock");
+  assert.equal(resolveAvailability({ ...base, stock: 4, override: "ΕΞΑΝΤΛΗΘΗΚΕ – ΜΗ ΔΙΑΘΕΣΙΜΟ" }, []).state, "unavailable");
+  assert.equal(overrideState("ΔΙΑΘΕΣΙΜΟ"), "in-stock");
+  assert.equal(overrideState("ΠΡΟΣΩΡΙΝΑ ΜΗ ΔΙΑΘΕΣΙΜΟ"), "unavailable");
+  assert.equal(overrideState("ΚΑΤΟΠΙΝ ΠΑΡΑΓΓΕΛΙΑΣ"), null);
+});

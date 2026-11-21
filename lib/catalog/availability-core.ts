@@ -49,10 +49,20 @@ export function defaultAvailability(x: Pick<AvailInput, "stock" | "hasPrice">): 
   return { label: x.hasPrice ? "Διαθέσιμο κατόπιν παραγγελίας" : "Διαθεσιμότητα στο κατάστημα", state: "order", publish: true };
 }
 
+const plainEl = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+/** Κατάσταση που δηλώνει ρητά η φράση CCCAVAIL· null = δεν λέει (π.χ. «Μετά από παραγγελία»). */
+export function overrideState(text: string): AvailState | null {
+  const t = plainEl(text);
+  if (/μη διαθεσιμ|εξαντληθηκε/.test(t)) return "unavailable";
+  if (/αμεσα/.test(t) || t === "διαθεσιμο") return "in-stock";
+  return null;
+}
+
 export function resolveAvailability(x: AvailInput, rules: AvailRule[]): AvailResult {
   const own = (x.override ?? "").replace(/\s+/g, " ").trim();
-  // η φράση του είδους αλλάζει μόνο το κείμενο· η κατάσταση (χρώμα, «άμεσα») ακολουθεί το απόθεμα
-  if (own) return { label: own, state: x.stock > 0 ? "in-stock" : "order", publish: true, source: "override" };
+  // η φράση του είδους ορίζει το κείμενο· η κατάσταση ακολουθεί τη φράση όταν είναι σαφής («Άμεσα Διαθέσιμο»,
+  // «ΕΞΑΝΤΛΗΘΗΚΕ» — όπως το παλιό site), αλλιώς το απόθεμα
+  if (own) return { label: own, state: overrideState(own) ?? (x.stock > 0 ? "in-stock" : "order"), publish: true, source: "override" };
   const r = rules.find((y) => ruleMatches(y, x));
   if (r) return { label: r.label.trim() || defaultAvailability(x).label, state: r.state, publish: r.publish, source: "rule", ruleId: r.id };
   return { ...defaultAvailability(x), source: "default" };

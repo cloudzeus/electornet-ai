@@ -56,9 +56,15 @@ export function setPartsSnapshot(set: { mtrl: number; lines: { mtrl: number; qty
 
 /** «Δώρο» στο όνομα του σετ (π.χ. «+ ΔΩΡΟ σιδερώστρα»). */
 export const isGiftName = (name: string) => /δ[ωώ]ρ/i.test(name);
-/** Είδος σετ: με δώρο αν το λέει το όνομα ή αν κάποιο άλλο μέλος πουλιέται στο site· αλλιώς εξαρτήματα. */
-export const setKind = (name: string, lines: { mtrl: number }[], main: number, sold: (mtrl: number) => boolean): "parts" | "gift" =>
-  isGiftName(name) || lines.some((l) => l.mtrl !== main && sold(l.mtrl)) ? "gift" : "parts";
+/**
+ * Είδος σετ: με δώρο αν το λέει το όνομα ή αν ΟΛΑ τα άλλα μέλη πουλιούνται στο site· αλλιώς εξαρτήματα. Αρκεί ένα μέλος
+ * που δεν πουλιέται μόνο του (εξωτερική μονάδα) για «εξαρτήματα»: κλιματιστικό «Summer» με ανεμιστήρα LIFE OSTRO δεν
+ * γίνεται «με δώρο» — αλλιώς η εσωτερική μονάδα έβγαινε και μόνη της στη βιτρίνα.
+ */
+export const setKind = (name: string, lines: { mtrl: number }[], main: number, sold: (mtrl: number) => boolean): "parts" | "gift" => {
+  const others = lines.filter((l) => l.mtrl !== main);
+  return isGiftName(name) || (others.length > 0 && others.every((l) => sold(l.mtrl))) ? "gift" : "parts";
+};
 
 /** Τι θα κάνει η μαζική αλλαγή «Πωλείται και μόνο του»: πόσα αλλάζουν ρύθμιση, πόσα κρύβονται από / εμφανίζονται στις λίστες. */
 export function soldAloneChange(rows: { mode: string; soldAlone: boolean; mainOfParts: boolean }[], mode: string): { changed: number; hide: number; show: number } {
@@ -72,18 +78,18 @@ export function soldAloneChange(rows: { mode: string; soldAlone: boolean; mainOf
   return { changed, hide, show };
 }
 
-/** Ζωντανό σετ: ενεργό στο SoftOne, έχει ξεκινήσει (FROMDATE) και δεν έχει λήξει — η FINALDATE ισχύει όλη την ημέρα. */
 /**
  * Εμποδίζει το κύριο είδος το σετ;
  *
- * **Μόνο** όταν δεν υπάρχει, χάθηκε από το ERP ή είναι ανενεργό εκεί. Η «Εξαίρεση Web» (MTREXTRA.BOOL04) **δεν**
- * εμποδίζει: επαληθευμένο στο ζωντανό site, η εσωτερική μονάδα ενός κλιματιστικού είναι εξαιρεμένη από το web ενώ το
- * σετ «TRN/TRG» πωλείται κανονικά. Η εξαίρεση σημαίνει «μην το πουλάς ΜΟΝΟ του» — αυτό το αναλαμβάνει το
- * «Πωλείται και μόνο του» του κύριου είδους, όχι το σβήσιμο ολόκληρου του σετ.
+ * Όταν δεν υπάρχει, χάθηκε από το ERP, είναι ανενεργό εκεί **ή έχει «Εξαίρεση Web»** (MTREXTRA.BOOL04). Ο κανόνας της
+ * 3/11/2026 («η εξαίρεση δεν ρίχνει το σετ») ήταν λάθος: είχε «επαληθευτεί» στο TRN/TRG-871ZR, του οποίου το κύριο είδος
+ * ΔΕΝ είναι εξαιρεμένο. Αντιπαραβολή 21/11/2026 με τις 2.180 σελίδες του ζωντανού euronics.gr: από 523 σετ με εξαιρεμένο
+ * κύριο είδος το παλιό site δείχνει 1. Η εξαίρεση κλείνει το σετ (π.χ. LG GMX945MC9F + δώρο φριτέζα, SPCS 291).
  */
 export const mainBlocksSet = (main: { active: boolean; missing: boolean; webExcluded?: boolean } | null | undefined): boolean =>
-  !main || main.missing || !main.active;
+  !main || main.missing || !main.active || !!main.webExcluded;
 
+/** Ζωντανό σετ: ενεργό στο SoftOne, έχει ξεκινήσει (FROMDATE) και δεν έχει λήξει — η FINALDATE ισχύει όλη την ημέρα. */
 export function setLive(s: { active: boolean; fromDate: Date | null; finalDate: Date | null }, now: Date): boolean {
   if (!s.active) return false;
   if (s.fromDate && s.fromDate.getTime() > now.getTime()) return false;

@@ -36,6 +36,8 @@ export const SHOP_SOURCES = ["softone", "import", "softone-set"];
 /** Στις λίστες / αναζήτηση: όχι τα κύρια είδη που πωλούνται μόνο σε σετ (soldAlone = false) */
 /** publishReady: ο έλεγχος πληρότητας (lib/catalog/publish-ready-server.ts) — true παντού όσο ο έλεγχος είναι κλειστός */
 /** price > 0: χωρίς τιμή το προϊόν θα έδειχνε 0,00 € («δωρεάν») και δεν μπαίνει ούτε στο καλάθι (lib/cart/server.ts) */
+/** «Άμεσα διαθέσιμα»: ό,τι δείχνει «Άμεσα» στη βιτρίνα (επιλυμένη διαθεσιμότητα)· πριν την πρώτη προβολή, το απόθεμα. */
+const IN_STOCK_WHERE: Prisma.ProductWhereInput = { OR: [{ availState: { in: ["in-stock", "low"] } }, { availState: null, stock: { gt: 0 } }] };
 export const LISTED: Prisma.ProductWhereInput = { source: { in: SHOP_SOURCES }, active: true, publishReady: true, soldAlone: true, price: { gt: 0 }, media: { some: SHOWN } };
 const TTL = 5 * 60_000;
 
@@ -335,7 +337,7 @@ async function listProductsFresh(f: ListFilter & { l3?: string }): Promise<ListR
   }
   // Το φίλτρο ενεργειακής κλάσης υπάρχει μόνο όπου υπάρχει ενεργειακή ετικέτα, και μετρά μόνο τέτοιους τύπους
   const labelled = [...t.byId.values()].filter((n) => n.depth === 2 && n.energy && (!node || leafIds(node).includes(n.id))).map((n) => n.id);
-  const priceWhere: Prisma.ProductWhereInput[] = [...(f.minPrice != null ? [{ price: { gte: f.minPrice } }] : []), ...(f.maxPrice != null ? [{ price: { lte: f.maxPrice } }] : []), ...(f.avail === "in-stock" ? [{ stock: { gt: 0 } }] : [])];
+  const priceWhere: Prisma.ProductWhereInput[] = [...(f.minPrice != null ? [{ price: { gte: f.minPrice } }] : []), ...(f.maxPrice != null ? [{ price: { lte: f.maxPrice } }] : []), ...(f.avail === "in-stock" ? [IN_STOCK_WHERE] : [])];
   const where: Prisma.ProductWhereInput = { AND: [base, ...priceWhere, ...(f.brand?.length ? [{ brand: { slug: { in: f.brand } } }] : []), ...(f.energy?.length && labelled.length ? [{ categoryId: { in: labelled }, energy: { class: { in: f.energy } } }] : []), ...attrWhere] };
 
   const perPage = f.perPage ?? 24, page = Math.max(1, f.page ?? 1);
