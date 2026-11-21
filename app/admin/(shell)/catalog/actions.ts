@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { attachAssets, listProductImages, reorderImages, removeImage, restoreImage, type ProductMediaKind } from "@/lib/catalog/product-images";
 import { resetCatalogCache } from "@/lib/data/db-catalog";
 
+// Οι ενέργειες εικόνων δεν κάνουν revalidatePath: η σελίδα είναι force-dynamic και το ProductImages ενημερώνεται
+// τοπικά· με revalidate θα ξαναφόρτωνε όλη η σελίδα του προϊόντος (χαμένο scroll, κλειστές ενότητες).
 const path = (id: string) => `/admin/catalog/${id}`;
 
 export async function attachFromGallery(productId: string, assetIds: string[], kind: ProductMediaKind = "image") {
@@ -13,7 +15,6 @@ export async function attachFromGallery(productId: string, assetIds: string[], k
   const r = await attachAssets(productId, assetIds.slice(0, 40), "gallery", kind);
   resetCatalogCache(); // προϊόν που απέκτησε την πρώτη του φωτογραφία μπαίνει στις λίστες
   await audit(user.id, "catalog.product.image.attach", "Product", productId, null, { assetIds, added: r.added.length, skipped: r.skipped });
-  revalidatePath(path(productId));
   return { images: await listProductImages(productId, kind), added: r.added.length, skipped: r.skipped };
 }
 
@@ -21,7 +22,6 @@ export async function saveImageOrder(productId: string, ids: string[], kind: Pro
   const user = await requirePermission("catalog.products.write");
   await reorderImages(productId, ids);
   await audit(user.id, "catalog.product.image.reorder", "Product", productId, null, { ids, kind });
-  revalidatePath(path(productId));
   return listProductImages(productId, kind);
 }
 
@@ -30,7 +30,6 @@ export async function saveImageAlt(productId: string, id: string, alt: string) {
   const clean = alt.replace(/\s+/g, " ").trim().slice(0, 200);
   await db.media.updateMany({ where: { id, productId }, data: { alt: clean || null } });
   await audit(user.id, "catalog.product.image.alt", "Product", productId, null, { id, alt: clean });
-  revalidatePath(path(productId));
   return clean;
 }
 
@@ -39,7 +38,6 @@ export async function removeProductImage(productId: string, id: string, kind: Pr
   const how = await removeImage(productId, id);
   resetCatalogCache();
   await audit(user.id, "catalog.product.image.remove", "Product", productId, null, { id, how });
-  revalidatePath(path(productId));
   return { how, images: await listProductImages(productId, kind) };
 }
 
@@ -47,8 +45,50 @@ export async function restoreProductImage(productId: string, id: string, kind: P
   const user = await requirePermission("catalog.products.write");
   await restoreImage(productId, id);
   await audit(user.id, "catalog.product.image.restore", "Product", productId, null, { id });
-  revalidatePath(path(productId));
   return listProductImages(productId, kind);
+}
+
+/** Η φωτογραφία του προϊόντος και το (κοινό, μία φορά) αποτέλεσμα της αφαίρεσης φόντου. */
+async function cutoutOf(productId: string, id: string) {
+  const m = await db.media.findFirst({ where: { id, productId, kind: "image" }, select: { id: true, url: true, alt: true, sortNo: true } });
+  if (!m) throw new Error("Η φωτογραφία δεν βρέθηκε.");
+  const { fetchPublicBytes } = await import("@/lib/net/safe-fetch");
+  const { cutoutForSuggestion } = await import("@/lib/catalog/photo-cutout");
+  return { m, cut: await cutoutForSuggestion(`media:${m.id}`, async () => (await fetchPublicBytes(m.url, { max: 40 * 1024 * 1024, accept: "image/*" })).bytes) };
+}
+
+/** Προεπισκόπηση «Αφαίρεση φόντου» μιας φωτογραφίας του προϊόντος. Τίποτα δεν αποθηκεύεται. */
+export async function imageCutoutPreview(productId: string, id: string): Promise<{ ok: true; src: string; width: number; height: number; method: "ai" | "colour" } | { ok: false; error: string }> {
+  await requirePermission("catalog.products.write");
+  try {
+    const { cut } = await cutoutOf(productId, id);
+    const sharp = (await import("sharp")).default;
+    const meta = await sharp(cut.bytes).metadata();
+    const small = await sharp(cut.bytes).resize(640, 640, { fit: "inside" }).webp({ quality: 82 }).toBuffer();
+    return { ok: true, src: `data:image/webp;base64,${small.toString("base64")}`, width: meta.width ?? 0, height: meta.height ?? 0, method: cut.method };
+  } catch (e) { return { ok: false, error: e instanceof Error ? e.message : "Η αφαίρεση φόντου απέτυχε." }; }
+}
+
+/**
+ * Αποθήκευση της φωτογραφίας χωρίς φόντο (βιβλιοθήκη «Προϊόντα» + δέσιμο). `replace`: παίρνει τη θέση της αρχικής, που
+ * αφαιρείται (ή κρύβεται, αν είναι της αρχικής εισαγωγής) · `both`: μπαίνει αμέσως μετά την αρχική.
+ */
+export async function applyImageCutout(productId: string, id: string, mode: "replace" | "both"): Promise<{ ok: true; images: Awaited<ReturnType<typeof listProductImages>> } | { ok: false; error: string }> {
+  const user = await requirePermission("catalog.products.write");
+  try {
+    const { m, cut } = await cutoutOf(productId, id);
+    const { uploadProductImage } = await import("@/lib/catalog/product-images");
+    const added = await uploadProductImage(productId, { bytes: cut.bytes, filename: `${m.id}-cutout.png`, mime: "image/png" }, user.id);
+    if (m.alt) await db.media.update({ where: { id: added.id }, data: { alt: m.alt } });
+    const order = (await listProductImages(productId)).filter((i) => !i.hidden && i.id !== added.id).map((i) => i.id);
+    const at = order.indexOf(m.id);
+    order.splice(at < 0 ? order.length : mode === "replace" ? at : at + 1, mode === "replace" && at >= 0 ? 1 : 0, added.id);
+    if (mode === "replace") await removeImage(productId, m.id);
+    await reorderImages(productId, order);
+    resetCatalogCache();
+    await audit(user.id, "catalog.product.image.cutout", "Product", productId, null, { id, mode, added: added.id, method: cut.method });
+    return { ok: true, images: await listProductImages(productId) };
+  } catch (e) { return { ok: false, error: e instanceof Error ? e.message : "Η αποθήκευση απέτυχε." }; }
 }
 
 /** Μία παρτίδα αντιστοίχισης με το EPREL (το πλήρες πέρασμα γίνεται με scripts/match-eprel.ts). */

@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "@/components/ui/Image";
-import { Upload, Images, Star, ArrowLeft, ArrowRight, Trash2, EyeOff, RotateCcw, Loader2, AlertTriangle, Box, Check } from "lucide-react";
+import { Upload, Images, Star, ArrowLeft, ArrowRight, Trash2, EyeOff, RotateCcw, Loader2, AlertTriangle, Box, Check, Scissors, X } from "lucide-react";
 import type { MediaAssetDTO } from "@/lib/media/types";
 import type { ProductImageDTO, ProductMediaKind } from "@/lib/catalog/product-images";
 import { MediaPickerDialog } from "@/components/admin/media/MediaPicker";
 import { useUploader } from "@/components/admin/media/useUploader";
-import { attachFromGallery, saveImageOrder, saveImageAlt, removeProductImage, restoreProductImage } from "@/app/admin/(shell)/catalog/actions";
+import { attachFromGallery, saveImageOrder, saveImageAlt, removeProductImage, restoreProductImage, imageCutoutPreview, applyImageCutout } from "@/app/admin/(shell)/catalog/actions";
 import { setArFrontImage } from "@/app/admin/(shell)/ar/actions";
 
 const SOURCE: Record<string, string> = { "legacy-site": "Παλιό site", gallery: "Βιβλιοθήκη", upload: "Ανέβασμα" };
@@ -35,6 +35,7 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
   useEffect(() => { if (banner && ids !== firstIds.current) { firstIds.current = ids; router.refresh(); } }, [banner, ids, router]);
   const chooseArFront = (url: string | null) => { setArFront(url); start(async () => { await setArFrontImage(productId, url); say(url ? "Αυτή η φωτογραφία είναι πλέον η όψη του στερεού στο AR." : "Η όψη του στερεού επιλέγεται πάλι αυτόματα (η πιο μετωπική)."); }); };
   const [picker, setPicker] = useState(false);
+  const [cutFor, setCutFor] = useState<{ im: ProductImageDTO; n: number } | null>(null);
   const [msg, setMsg] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropFiles, setDropFiles] = useState(false);
@@ -60,9 +61,19 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
     if (rejected) say(`${rejected} αρχεία αγνοήθηκαν — δεκτά είναι JPEG, PNG, WebP και AVIF.`, "warn");
   };
 
+  // optimistic: η αλλαγή φαίνεται αμέσως· αν ο server αποτύχει, επιστρέφει η προηγούμενη κατάσταση
   const persistOrder = (next: ProductImageDTO[]) => {
+    const prev = images;
     setImages([...next, ...hidden]);
-    start(async () => { try { setImages(await saveImageOrder(productId, next.map((i) => i.id), kind)); } catch { say("Η σειρά δεν αποθηκεύτηκε. Δοκίμασε ξανά.", "warn"); } });
+    start(async () => { try { setImages(await saveImageOrder(productId, next.map((i) => i.id), kind)); } catch { setImages(prev); say("Η σειρά δεν αποθηκεύτηκε και επανήλθε η προηγούμενη. Δοκίμασε ξανά.", "warn"); } });
+  };
+  const remove = (im: ProductImageDTO) => {
+    const prev = images;
+    setImages((xs) => (im.source === "legacy-site" ? xs.map((x) => (x.id === im.id ? { ...x, hidden: true } : x)) : xs.filter((x) => x.id !== im.id)));
+    start(async () => {
+      try { const r = await removeProductImage(productId, im.id, kind); setImages(r.images); say(r.how === "hidden" ? (banner ? "Το banner κρύφτηκε. Θα το βρεις στα «Κρυμμένα»." : "Η φωτογραφία κρύφτηκε. Θα τη βρεις στις «Κρυμμένες».") : "Αφαιρέθηκε από το προϊόν. Το αρχείο παραμένει στη βιβλιοθήκη."); }
+      catch { setImages(prev); say(banner ? "Το banner δεν αφαιρέθηκε και επανήλθε. Δοκίμασε ξανά." : "Η φωτογραφία δεν αφαιρέθηκε και επανήλθε. Δοκίμασε ξανά.", "warn"); }
+    });
   };
   const move = (id: string, to: number) => {
     const from = visible.findIndex((i) => i.id === id);
@@ -135,7 +146,7 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
                     type="button" className="absolute right-0 top-0 size-11 grid place-items-center cursor-pointer group/rm focus-visible:outline-2 focus-visible:outline-eu-blue rounded-full"
                     aria-label={im.source === "legacy-site" ? `Απόκρυψη ${noun} ${i + 1}` : `Αφαίρεση ${noun} ${i + 1} από το προϊόν`}
                     title={im.source === "legacy-site" ? "Απόκρυψη" : "Αφαίρεση από το προϊόν"}
-                    onClick={() => start(async () => { const r = await removeProductImage(productId, im.id, kind); setImages(r.images); say(r.how === "hidden" ? (banner ? "Το banner κρύφτηκε. Θα το βρεις στα «Κρυμμένα»." : "Η φωτογραφία κρύφτηκε. Θα τη βρεις στις «Κρυμμένες».") : "Αφαιρέθηκε από το προϊόν. Το αρχείο παραμένει στη βιβλιοθήκη."); })}
+                    onClick={() => remove(im)}
                   ><span className="size-7 grid place-items-center rounded-full bg-white/95 text-eu-muted shadow-sm group-hover/rm:bg-eu-red group-hover/rm:text-white">{im.source === "legacy-site" ? <EyeOff className="size-3.5" aria-hidden /> : <Trash2 className="size-3.5" aria-hidden />}</span></button>
                 )}
               </div>
@@ -154,6 +165,13 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
                   title="Η φωτογραφία που μπαίνει στην πρόσοψη του στερεού στο «Δες το στον χώρο σου». Καλύτερα κατά μέτωπο, χωρίς γωνία."
                   className={`inline-flex items-center justify-center gap-1 rounded-full min-h-9 px-2 text-[length:var(--fs-12)] font-bold cursor-pointer focus-visible:outline-2 focus-visible:outline-eu-blue ${arFront === im.url ? "bg-eu-blue text-white" : "bg-eu-surface text-eu-ink-3 hover:bg-eu-chip hover:text-eu-navy"}`}>
                   {arFront === im.url ? <Check className="size-3.5" aria-hidden /> : <Box className="size-3.5" aria-hidden />} Όψη AR
+                </button>
+              )}
+              {canWrite && !banner && im.source !== "eprel-label" && (
+                <button type="button" data-help="product.photos-cutout" onClick={() => setCutFor({ im, n: i + 1 })}
+                  title="Βγάζει το φόντο και κεντράρει το προϊόν σε λευκό τετράγωνο. Πρώτα βλέπεις το αποτέλεσμα."
+                  className="inline-flex items-center justify-center gap-1 rounded-full min-h-9 px-2 text-[length:var(--fs-12)] font-bold cursor-pointer bg-eu-surface text-eu-ink-3 hover:bg-eu-chip hover:text-eu-navy focus-visible:outline-2 focus-visible:outline-eu-blue">
+                  <Scissors className="size-3.5" aria-hidden /> Χωρίς φόντο
                 </button>
               )}
               <details className="group/alt min-w-0">
@@ -189,6 +207,11 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
         </details>
       )}
 
+      {cutFor && (
+        <CutoutDialog productId={productId} im={cutFor.im} n={cutFor.n} onClose={() => setCutFor(null)}
+          onSaved={(imgs, mode) => { setImages(imgs); setCutFor(null); say(mode === "replace" ? `Η φωτογραφία ${cutFor.n} αντικαταστάθηκε με την εκδοχή χωρίς φόντο.` : `Η εκδοχή χωρίς φόντο μπήκε αμέσως μετά τη φωτογραφία ${cutFor.n}.`); }} />
+      )}
+
       {picker && (
         <MediaPickerDialog
           accept={["image"]} multiple canWrite={canUploadToLibrary} onClose={() => setPicker(false)}
@@ -196,5 +219,65 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
         />
       )}
     </section>
+  );
+}
+
+/**
+ * «Αφαίρεση φόντου» μιας φωτογραφίας: ο server βγάζει το φόντο (isnet μέσα στην εφαρμογή, αλλιώς μονόχρωμο φόντο από τις
+ * άκρες) και κεντράρει το προϊόν σε λευκό τετράγωνο. Ο χρήστης βλέπει πριν/μετά και διαλέγει αντικατάσταση ή να μείνουν και
+ * οι δύο· τίποτα δεν αποθηκεύεται πριν από αυτό.
+ */
+function CutoutDialog({ productId, im, n, onClose, onSaved }: { productId: string; im: ProductImageDTO; n: number; onClose: () => void; onSaved: (images: ProductImageDTO[], mode: "replace" | "both") => void }) {
+  const dlg = useRef<HTMLDialogElement>(null);
+  const [res, setRes] = useState<Awaited<ReturnType<typeof imageCutoutPreview>> | null>(null);
+  const [saving, setSaving] = useState<"replace" | "both" | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    dlg.current?.showModal();
+    let live = true;
+    imageCutoutPreview(productId, im.id).then((r) => { if (live) setRes(r); }, () => { if (live) setRes({ ok: false, error: "Η αφαίρεση φόντου απέτυχε." }); });
+    return () => { live = false; };
+  }, [productId, im.id]);
+  const save = (mode: "replace" | "both") => {
+    setSaving(mode); setErr(null);
+    applyImageCutout(productId, im.id, mode).then(
+      (r) => { if (r.ok) onSaved(r.images, mode); else { setErr(r.error); setSaving(null); } },
+      () => { setErr("Η αποθήκευση απέτυχε. Δοκίμασε ξανά."); setSaving(null); },
+    );
+  };
+  const ok = res?.ok ? res : null;
+  const frame = "relative aspect-square rounded-lg border border-eu-line overflow-hidden bg-white";
+  return (
+    <dialog ref={dlg} onClose={onClose} aria-labelledby="cutout-title" data-help="product.photos-cutout-dialog"
+      className="m-auto w-[min(44rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-2rem)] rounded-xl p-0 backdrop:bg-eu-ink/45 shadow-[var(--shadow-overlay)]">
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-white border-b border-eu-line px-3 py-2">
+        <h3 id="cutout-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-15)] inline-flex items-center gap-1.5"><Scissors className="size-4 text-eu-blue" aria-hidden /> Αφαίρεση φόντου · φωτογραφία {n}</h3>
+        <button type="button" aria-label="Κλείσιμο" onClick={() => dlg.current?.close()} className="size-11 md:size-8 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface cursor-pointer"><X className="size-4" aria-hidden /></button>
+      </div>
+      <div className="p-3 grid gap-3 text-[length:var(--fs-14)]">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+          <figure className="m-0 grid gap-1 min-w-0">
+            <figcaption className="text-eu-ink-3 text-[length:var(--fs-13)] tabular-nums">Πριν{im.width && im.height ? ` · ${im.width}×${im.height}` : ""}</figcaption>
+            <div className={frame}><Image src={im.url} alt={im.alt ?? ""} fill sizes="(min-width: 640px) 340px, 90vw" className="object-contain" /></div>
+          </figure>
+          <figure className="m-0 grid gap-1 min-w-0">
+            <figcaption className="text-eu-ink-3 text-[length:var(--fs-13)] tabular-nums">Μετά{ok ? ` · ${ok.width}×${ok.height}, λευκό φόντο` : ""}</figcaption>
+            <div className={frame} aria-busy={!res}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- προεπισκόπηση data: από τον server */}
+              {ok ? <img src={ok.src} alt="Η φωτογραφία χωρίς φόντο" className="size-full object-contain" />
+                : !res ? <span className="absolute inset-0 grid place-items-center content-center gap-2 text-eu-ink-3 text-[length:var(--fs-13)]"><Loader2 className="size-6 animate-spin text-eu-blue" aria-hidden />Βγάζω το φόντο… (μέχρι 20″)</span>
+                : <span className="absolute inset-0 grid place-items-center p-4 text-center text-eu-red font-bold text-[length:var(--fs-13)]"><AlertTriangle className="size-5 mb-1" aria-hidden />{!res.ok ? res.error : ""}</span>}
+            </div>
+          </figure>
+        </div>
+        {ok && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">{ok.method === "ai" ? "Με AI μέσα στην εφαρμογή. Το προϊόν μένει στα pixel του, κεντραρισμένο σε λευκό τετράγωνο." : "Το AI δεν τα κατάφερε· βγήκε το μονόχρωμο φόντο από τις άκρες. Έλεγξε τις άκρες του προϊόντος πριν το κρατήσεις."} Η νέα φωτογραφία μπαίνει και στη βιβλιοθήκη, στον φάκελο «Προϊόντα».</p>}
+        {err && <p role="alert" className="m-0 rounded-lg bg-eu-red/10 text-eu-red px-3 py-2 font-bold text-[length:var(--fs-13)]">{err}</p>}
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={() => dlg.current?.close()} className="rounded-full px-4 min-h-11 font-bold text-eu-ink-2 hover:bg-eu-surface cursor-pointer">Ακύρωση</button>
+          <button type="button" disabled={!ok || !!saving} onClick={() => save("both")} className={`${btn} border-2 border-eu-navy text-eu-navy hover:bg-eu-chip`}>{saving === "both" && <Loader2 className="size-4 animate-spin" aria-hidden />}Κράτα και τις δύο</button>
+          <button type="button" disabled={!ok || !!saving} onClick={() => save("replace")} className={`${btn} bg-eu-navy text-white hover:bg-eu-blue`}>{saving === "replace" && <Loader2 className="size-4 animate-spin" aria-hidden />}Αντικατάσταση</button>
+        </div>
+      </div>
+    </dialog>
   );
 }

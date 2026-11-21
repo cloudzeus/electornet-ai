@@ -14,7 +14,7 @@ function Submit({ children }: { children: React.ReactNode }) {
   );
 }
 
-const field = "rounded-xl border-2 border-eu-line px-3 min-h-12 text-[length:var(--fs-16)] font-normal outline-none focus:border-eu-blue";
+const field = "w-full min-w-0 rounded-xl border-2 border-eu-line px-3 min-h-12 text-[length:var(--fs-16)] font-normal outline-none focus:border-eu-blue";
 
 /**
  * Σύνδεση προσωπικού σε δύο βήματα: κωδικός πρόσβασης, μετά 6ψήφιος κωδικός
@@ -30,12 +30,12 @@ export function LoginForm({ challenge, signInAction, cancelAction }: {
 
   if (!active) {
     return (
-      <form action={action} className="grid gap-4">
-        <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
+      <form action={action} className="grid min-w-0 gap-4">
+        <label className="grid min-w-0 gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
           Email
           <input name="email" type="email" required autoComplete="username" className={field} />
         </label>
-        <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
+        <label className="grid min-w-0 gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
           Κωδικός
           <input name="password" type="password" required autoComplete="current-password" className={field} />
         </label>
@@ -59,14 +59,14 @@ function OtpStep({ masked, expiresAt, signInAction, cancelAction }: { masked: st
   }, [expiresAt]);
   const mm = left != null ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` : null;
   return (
-    <form action={signInAction} className="grid gap-4">
+    <form action={signInAction} className="grid min-w-0 gap-4">
       <p className="m-0 rounded-xl bg-eu-surface p-3 text-[length:var(--fs-14)] text-eu-ink inline-flex items-start gap-2">
         <Mail className="size-4 shrink-0 mt-0.5 text-eu-blue" aria-hidden />
         <span>Στείλαμε 6ψήφιο κωδικό στο <b>{masked}</b>.{mm && left! > 0 ? <> Ισχύει ακόμη <b className="tabular-nums">{mm}</b>.</> : left === 0 ? <> <b className="text-eu-red">Έληξε</b> — ζήτα καινούργιο.</> : null}</span>
       </p>
-      <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
+      <label className="grid min-w-0 gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
         Κωδικός μιας χρήσης
-        <input name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required autoFocus placeholder="000000" className="rounded-xl border-2 border-eu-line px-3 min-h-14 text-center tracking-[0.5em] font-extrabold text-[length:var(--fs-24)] outline-none focus:border-eu-blue" />
+        <input name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required autoFocus placeholder="000000" className="w-full min-w-0 rounded-xl border-2 border-eu-line px-3 min-h-14 text-center tracking-[0.3em] font-extrabold text-[length:var(--fs-24)] outline-none focus:border-eu-blue" />
       </label>
       <Submit>Σύνδεση</Submit>
       <button type="submit" formAction={cancelAction} className="justify-self-center text-eu-blue font-bold text-[length:var(--fs-13)] hover:underline bg-transparent border-0 cursor-pointer">

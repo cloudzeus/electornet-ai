@@ -180,8 +180,12 @@ export function ProductTable({ rows, sort, dir, query, perPage, total, from, can
     return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", close); };
   }, [picker]);
   const shown = cols.map((id) => COLS.find((c) => c.id === id)!).filter(Boolean);
-  const wOf = (c: Col) => widths[c.id] ?? c.w;
-  const setW = (id: string, w: number, save = false) => setWidths((m) => { const n = { ...m, [id]: Math.max(56, Math.min(600, Math.round(w))) }; if (save) write(KEY_W, n); return n; });
+  // η στήλη του ονόματος (ή η πρώτη ορατή) δεν έχει σταθερό πλάτος: παίρνει ό,τι περισσεύει, με ελάχιστο το δικό της
+  // πλάτος — αλλιώς ο table-fixed μοιράζει το περίσσιο σε όλες και μικραίνει το όνομα όταν μεγαλώνει άλλη στήλη
+  const flexId = cols.includes("title") ? "title" : cols[0];
+  const minOf = (id: string) => (id === "title" ? 200 : 56);
+  const wOf = (c: Col) => Math.max(minOf(c.id), widths[c.id] ?? c.w);
+  const setW = (id: string, w: number, save = false) => setWidths((m) => { const n = { ...m, [id]: Math.max(minOf(id), Math.min(800, Math.round(w))) }; if (save) write(KEY_W, n); return n; });
   const toggleCol = (id: string) => setCols((c) => { const n = c.includes(id) ? c.filter((x) => x !== id) : [...c, id]; write(KEY_COLS, n); return n.length ? n : c; });
   const move = (id: string, d: -1 | 1) => setCols((c) => { const i = c.indexOf(id), j = i + d; if (i < 0 || j < 0 || j >= c.length) return c; const n = [...c]; [n[i], n[j]] = [n[j], n[i]]; write(KEY_COLS, n); return n; });
   const reset = () => { setCols(DEFAULT); setWidths({}); write(KEY_COLS, DEFAULT); write(KEY_W, {}); };
@@ -195,8 +199,8 @@ export function ProductTable({ rows, sort, dir, query, perPage, total, from, can
     // attributes στο HTML, και κλάση ανά pixel θα έφτιαχνε <style> σε κάθε κίνηση)· στο τέλος περνά στο state
     const tbl = tableRef.current, col = tbl?.querySelector<HTMLElement>(`col[data-col="${c.id}"]`) ?? null;
     const base = tableW - w0;
-    const fit = (w: number) => Math.max(56, Math.min(600, Math.round(w)));
-    const mv = (ev: PointerEvent) => { const w = fit(w0 + ev.clientX - x0); if (col) col.style.width = `${w}px`; if (tbl) tbl.style.width = `max(100%, ${base + w}px)`; };
+    const fit = (w: number) => Math.max(minOf(c.id), Math.min(800, Math.round(w)));
+    const mv = (ev: PointerEvent) => { const w = fit(w0 + ev.clientX - x0); if (col && c.id !== flexId) col.style.width = `${w}px`; if (tbl) tbl.style.width = `max(100%, ${base + w}px)`; };
     const up = (ev: PointerEvent) => {
       if (col) col.style.width = "";
       if (tbl) tbl.style.width = "";
@@ -212,7 +216,7 @@ export function ProductTable({ rows, sort, dir, query, perPage, total, from, can
   const rules = new Map<string, ReactNode>();
   const cls = (style: Parameters<typeof sx>[0]) => { const r = sx(style); rules.set(r.className, r.node); return r.className; };
   const tableCls = cls({ width: `max(100%, ${tableW}px)` });
-  const colCls = shown.map((c) => cls({ width: wOf(c) }));
+  const colCls = shown.map((c) => (c.id === flexId ? "" : cls({ width: wOf(c) })));
 
   return (
     <div data-help="catalog.table" className="rounded-2xl bg-white border border-eu-line overflow-hidden">

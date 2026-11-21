@@ -32,8 +32,8 @@ export default async function AdminLogin({ searchParams }: { searchParams: Promi
   }
 
   return (
-    <div className="min-h-dvh grid place-items-center bg-eu-navy p-6 eu-container">
-      <div className="w-full max-w-[420px] bg-white rounded-3xl p-8 grid gap-4 shadow-[var(--shadow-overlay)]">
+    <div className="min-h-dvh grid place-items-center bg-eu-navy p-4 sm:p-6 eu-container overflow-x-clip">
+      <div className="w-full min-w-0 max-w-[420px] bg-white rounded-3xl p-6 sm:p-8 grid gap-4 shadow-[var(--shadow-overlay)]">
         <div className="flex items-center gap-3">
           <Image src="/design/logo.svg" alt="euronics" width={120} height={30} className="h-7 w-auto" />
           <span className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-13)] px-2 py-0.5">Admin</span>
