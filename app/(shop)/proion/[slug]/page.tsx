@@ -25,6 +25,7 @@ import { StickySidebar } from "@/components/fluid/StickySidebar";
 import { CompactRail } from "@/components/pdp/CompactRail";
 import { productJsonLd, productMetadata } from "@/lib/seo/product";
 import { ArButton } from "@/components/ar/ArButton";
+import { getSettings } from "@/lib/cms/settings-server";
 import { FitBadge } from "@/components/space/FitBadge";
 import { EnergyCost } from "@/components/pdp/EnergyCost";
 import { getGridFactor } from "@/lib/energy/emissions";
@@ -100,7 +101,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   // ίδια με του server των μοντέλων. Με ρύθμιση από τη διαχείριση (/admin/ar) ισχύει εκείνη.
   const arP = arPlan(p, ar, arCats);
   primeArLookup(p.id, { p, ar, plan: arP });
-  const arInput = arP.on && arP.dims ? arInputOf(p, arP, ar?.frontImage ?? null) : null;
+  // Ρυθμίσεις › Γενικά › «Απόκρυψη του AR»: χωρίς κουμπί και χωρίς νέα μοντέλα στο παρασκήνιο
+  const arInput = arP.on && arP.dims && (await getSettings()).ar.enabled ? arInputOf(p, arP, ar?.frontImage ?? null) : null;
   const arVersion = arInput ? (ar?.glbUrl ? `c${ar.updatedAt.getTime().toString(36)}-${AR_SERVE_VERSION}-${arP.dims!.w}x${arP.dims!.h}x${arP.dims!.d}` : arKey(arInput)) : "";
   // Προθέρμανση μετά την απάντηση: κάθε αρχείο που μπορεί να ζητήσει ο πελάτης (προεπισκόπηση, AR, εναλλακτική επιφάνεια)
   // (όχι για crawlers: δεν θα πατήσουν ποτέ AR, και θα έχτιζαν μοντέλα για χιλιάδες σελίδες)

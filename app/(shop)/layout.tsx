@@ -61,8 +61,7 @@ export default async function ShopLayout({ children }: LayoutProps<"/">) {
             <CompareTray />
             <CookieConsent />
             <MySpaceSheet />
-            <AdvisorOrb />
-            <AdvisorGreeting />
+            {settings.advisor.enabled && <><AdvisorOrb /><AdvisorGreeting /></>}
             <SnapSheet />
             <AutoReveal />
             <ExitIntent />

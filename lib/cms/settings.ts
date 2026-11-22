@@ -40,6 +40,7 @@ export interface MotionSettings {
 }
 
 export interface AdvisorSettings {
+  /** ο Ερμής στο site (Ρυθμίσεις › Γενικά › «Απόκρυψη του Ερμή») */
   enabled: boolean;
   name: string;
   avatar: string;
@@ -66,6 +67,8 @@ export interface Settings {
   motion: MotionSettings;
   advisor: AdvisorSettings;
   stickers: StickerSettings;
+  /** «Δες το στον χώρο σου» (Ρυθμίσεις › Γενικά › «Απόκρυψη του AR») */
+  ar: { enabled: boolean };
   /** CMS overrides of UI copy by component namespace (see lib/cms/copy.ts); undefined = Greek defaults */
   copy?: Record<string, Record<string, string>>;
 }
@@ -138,6 +141,7 @@ export const defaultSettings: Settings = {
     thankYou: "Ευχαριστώ{name}! Θα σου γράψω μόλις φύγει η παραγγελία και αν χρειαστείς κάτι για την τοποθέτηση, είμαι εδώ.",
     notFound: { title: "Ο Ερμής δεν βρήκε αυτή τη σελίδα", body: "Ίσως το προϊόν αποσύρθηκε ή ο σύνδεσμος άλλαξε. Γράψε τι ψάχνεις με απλά λόγια ή ξεκίνα από εδώ:" },
   },
+  ar: { enabled: true },
   stickers: {
     lastUnitsAt: 5,
     endsWithinDays: 3,

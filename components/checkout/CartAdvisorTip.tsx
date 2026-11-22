@@ -17,7 +17,7 @@ const HEAVY = new Set(["plyntiria", "psygeia", "stegnotiria", "koyzines", "air-c
  */
 export function CartAdvisorTip({ lines }: { lines: CartLine[] }) {
   const { advisor } = useSettings();
-  if (!lines.length) return null;
+  if (!advisor.enabled || !lines.length) return null;
   const heavy = lines.find((l) => HEAVY.has(l.product.subcategory));
   const noInstall = heavy && !l_has(heavy, "paradosi-egkatastasi");
   // η συμβουλή για την επέκταση θέλει να ξέρουμε ποια είδη τη δέχονται (CCCWARRANTY) — ο browser δεν το ξέρει, άρα σιωπά

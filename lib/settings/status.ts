@@ -114,7 +114,9 @@ export async function settingsOverview() {
     {
       title: "Συστήματα & AI",
       items: [
-        chip("Ο Ερμής (σύμβουλος)", on(ai.data.advisorEnabled), href("ai", "advisorEnabled")),
+        chip("Ο Ερμής στο site", read("general").data.advisorOff !== true, href("general", "advisorOff")),
+        chip("Απαντήσεις Ερμή με AI", on(ai.data.advisorEnabled), href("ai", "advisorEnabled")),
+        chip("AR · στον χώρο σου", read("general").data.arOff !== true, href("general", "arOff")),
         chip("Φωνή στον Ερμή", on(ai.data.voiceEnabled), href("ai", "voiceEnabled")),
         chip("Συγχρονισμός SoftOne", on(s1.data.enabled), href("softone", "enabled")),
         chip("CDN για media", on(cdn.data.enabled), href("bunny", "enabled")),

@@ -1,6 +1,13 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Sparkles } from "lucide-react";
+import { useSettings } from "@/components/site/SettingsProvider";
+
+/** Δείχνει τα παιδιά μόνο όταν ο Ερμής είναι ανοιχτός (Ρυθμίσεις › Γενικά › «Απόκρυψη του Ερμή»). */
+export function IfAdvisor({ children }: { children: ReactNode }) {
+  return useSettings().advisor.enabled ? children : null;
+}
 
 /** Chip that opens the advisor with a ready question (custom event `eu:ask`). */
 export function AskAris({ q, tone = "dark" }: { q: string; tone?: "dark" | "light" }) {

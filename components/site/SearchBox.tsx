@@ -44,7 +44,7 @@ export function SearchBox({ compact = false, categories: navCategories = demoCat
   const [scope, setScope] = useState("all");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
-  const advisorMode = isQuestion(q);
+  const advisorMode = advisor.enabled && isQuestion(q);
   const [res, setRes] = useState<SuggestResult | null>(null);
   const [active, setActive] = useState(-1);
   const [recent, setRecent] = useState<string[]>([]);
@@ -224,7 +224,7 @@ export function SearchBox({ compact = false, categories: navCategories = demoCat
           aria-expanded={open}
           aria-controls={`${id}-panel`}
           aria-autocomplete="list"
-          placeholder={compact ? PLACEHOLDER_SHORT : PLACEHOLDER_FULL}
+          placeholder={compact ? PLACEHOLDER_SHORT : advisor.enabled ? PLACEHOLDER_FULL : "Προϊόν, μάρκα ή κωδικός…"}
           className="flex-1 min-w-0 px-4 py-3 text-eu-ink placeholder:text-eu-muted-2 text-[length:var(--fs-16)] outline-none bg-transparent text-ellipsis"
         />
         {q && (
@@ -461,7 +461,7 @@ export function SearchBox({ compact = false, categories: navCategories = demoCat
                     </ul>
                   </div>
                 )}
-                <div>
+                {advisor.enabled && <div>
                   <div className="inline-flex items-center gap-1.5 px-1 mb-1.5 font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase">
                     <Sparkles className="size-3.5" aria-hidden /> Ρώτα τον {advisor.name}
                   </div>
@@ -472,7 +472,7 @@ export function SearchBox({ compact = false, categories: navCategories = demoCat
                       </button>
                     ))}
                   </div>
-                </div>
+                </div>}
                 <div>
                   <div className="inline-flex items-center gap-1.5 px-1 mb-1.5 font-extrabold text-eu-muted text-[length:var(--fs-13)] tracking-wide uppercase">
                     <TrendingUp className="size-3.5" aria-hidden /> {c.dimofileis_anazitiseis}

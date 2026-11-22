@@ -10,7 +10,7 @@ import { CardCarousel } from "@/components/commerce/CardCarousel";
 import { Countdown } from "@/components/commerce/Countdown";
 import { Reveal } from "@/components/motion/Reveal";
 import { Tilt } from "@/components/motion/Tilt";
-import { AskAris } from "@/components/advisor/AskAris";
+import { AskAris, IfAdvisor } from "@/components/advisor/AskAris";
 import { BlockHead } from "./BrandFrame";
 import { copyOf } from "@/lib/cms/copy";
 import { Price } from "@/components/commerce/Price";
@@ -187,14 +187,14 @@ export function Support({ b, brand }: { b: Extract<BrandBlock, { type: "support"
           </ul>
         </div>
         {b.askAris && b.askAris.length > 0 && (
-          <div>
+          <IfAdvisor><div>
             <div className="text-[var(--bs-muted)] font-semibold text-[length:var(--fs-14)] mb-2">Ρώτα τον Ερμή για {brand}:</div>
             <div className="flex flex-wrap gap-1.5">
               {b.askAris.map((q) => (
                 <AskAris key={q} q={q} tone="light" />
               ))}
             </div>
-          </div>
+          </div></IfAdvisor>
         )}
       </div>
     </section>

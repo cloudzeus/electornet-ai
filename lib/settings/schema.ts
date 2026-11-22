@@ -138,8 +138,10 @@ export const SECTIONS: Section[] = [
       { key: "phone", label: "Τηλέφωνο εξυπηρέτησης", type: "text", public: true, width: "half", group: "contact", placeholder: "210 1234567", rule: R.phone },
       { key: "email", label: "Email εξυπηρέτησης", type: "email", public: true, width: "half", group: "contact", placeholder: "info@euronics.gr", rule: R.email },
       yesNo("maintenance", "Λειτουργία συντήρησης", "Οι πελάτες βλέπουν σελίδα «Επιστρέφουμε σύντομα»· το /admin μένει ανοιχτό. Άνοιξέ το μόνο για προγραμματισμένη συντήρηση.", true),
+      yesNo("advisorOff", "Απόκρυψη του Ερμή από το site", "Κλείνει τον Ερμή για τους πελάτες: φεύγει το κουμπί και ο χαιρετισμός, οι έτοιμες ερωτήσεις («Ρώτα τον Ερμή») σε κατηγορίες, προϊόντα, μάρκες και καλάθι, οι απαντήσεις του στην αναζήτηση και το «ευχαριστώ» του μετά την παραγγελία. Η αναζήτηση δουλεύει κανονικά. Κλείσ' το για να επιστρέψει· η αλλαγή φαίνεται μέσα σε ένα λεπτό."),
+      yesNo("arOff", "Απόκρυψη του AR («Δες το στον χώρο σου»)", "Κρύβει το κουμπί AR από τις σελίδες προϊόντων και σταματά τη δημιουργία νέων μοντέλων 3D. Οι ρυθμίσεις στη σελίδα «AR · στον χώρο σου» δεν χάνονται. Κλείσ' το για να επιστρέψει· η αλλαγή φαίνεται μέσα σε ένα λεπτό."),
       yesNo("hideFacetCounts", "Απόκρυψη πλήθους στα φίλτρα", "Κρύβει τον αριθμό προϊόντων δίπλα σε κάθε επιλογή φίλτρου (μάρκα, ενεργειακή κλάση, χαρακτηριστικά, υποκατηγορίες) σε λίστες, μάρκες και αναζήτηση. Τα φίλτρα δουλεύουν κανονικά. Κλείσ' το για να ξαναφανούν οι αριθμοί· η αλλαγή φαίνεται μέσα σε ένα λεπτό.", true),
-    ] as Field[]).map((f) => (["maintenance", "hideFacetCounts"].includes(f.key) ? { ...f, group: "ops" } : f)),
+    ] as Field[]).map((f) => (["maintenance", "advisorOff", "arOff", "hideFacetCounts"].includes(f.key) ? { ...f, group: "ops" } : f)),
   },
   {
     key: "social",
@@ -451,7 +453,7 @@ export const SECTIONS: Section[] = [
       { key: "catalogData", title: "Στοιχεία προϊόντων (Channel3)", help: "Κατάλογος προϊόντων καταστημάτων (channel3.ai): χαρακτηριστικά, διαστάσεις και φωτογραφίες, ως πηγή στα «Στοιχεία από το internet». Κάθε αναζήτηση = 1 credit· 1.000 δωρεάν τον μήνα, μετά $0,007 το καθένα." },
     ],
     fields: [
-      { ...yesNo("advisorEnabled", "Ο Ερμής ενεργός", "Απαντήσεις με LLM· χωρίς κλειδί πέφτει στους κανόνες demo.", true), group: "advisor" },
+      { ...yesNo("advisorEnabled", "Απαντήσεις με AI (LLM)", "Ο Ερμής απαντά με μοντέλο AI· κλειστό (ή χωρίς κλειδί) απαντά με έτοιμους κανόνες. Για να κρύψεις τον Ερμή από τους πελάτες: Γενικά → «Απόκρυψη του Ερμή από το site».", true), group: "advisor" },
       { key: "openrouterApiKey", label: "OpenRouter API key", type: "secret", required: true, help: "Ένα κλειδί για όλα τα μοντέλα και όλες τις AI λειτουργίες (openrouter.ai/keys).", width: "half", group: "advisor", rule: { re: /^sk-or-v1-[a-f0-9]{40,}$/, bad: "Τα κλειδιά OpenRouter ξεκινούν με sk-or-v1-" } },
       { key: "provider", label: "Πάροχος AI", type: "select", options: [{ value: "openrouter", label: "OpenRouter (όλα τα μοντέλα)" }, { value: "anthropic", label: "Claude API (Anthropic)" }], help: "Με Claude API ο Ερμής, τα κείμενα, οι προτάσεις και η ανάγνωση εικόνων πάνε απευθείας στο Anthropic. Το OpenRouter μένει για embeddings, φωνή, αναζήτηση στο web και ως εφεδρεία.", width: "half", group: "advisor" },
       { key: "anthropicApiKey", label: "Claude API key (Anthropic)", type: "secret", help: "Από το console.anthropic.com → API keys.", width: "half", group: "advisor", showIf: (v: Values) => v.provider === "anthropic", rule: { re: /^sk-ant-[\w-]{20,}$/, bad: "Τα κλειδιά του Claude API ξεκινούν με sk-ant-" } },

@@ -55,7 +55,7 @@ export function ExitIntent() {
   };
 
   useEffect(() => {
-    if (!hydrated || !advisor.exitIntent.enabled || lines.length === 0 || path.startsWith("/checkout")) return;
+    if (!hydrated || !advisor.enabled || !advisor.exitIntent.enabled || lines.length === 0 || path.startsWith("/checkout")) return;
     let shown = false;
     try {
       shown = sessionStorage.getItem(KEY) === "1" || localStorage.getItem(DISMISSED) === "1";
@@ -83,7 +83,7 @@ export function ExitIntent() {
       document.removeEventListener("mouseout", onLeave);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [hydrated, lines.length, path, advisor.exitIntent.enabled, advisor.exitIntent.delayMs]);
+  }, [hydrated, lines.length, path, advisor.enabled, advisor.exitIntent.enabled, advisor.exitIntent.delayMs]);
 
   useEffect(() => {
     if (!open) return;

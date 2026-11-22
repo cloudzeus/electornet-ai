@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { fitMattersFor } from "@/lib/data/dims";
 import { Plus } from "lucide-react";
 import type { Product } from "@/lib/data/types";
-import { AskAris } from "@/components/advisor/AskAris";
+import { AskAris, IfAdvisor } from "@/components/advisor/AskAris";
 import { answersFor, geoSummary } from "@/lib/seo/product";
 import { copyOf } from "@/lib/cms/copy";
 import type { WarrantyInfo } from "@/lib/warranty/policy";
@@ -21,13 +21,13 @@ export function Answers({ product: p, warranty, children }: { product: Product; 
       <h2 id="qa-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight mb-3">
         Ερωτήσεις
       </h2>
-      <div className="mb-4 flex flex-wrap items-center gap-1.5">
+      <IfAdvisor><div className="mb-4 flex flex-wrap items-center gap-1.5">
         <span className="text-eu-muted text-[length:var(--fs-14)] mr-1">{c.rota_ton_ari}</span>
         {/* «Πόσο ρεύμα καίει;» μόνο όπου υπάρχει ενεργειακή πληροφόρηση· «χωράει;» μόνο όπου ο χώρος είναι κριτήριο */}
         {[...(fitMattersFor(p) ? ["Χωράει στον χώρο μου;"] : []), ...(p.fromDb && !p.energy ? [] : ["Πόσο ρεύμα καίει;"]), "Τι διαφορά έχει από το επόμενο μοντέλο;"].map((q) => (
           <AskAris key={q} q={q} tone="light" />
         ))}
-      </div>
+      </div></IfAdvisor>
       <div className="rounded-xl border border-eu-line divide-y divide-eu-line-2 bg-white">
         {qas.map((x, i) => (
           <details key={x.q} open={i < 2} className="group">

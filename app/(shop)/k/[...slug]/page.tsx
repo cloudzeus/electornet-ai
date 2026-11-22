@@ -105,7 +105,7 @@ export default async function CategoryPage({ params, searchParams }: { params: P
               <span className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 inline-flex items-center">Έξυπνος οδηγός αγοράς →</span>
             </Link>
           )}
-          {questions.length > 0 && (
+          {settings.advisor.enabled && questions.length > 0 && (
             <div className="mt-5 flex flex-wrap gap-1.5" aria-label="Ρώτα τον Ερμή">
               {questions.map((q) => (
                 <AskAris key={q} q={q} />
