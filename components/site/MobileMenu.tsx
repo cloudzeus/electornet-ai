@@ -13,8 +13,9 @@ const c = copyOf("mobileMenu");
 /** Phones/tablets: the mega menu becomes an accordion drawer, one level open at a time, all keyboard reachable. */
 export function MobileMenu({ categories }: { categories: NavCategory[] }) {
   const [open, setOpen] = useState<string | null>(null);
+  const [sheet, setSheet] = useState(false);
   return (
-    <Sheet>
+    <Sheet open={sheet} onOpenChange={setSheet}>
       <SheetTrigger
         className="@lg:hidden inline-flex items-center justify-center size-11 rounded-full text-white hover:bg-eu-navy-2"
         aria-label={c.menoy}
@@ -25,7 +26,14 @@ export function MobileMenu({ categories }: { categories: NavCategory[] }) {
         <div className="p-4 border-b border-eu-line">
           <SheetTitle className="font-extrabold text-eu-ink text-[length:var(--fs-17)]">{c.katigories}</SheetTitle>
         </div>
-        <nav aria-label={c.katigories} className="overflow-y-auto">
+        {/* Το πάτημα κατηγορίας κλείνει το μενού: αλλιώς η σελίδα φορτώνει από πίσω και ο πελάτης δεν το καταλαβαίνει. */}
+        <nav
+          aria-label={c.katigories}
+          className="overflow-y-auto"
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest("a")) setSheet(false);
+          }}
+        >
           <ul className="m-0 p-0 list-none">
             {categories.map((c) => {
               const isOpen = open === c.slug;
