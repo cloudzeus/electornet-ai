@@ -122,7 +122,7 @@ export const GUIDES: Record<GuideKind, GuideDef> = {
       {
         id: "budget",
         title: "Ποιος είναι ο προϋπολογισμός σου;",
-        help: "Με έως 24 άτοκες δόσεις με κάρτα.",
+        help: "Με άτοκες δόσεις με κάρτα.",
         options: [
           { value: "b1", label: "Έως 400 €", sub: "ή 12 × 33 €" },
           { value: "b2", label: "400 – 700 €", sub: "ή 12 × 58 €" },

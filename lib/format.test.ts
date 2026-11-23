@@ -10,3 +10,16 @@ test("άτοκες δόσεις: κλίμακα ανά ποσό και όριο 
   assert.match(instalmentLine(399)!, /^6 άτοκες δόσεις × 66,50/);
   assert.match(instalmentLine(399, true)!, /^6 × 66,50/);
 });
+
+test("όριο ρυθμίσεων: 12 κόβει τις 24 παντού, 0 σβήνει τις δόσεις", async () => {
+  const { instalmentScale, setInstalmentCap } = await import("./format");
+  setInstalmentCap(12);
+  assert.equal(maxInstalments(5000), 12);
+  assert.match(instalmentLine(1200)!, /^12 άτοκες δόσεις × 100,00/);
+  assert.equal(instalmentScale(), "3 από 100 €, 6 από 200 €, 12 από 400 €");
+  setInstalmentCap(0);
+  assert.equal(instalmentLine(1200), null);
+  assert.equal(instalmentScale(), "");
+  setInstalmentCap(24);
+  assert.equal(instalmentScale(), "3 από 100 €, 6 από 200 €, 12 από 400 €, 24 από 800 €");
+});

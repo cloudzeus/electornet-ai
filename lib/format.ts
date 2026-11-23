@@ -25,11 +25,20 @@ export function instalment(price: number, months = 12) {
 }
 /**
  * Άτοκες δόσεις με κάρτα: οι περισσότερες που δίνουμε για ένα ποσό (1 = χωρίς δόσεις).
- * Μία κλίμακα για σελίδα προϊόντος, καλάθι, ταμείο και server· cap = το όριο των ρυθμίσεων πληρωμών.
+ * Μία κλίμακα για σελίδα προϊόντος, καλάθι, ταμείο και server, μέχρι το όριο των ρυθμίσεων πληρωμών (cap).
  */
-export function maxInstalments(amount: number, cap = 24) {
-  const n = amount >= 800 ? 24 : amount >= 400 ? 12 : amount >= 200 ? 6 : amount >= 100 ? 3 : 1;
+const INSTALMENT_STEPS: [min: number, months: number][] = [[800, 24], [400, 12], [200, 6], [100, 3]];
+// shortcut: κοινή τιμή του process, όπως τα κείμενα UI (setCopy)· το πρώτο αίτημα μετά από εκκίνηση μπορεί να δει 24 για μια στιγμή
+let CAP = 24;
+/** Το όριο από Ρυθμίσεις › Πληρωμές › «Μέγιστες άτοκες δόσεις» (0 = χωρίς δόσεις). Το ορίζουν το getSettings (server) και το SettingsProvider (browser). */
+export function setInstalmentCap(n: number) { CAP = Number.isFinite(n) && n >= 0 ? Math.floor(n) : 24; }
+export function maxInstalments(amount: number, cap = CAP) {
+  const n = INSTALMENT_STEPS.find(([min]) => amount >= min)?.[1] ?? 1;
   return Math.max(1, Math.min(n, Math.floor(cap)));
+}
+/** «3 από 100 €, 6 από 200 €, 12 από 400 €»: η κλίμακα μέχρι το όριο των ρυθμίσεων, για κείμενα· "" όταν δεν δίνονται δόσεις. */
+export function instalmentScale(cap = CAP) {
+  return INSTALMENT_STEPS.filter(([, n]) => n <= cap).reverse().map(([min, n]) => `${n} από ${min} €`).join(", ");
 }
 /** «12 άτοκες δόσεις × 33,25 €» (short: «12 × 33,25 €») με τις περισσότερες δόσεις του ποσού· null όταν δεν βγαίνει σε δόσεις. */
 export function instalmentLine(amount: number, short = false) {

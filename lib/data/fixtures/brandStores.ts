@@ -105,7 +105,7 @@ export const brandStores: BrandStore[] = [
     hero: {
       kicker: "Apple Authorised Reseller",
       title: ["MacBook Air.", "Ελαφρύ.", "Απίστευτο."],
-      body: "M5 chip, 18 ώρες μπαταρία, 1,24 kg. Με 24 άτοκες δόσεις και δωρεάν εγκατάσταση από το κατάστημα.",
+      body: "M5 chip, 18 ώρες μπαταρία, 1,24 kg. Με άτοκες δόσεις και δωρεάν εγκατάσταση από το κατάστημα.",
       cta: { label: "Δες τα MacBook", href: "/k/computing/laptops?brand=apple" },
       productId: "r-157206",
     },

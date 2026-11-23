@@ -583,9 +583,19 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                       <div className="grid gap-1.5">
                         <label htmlFor="co-inst" className="font-bold text-eu-ink text-[length:var(--fs-15)]">Σε πόσες άτοκες δόσεις;</label>
                         <InstalmentSelect id="co-inst" amount={total} max={maxInst} value={inst} onChange={setInst} none />
-                        <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">
-                          {inst > 1 ? `Η κάρτα σου χρεώνεται ${priceLong(instalment(total, inst))} τον μήνα για ${inst} μήνες, χωρίς τόκους. Χρειάζεται πιστωτική κάρτα που δέχεται δόσεις` : `Έως ${maxInst} άτοκες δόσεις για αυτό το ποσό. Αν δεν διαλέξεις, χρεώνεται όλο το ποσό μία φορά`}
-                        </p>
+                        {inst > 1 ? (
+                          <>
+                            <dl className="m-0 mt-1 rounded-xl bg-white border border-eu-line px-4 py-3 grid gap-1.5 text-[length:var(--fs-15)]" aria-live="polite" data-testid="co-inst-calc">
+                              <div className="flex justify-between items-baseline gap-3"><dt className="text-eu-ink-2">Πληρώνεις κάθε μήνα</dt><dd className="m-0 font-extrabold text-eu-blue text-[length:var(--fs-20)] tabular-nums">{priceLong(instalment(total, inst))}</dd></div>
+                              <div className="flex justify-between gap-3"><dt className="text-eu-ink-2">Για πόσους μήνες</dt><dd className="m-0 font-bold text-eu-ink tabular-nums">{inst}</dd></div>
+                              <div className="flex justify-between gap-3"><dt className="text-eu-ink-2">Τόκοι</dt><dd className="m-0 font-bold text-eu-green tabular-nums">0,00{"\u00a0"}€</dd></div>
+                              <div className="flex justify-between gap-3 border-t border-eu-line pt-1.5"><dt className="font-bold text-eu-ink">Σύνολο</dt><dd className="m-0 font-bold text-eu-ink tabular-nums">{priceLong(total)}</dd></div>
+                            </dl>
+                            <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Πληρώνεις ακριβώς το ίδιο ποσό, μοιρασμένο σε {inst} μήνες. Χρειάζεται πιστωτική κάρτα που δέχεται δόσεις</p>
+                          </>
+                        ) : (
+                          <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Έως {maxInst} άτοκες δόσεις για αυτό το ποσό. Διάλεξε πόσες για να δεις τη μηνιαία δόση· αλλιώς χρεώνεται όλο το ποσό μία φορά</p>
+                        )}
                       </div>
                     )}
                     <p className="m-0 text-eu-muted text-[length:var(--fs-14)] flex items-start gap-2"><ShieldCheck className="size-5 text-eu-green shrink-0" aria-hidden /> Τα στοιχεία πληρωμής δεν περνούν από εμάς.</p>
