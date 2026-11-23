@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { CardStickers } from "@/components/commerce/CardStickers";
 import type { CardSticker } from "@/lib/stickers/layout";
 import Image from "@/components/ui/Image";
@@ -42,6 +43,24 @@ export function Gallery({
   const [i, setI] = useState(0);
   const src = images[i];
   const cutout = i === 0 ? cutoutFor(src) : null;
+  // Υπολογιστής: η λωρίδα μικρογραφιών κρατιέται στο ύψος της φωτογραφίας και κυλά, αλλιώς 12 φωτογραφίες
+  // άφηναν τεράστιο κενό κάτω από αυτήν. Τα βελάκια βγαίνουν μόνο όταν υπάρχει συνέχεια προς τα εκεί.
+  const rail = useRef<HTMLUListElement>(null);
+  const [more, setMore] = useState({ up: false, down: false });
+  const sync = useCallback(() => {
+    const el = rail.current;
+    if (el) setMore({ up: el.scrollTop > 4, down: el.scrollTop + el.clientHeight < el.scrollHeight - 4 });
+  }, []);
+  useEffect(() => {
+    sync();
+    const el = rail.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [sync, images.length]);
+  const step = (dir: 1 | -1) => rail.current?.scrollBy({ top: dir * Math.max(72, rail.current.clientHeight - 24), behavior: "smooth" });
+  const arrow = "hidden @md:inline-flex absolute left-0 w-[72px] h-7 items-center justify-center rounded-lg bg-white/95 border border-eu-line-2 text-eu-ink-2 shadow-sm hover:text-eu-blue hover:border-eu-blue";
   return (
     <div className="grid gap-2 @md:gap-3">
       <div
@@ -49,7 +68,8 @@ export function Gallery({
       >
         {images.length > 1 && (
           // Κινητό: μία σειρά έως 6 μικρογραφίες (η 6η δείχνει «+N»· όλες είναι στη «Μεγέθυνση») — πριν έπιαναν δύο σειρές πάνω από την τιμή
-          <ul className="m-0 p-0 list-none grid grid-cols-6 @md:flex @md:flex-col gap-2 order-2 @md:order-1">
+          <div className="order-2 @md:order-1 @md:relative @md:min-h-0">
+          <ul ref={rail} onScroll={sync} className="m-0 p-0 list-none grid grid-cols-6 @md:flex @md:flex-col gap-2 @md:absolute @md:inset-0 @md:overflow-y-auto @md:overscroll-contain @md:scroll-smooth eu-scrollbar-none">
             {images.map((im, k) => (
               <li key={im} className={`min-w-0 ${k >= 6 ? "hidden @md:block" : ""}`}>
                 <button
@@ -75,6 +95,17 @@ export function Gallery({
               </li>
             ))}
           </ul>
+            {more.up && (
+              <button type="button" aria-label="Προηγούμενες εικόνες" onClick={() => step(-1)} className={`${arrow} top-0`}>
+                <ChevronUp className="size-4" aria-hidden />
+              </button>
+            )}
+            {more.down && (
+              <button type="button" aria-label="Περισσότερες εικόνες" onClick={() => step(1)} className={`${arrow} bottom-0`}>
+                <ChevronDown className="size-4" aria-hidden />
+              </button>
+            )}
+          </div>
         )}
         <div className="order-1 @md:order-2 min-w-0">
           <div
