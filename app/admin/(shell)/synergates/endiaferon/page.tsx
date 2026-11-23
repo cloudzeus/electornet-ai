@@ -68,7 +68,8 @@ export default async function InterestAdmin({ searchParams }: { searchParams: Pr
                 <dl className="m-0 grid gap-2 content-start text-[length:var(--fs-13)] min-w-0">
                   {[
                     ["Είδος διασύνδεσης", r.kinds.map(interestLabel.kind).join(", ") || "—"],
-                    ["Τράπεζες", r.banks.map(interestLabel.bank).join(", ") || "—"],
+                    // η ερώτηση βγήκε από τη φόρμα· φαίνεται μόνο σε παλιές αιτήσεις που την απάντησαν
+                    ...(r.banks.length ? [["Τράπεζες", r.banks.map(interestLabel.bank).join(", ")]] : []),
                     ["ERP", interestLabel.erp(r.erp)],
                     ["Eshop", interestLabel.eshop(r.eshop)],
                     ["Τρόπος διασύνδεσης", interestLabel.method(r.method)],

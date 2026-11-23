@@ -5,7 +5,7 @@ import { IntroVideo } from "@/components/synergaton/IntroVideo";
 export const metadata = { title: "Καλώς ήρθες" };
 export const dynamic = "force-dynamic";
 
-/** Πρώτη σελίδα της πύλης για όσους δεν έχουν συνδεθεί: video 45″ με τις δυνατότητες, μετά «Είσοδος». */
+/** Παρουσίαση της πύλης (video 45″), μετά «Είσοδος». Ανοίγει από το «Δες την παρουσίαση» της σελίδας εισόδου. */
 export default async function IntroPage() {
   const base = await portalBase();
   const href = (await getPortalUser()) ? base || "/" : `${base}/eisodos`;

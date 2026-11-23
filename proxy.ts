@@ -9,9 +9,8 @@ export function proxy(request: NextRequest) {
   // Πύλη συνεργατών: στο synergaton.* κάθε σελίδα σερβίρεται από το app/synergaton (καθαρά URL, π.χ. /syndesi)
   const portal = /^synergaton\./i.test(request.headers.get("host") ?? "") && !/^\/(synergaton|_next|api)(\/|$)/.test(request.nextUrl.pathname);
   const portalPath = portal ? `/synergaton${request.nextUrl.pathname === "/" ? "" : request.nextUrl.pathname}` : request.nextUrl.pathname;
-  // πρώτη σελίδα χωρίς συνεδρία → εισαγωγικό video (app/synergaton/kalos-irthes), όχι κατευθείαν η είσοδος
-  const intro = /^\/synergaton\/?$/.test(portalPath) && !request.cookies.has("syn_session");
-  const rewriteTo = intro ? new URL(`/synergaton/kalos-irthes${request.nextUrl.search}`, request.url) : portal ? new URL(`${portalPath}${request.nextUrl.search}`, request.url) : null;
+  // χωρίς συνεδρία η πρώτη σελίδα πάει κατευθείαν στην είσοδο· το εισαγωγικό video ανοίγει μόνο από το link της εισόδου
+  const rewriteTo = portal ? new URL(`${portalPath}${request.nextUrl.search}`, request.url) : null;
   if (!appliesCsp(request.nextUrl.pathname)) return rewriteTo ? NextResponse.rewrite(rewriteTo) : NextResponse.next();
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const csp = buildCsp({ nonce, dev: process.env.NODE_ENV === "development" });

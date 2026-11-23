@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition, type ReactNode } from "reac
 import { Dialog as D } from "@base-ui/react/dialog";
 import { Building2, Check, CheckCircle2, Loader2, Search, Sparkles, X } from "lucide-react";
 import { interestLookup, interestSubmit } from "@/app/synergaton/actions";
-import { INTEREST_BANKS, INTEREST_ERP, INTEREST_ESHOP, INTEREST_KINDS, INTEREST_METHODS, suggestMethod, type Opt } from "@/lib/partner-portal/interest-options";
+import { INTEREST_ERP, INTEREST_ESHOP, INTEREST_KINDS, INTEREST_METHODS, suggestMethod, type Opt } from "@/lib/partner-portal/interest-options";
 import { btn, Callout, focusRing } from "./ui";
 import { Field, inputCls, ProgressLine } from "./wizard";
 
@@ -12,12 +12,12 @@ const STEPS = [
   { key: "afm", title: "Η επιχείρησή σας", hint: "Ψάχνουμε τον ΑΦΜ στα μέλη της Euronics." },
   { key: "contact", title: "Στοιχεία επαφής", hint: "Σε ποιον να μιλήσουμε για τη σύνδεση." },
   { key: "kinds", title: "Τι θέλετε να συνδέσετε", hint: "Διαλέξτε όσα σας ενδιαφέρουν." },
-  { key: "systems", title: "Τα συστήματά σας", hint: "Τράπεζες, ERP και eshop που χρησιμοποιείτε." },
+  { key: "systems", title: "Τα συστήματά σας", hint: "ERP και eshop που χρησιμοποιείτε." },
   { key: "method", title: "Τρόπος διασύνδεσης", hint: "Πώς θα φτάνει το απόθεμά σας σε εμάς." },
 ] as const;
 
-type Form = { afm: string; businessName: string; contactName: string; email: string; phone: string; kinds: string[]; banks: string[]; erp: string; eshop: string; method: string; notes: string; website: string };
-const EMPTY: Form = { afm: "", businessName: "", contactName: "", email: "", phone: "", kinds: [], banks: [], erp: "", eshop: "", method: "", notes: "", website: "" };
+type Form = { afm: string; businessName: string; contactName: string; email: string; phone: string; kinds: string[]; erp: string; eshop: string; method: string; notes: string; website: string };
+const EMPTY: Form = { afm: "", businessName: "", contactName: "", email: "", phone: "", kinds: [], erp: "", eshop: "", method: "", notes: "", website: "" };
 
 /**
  * «Εκδήλωση ενδιαφέροντος»: κουμπί που ανοίγει modal-wizard 5 βημάτων (ΑΦΜ → επαφή → είδος → συστήματα → τρόπος).
@@ -164,7 +164,6 @@ function InterestModal({ open, onClose }: { open: boolean; onClose: () => void }
               <Choices legend="Είδος διασύνδεσης" multi opts={INTEREST_KINDS} value={f.kinds} onChange={(v) => set("kinds", v)} error={errs.kinds} />
             ) : cur === 3 ? (
               <div className="grid gap-6">
-                <Choices legend="Τράπεζες ή πάροχοι πληρωμών (POS, e-commerce)" help="Προαιρετικό· διαλέξτε όσα ισχύουν." multi opts={INTEREST_BANKS} value={f.banks} onChange={(v) => set("banks", v)} />
                 <Choices legend="ERP: πού κρατάτε αποθήκη και τιμολόγηση" opts={INTEREST_ERP} value={f.erp ? [f.erp] : []} onChange={(v) => set("erp", v[0] ?? "")} error={errs.erp} />
                 <Choices legend="Πλατφόρμα ηλεκτρονικού εμπορίου" opts={INTEREST_ESHOP} value={f.eshop ? [f.eshop] : []} onChange={(v) => set("eshop", v[0] ?? "")} error={errs.eshop} />
               </div>

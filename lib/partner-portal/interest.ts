@@ -40,7 +40,7 @@ export async function lookupInterestAfm(raw: string): Promise<AfmLookup> {
 
 export type InterestInput = {
   afm: string; businessName?: string; contactName: string; email: string; phone: string;
-  kinds: string[]; banks: string[]; erp: string; eshop: string; method: string; notes?: string;
+  kinds: string[]; banks?: string[]; erp: string; eshop: string; method: string; notes?: string;
   /** honeypot: κρυφό πεδίο που συμπληρώνουν μόνο bots */
   website?: string;
 };
