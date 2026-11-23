@@ -118,7 +118,7 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
                 .filter((s) => s.slug !== "paradosi-egkatastasi" || p.installation)
                 .filter((s) => s.addonAt?.includes("pdp") || s.addonAt?.includes("checkout"))
                 .filter((s) => s.slug !== EXTENSION_SLUG || (ql?.extPrice ?? 0) > 0)
-                .map((s) => (s.slug === EXTENSION_SLUG ? { ...s, title: `${s.title} +2 έτη`, priceFrom: (ql!.extPrice ?? 0) / 100 } : s));
+                .map((s) => (s.slug === EXTENSION_SLUG ? { ...s, title: `${s.title} +3 έτη`, priceFrom: (ql!.extPrice ?? 0) / 100 } : s));
               const freeAddons = ql?.addons.filter((a) => a.free) ?? [];
               const lineTotal = ql ? (ql.total + ql.addons.reduce((a, x) => a + x.price, 0) * ql.qty) / 100 : l.qty * (p.price + l.addons.reduce((a, x) => a + x.price, 0));
               const lineWas = ql && ql.discPrice + ql.discCoupon > 0 ? (ql.listTotal + ql.addons.reduce((a, x) => a + x.value, 0) * ql.qty) / 100 : p.wasPrice ? l.qty * p.wasPrice : null;

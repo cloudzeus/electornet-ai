@@ -63,7 +63,7 @@ function DeviceFields({ initial, onSubmit, onCancel }: { initial: Omit<DeviceFor
           <input type="date" aria-label="Λήξη εγγύησης (χειροκίνητα)" disabled={!d.warrantyOverride} value={d.warrantyOverride ? d.warrantyUntil : computed} onChange={(e) => set("warrantyUntil", e.target.value)} className={field} />
         </div>
         <label className={label}>Επέκταση εγγύησης έως<input type="date" value={d.extendedUntil} onChange={(e) => set("extendedUntil", e.target.value)} className={field} /><span className={hint}>Μόνο αν έχει αγοραστεί/δοθεί επέκταση· κενό = χωρίς επέκταση.</span></label>
-        <label className={label}>Πρόγραμμα επέκτασης<input value={d.extendedPlan} onChange={(e) => set("extendedPlan", e.target.value)} className={field} /><span className={hint}>Π.χ. «+2 έτη Euronics» ή ο αριθμός EXT-….</span></label>
+        <label className={label}>Πρόγραμμα επέκτασης<input value={d.extendedPlan} onChange={(e) => set("extendedPlan", e.target.value)} className={field} /><span className={hint}>Π.χ. «+3 έτη Euronics» ή ο αριθμός EXT-….</span></label>
         <label className={label}>Αριθμός παραστατικού<input value={d.invoiceNo} onChange={(e) => set("invoiceNo", e.target.value)} className={field} /><span className={hint}>Απόδειξη/τιμολόγιο αγοράς (SoftOne).</span></label>
         <label className={`${label} @xl:col-span-2`}>Σημειώσεις<textarea value={d.notes} onChange={(e) => set("notes", e.target.value)} rows={2} className={`${field} py-2`} /><span className={hint}>Εσωτερικές· δεν εμφανίζονται στον πελάτη.</span></label>
       </div>

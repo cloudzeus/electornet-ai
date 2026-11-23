@@ -7,7 +7,7 @@ import { gsmGreek, gsmLength } from "../sms/gsm";
 export function reminderSms(device: string, until: Date, price: number, link: string): string {
   const d = until.toLocaleDateString("el-GR", { day: "2-digit", month: "2-digit", year: "2-digit" });
   const offer = `με ${String(price).replace(".", ",")} EUR`;
-  const build = (dev: string) => `${gsmGreek(`Η εγγύηση ${dev} λήγει ${d}. Επέκταση +2 έτη ${offer}:`)} ${link} ${gsmGreek("Διακοπή στον ίδιο σύνδεσμο")}`;
+  const build = (dev: string) => `${gsmGreek(`Η εγγύηση ${dev} λήγει ${d}. Επέκταση +3 έτη ${offer}:`)} ${link} ${gsmGreek("Διακοπή στον ίδιο σύνδεσμο")}`;
   let dev = gsmGreek(device).replace(/\s+/g, " ").trim();
   // κόβουμε ολόκληρες λέξεις από το τέλος· αν δεν χωράει ούτε η μάρκα, μένει «της συσκευής σου»
   const words = dev.split(" ");

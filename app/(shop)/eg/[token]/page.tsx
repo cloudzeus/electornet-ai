@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Επέκταση εγγύησης", 
 export const dynamic = "force-dynamic";
 
 const EXT_MSG = {
-  ok: { tone: "bg-eu-green/10 text-eu-green", text: "Η πληρωμή ολοκληρώθηκε — η εγγύηση επεκτάθηκε κατά 2 έτη." },
+  ok: { tone: "bg-eu-green/10 text-eu-green", text: "Η πληρωμή ολοκληρώθηκε — η εγγύηση επεκτάθηκε κατά 3 έτη." },
   pending: { tone: "bg-eu-amber/15 text-eu-ink-2", text: "Η πληρωμή είναι σε εξέλιξη. Μόλις την επιβεβαιώσει η Viva, η επέκταση θα φανεί εδώ." },
   failed: { tone: "bg-eu-red/10 text-eu-red", text: "Η πληρωμή δεν ολοκληρώθηκε και δεν έγινε χρέωση. Μπορείς να δοκιμάσεις ξανά." },
 } as const;
@@ -57,7 +57,7 @@ export default async function DeviceLinkPage({ params, searchParams }: { params:
         </div>
         {offer?.kind === "paid" && (
           <div className="grid gap-2">
-            <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">Επέκταση εγγύησης <b>+2 έτη</b>: επισκευή ή αντικατάσταση χωρίς χρέωση. Πληρώνεις με ασφάλεια μέσω Viva (κάρτα, Apple Pay, Google Pay κ.ά.).</p>
+            <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">Επέκταση εγγύησης <b>+3 έτη</b>: επισκευή ή αντικατάσταση χωρίς χρέωση. Πληρώνεις με ασφάλεια μέσω Viva (κάρτα, Apple Pay, Google Pay κ.ά.).</p>
             <ExtendWarrantyButton deviceId={d.id} token={token} price={offer.price} />
           </div>
         )}

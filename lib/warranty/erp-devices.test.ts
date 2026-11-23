@@ -6,12 +6,12 @@ const L = (lineNo: number, title: string, unitPrice: number, qty = 1, code: stri
 
 test("δένει την επέκταση με τη συσκευή που ταιριάζει στην τιμή (15,5 %), όχι με όλες", () => {
     const plan = planDevices([L(1, "TV LG 55", 689), L(2, "Soundbar", 249), L(3, "Επέκταση εγγύησης", 38.6, 1, "ΕΓΓΥΗΣΗ")], () => null);
-    assert.equal(plan.find((d) => d.lineNo === 2)?.extMonths, 24);
+    assert.equal(plan.find((d) => d.lineNo === 2)?.extMonths, 36);
     assert.equal(plan.find((d) => d.lineNo === 1)?.extMonths, null);
 });
 test("με μία μόνο συσκευή η επέκταση πάει σε αυτήν ακόμη κι αν η τιμή δεν ταιριάζει", () => {
     const plan = planDevices([L(1, "Ψυγείο", 500), L(2, "Επέκταση εγγύησης", 30)], () => null);
-    assert.equal(plan[0].extMonths, 24);
+    assert.equal(plan[0].extMonths, 36);
 });
 test("χωρίς ταίριασμα τιμής σε πολλές συσκευές δεν μαντεύει", () => {
     const plan = planDevices([L(1, "A", 500), L(2, "B", 900), L(3, "Επέκταση εγγύησης", 10)], () => null);
@@ -29,6 +29,6 @@ test("ένα τεμάχιο ανά ποσότητα (έως 5) και δύο ε�
 });
 test("διάρκεια επέκτασης από τον τίτλο", () => {
     assert.equal(extensionMonths("Επέκταση εγγύησης +3 έτη"), 36);
-    assert.equal(extensionMonths("Επέκταση εγγύησης"), 24);
+    assert.equal(extensionMonths("Επέκταση εγγύησης"), 36);
     assert.equal(isExtensionLine("TL Range Extender RE305"), false);
 });

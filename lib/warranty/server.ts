@@ -23,7 +23,7 @@ const DEVICE_MIN_PRICE = 50; // όπως στις αγορές καταστημ�
 
 /**
  * Παραγγελία e-shop → «Οι συσκευές μου» του πελάτη (μόνο με λογαριασμό): μία συσκευή ανά γραμμή και τεμάχιο (έως 5),
- * με την εγγύηση του κατασκευαστή και, όπου ο πελάτης αγόρασε την επέκταση στη γραμμή, +24 μήνες. Ιδεμπότητη.
+ * με την εγγύηση του κατασκευαστή και, όπου ο πελάτης αγόρασε την επέκταση στη γραμμή, +36 μήνες. Ιδεμπότητη.
  */
 export async function devicesFromOrder(orderId: string) {
   const o = await db.order.findUnique({ where: { id: orderId }, select: { id: true, number: true, customerId: true, createdAt: true, lines: { select: { id: true, title: true, qty: true, unitPrice: true, addons: { select: { service: { select: { slug: true } } } }, variant: { select: { product: { select: { id: true, modelCode: true, brand: { select: { name: true } } } } } } } } } });
@@ -41,7 +41,7 @@ export async function devicesFromOrder(orderId: string) {
       await db.customerDevice.create({ data: {
         customerId: o.customerId, productId: p.id, brand: p.brand.name, title: l.title, model: p.modelCode, purchasedAt: o.createdAt,
         orderId: o.id, orderLineId: l.id, unitNo: u, invoiceNo: o.number, warrantyMonths: months, warrantyUntil: until,
-        ...(ext ? { extendedUntil: addMonths(until, EXTENSION_MONTHS), extendedPlan: "ext-24" } : {}), registeredBy: "order",
+        ...(ext ? { extendedUntil: addMonths(until, EXTENSION_MONTHS), extendedPlan: "ext-36" } : {}), registeredBy: "order",
       } });
       n++;
     }

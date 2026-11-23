@@ -14,7 +14,7 @@ const eur = (n: number) => n.toFixed(2).replace(".", ",");
 const field = "w-full rounded-lg border border-eu-line bg-white px-3 min-h-11 text-[length:var(--fs-15)] tabular-nums focus:outline-none focus:ring-2 ring-eu-blue/40";
 
 /**
- * Κλίμακες τιμών: κατηγορία (ή «Όλες») × εύρος τιμής αγοράς → τιμή επέκτασης +2 έτη. Για μια συσκευή ισχύει η πιο
+ * Κλίμακες τιμών: κατηγορία (ή «Όλες») × εύρος τιμής αγοράς → τιμή επέκτασης +3 έτη. Για μια συσκευή ισχύει η πιο
  * ειδική κατηγορία (η δική της, μετά οι γονικές, στο τέλος «Όλες») και μέσα της το εύρος που περιέχει την τιμή αγοράς.
  */
 export function ExtPricingForm({ initial, categories, canWrite }: { initial: ExtPricingInitial; categories: { slug: string; label: string }[]; canWrite: boolean }) {
@@ -47,7 +47,7 @@ export function ExtPricingForm({ initial, categories, canWrite }: { initial: Ext
         <input type="checkbox" checked={enabled} disabled={!canWrite} onChange={(e) => setEnabled(e.target.checked)} className="mt-1 size-5 accent-eu-blue" />
         <span className="grid gap-0.5">
           <span className="font-bold text-eu-ink text-[length:var(--fs-15)]">Επέκταση εγγύησης επί πληρωμή</span>
-          <span className="text-eu-ink-3 text-[length:var(--fs-14)]">Χωρίς κλίμακα δεν προσφέρεται πουθενά επέκταση. Με κλίμακα, στα είδη με «Επέκταση Εγγύησης» (CCCWARRANTY) στο SoftOne εμφανίζεται η επιλογή «Επέκταση εγγύησης +2 έτη · τιμή» στη σελίδα προϊόντος και στο καλάθι, και στις συσκευές του λογαριασμού το κουμπί αγοράς με πληρωμή Viva.</span>
+          <span className="text-eu-ink-3 text-[length:var(--fs-14)]">Χωρίς κλίμακα δεν προσφέρεται πουθενά επέκταση. Με κλίμακα, στα είδη με «Επέκταση Εγγύησης» (CCCWARRANTY) στο SoftOne εμφανίζεται η επιλογή «Επέκταση εγγύησης +3 έτη · τιμή» στη σελίδα προϊόντος και στο καλάθι, και στις συσκευές του λογαριασμού το κουμπί αγοράς με πληρωμή Viva.</span>
         </span>
       </label>
 

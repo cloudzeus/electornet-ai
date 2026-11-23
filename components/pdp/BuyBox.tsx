@@ -131,7 +131,7 @@ export function BuyBox({ product: p, addons, accessory, warranty }: { product: P
           <span className="flex-1 min-w-0">
             <span className="flex justify-between gap-2 font-bold text-eu-ink text-[length:var(--fs-15)]">
               {warrantyLabel(warranty)}
-              {warranty.extMonths > 0 && warranty.extPrice ? <span className="text-eu-blue shrink-0">+2 έτη {priceLong(warranty.extPrice)}</span> : null}
+              {warranty.extMonths > 0 && warranty.extPrice ? <span className="text-eu-blue shrink-0">+3 έτη {priceLong(warranty.extPrice)}</span> : null}
             </span>
             <span className="block text-eu-muted text-[length:var(--fs-13-5)]">
               {warrantyDetail(warranty)}{warranty.extMonths ? " — διάλεξέ την παρακάτω· τη βλέπεις μετά στις συσκευές του λογαριασμού σου" : ""}

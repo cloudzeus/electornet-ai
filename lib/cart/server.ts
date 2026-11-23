@@ -162,7 +162,7 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
     const list = (addonsOf.get(it.key) ?? []).filter((a) => a.slug !== EXTENSION_SLUG);
     // δώρο προσφοράς: μένει στα 0 € (με την αξία της κλίμακας), αλλιώς μπαίνει μόνο αν το διάλεξε ο πελάτης
     if (was?.free) list.push({ ...was, value: ext ? cents(ext) : was.value });
-    else if (ext && was) list.push({ slug: EXTENSION_SLUG, title: `${svc.get(EXTENSION_SLUG)?.title ?? "Επέκταση εγγύησης"} +2 έτη`, price: cents(ext), value: cents(ext) });
+    else if (ext && was) list.push({ slug: EXTENSION_SLUG, title: `${svc.get(EXTENSION_SLUG)?.title ?? "Επέκταση εγγύησης"} +3 έτη`, price: cents(ext), value: cents(ext) });
     addonsOf.set(it.key, list);
   }
   // δώρα: τα στοιχεία του προϊόντος-δώρου από τη βάση (αν δεν πωλείται πια, δεν μπαίνει)

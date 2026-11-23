@@ -88,7 +88,7 @@ export const ART_PRESETS: ArtPreset[] = [
   P("burst-double", "#D62828", null, "#FFFFFF", "#FFFFFF", ["−30%", "τώρα"], ["έκπτωση"]),
   P("rosette", "#1D428A", "#122A58", "#F1C400", "#FFFFFF", ["Top", "επιλογή"], ["ποιότητα"]),
   P("speech", "#122A58", null, "#F1C400", "#FFFFFF", ["Ρώτα μας!"], ["επικοινωνία"]),
-  P("shield", "#1E7B3C", null, "#FFFFFF", "#FFFFFF", ["+2 έτη", "εγγύηση"], ["εγγύηση"]),
+  P("shield", "#1E7B3C", null, "#FFFFFF", "#FFFFFF", ["+3 έτη", "εγγύηση"], ["εγγύηση"]),
   P("hang-tag", "#F1C400", null, "#122A58", "#122A58", ["Νέα", "τιμή"], ["τιμή"]),
   P("ticket", "#7C3AED", null, "#FFFFFF", "#FFFFFF", ["Κουπόνι", "−15 €"], ["κουπόνι"]),
   P("banner-fold", "#0F766E", "#115E59", "#0B3F3B", "#FFFFFF", ["Δωρεάν αποστολή"], ["αποστολή"]),

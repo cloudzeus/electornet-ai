@@ -60,12 +60,12 @@ test("τιμή επέκτασης: ποσοστό της τιμής αγοράς
 });
 
 test("σελίδα προϊόντος: μία διατύπωση εγγύησης για buy box, «Γιατί από Euronics», υπηρεσίες και απαντήσεις", () => {
-  assert.equal(warrantyLabel({ months: 24, extMonths: 24, extPrice: 54.1 }), "Εγγύηση 2 έτη"); // η επέκταση είναι αγορά, δεν μπαίνει στον τίτλο
+  assert.equal(warrantyLabel({ months: 24, extMonths: 36, extPrice: 54.1 }), "Εγγύηση 2 έτη"); // η επέκταση είναι αγορά, δεν μπαίνει στον τίτλο
   assert.equal(warrantyLabel({ months: 24, extMonths: 0 }), "Εγγύηση 2 έτη");
   assert.equal(warrantyLabel({ months: 12, extMonths: 0 }), "Εγγύηση 1 έτος");
   assert.equal(warrantyLabel({ months: 18, extMonths: 0 }), "Εγγύηση 18 μήνες");
   assert.equal(warrantyLabel(undefined), "Εγγύηση 2 έτη");
-  assert.equal(warrantyDetail({ months: 24, extMonths: 24, extPrice: 54.1 }), "2 έτη από τον κατασκευαστή, με την απόδειξη αγοράς · προαιρετική επέκταση +2 έτη με 54,10\u00a0€");
+  assert.equal(warrantyDetail({ months: 24, extMonths: 36, extPrice: 54.1 }), "2 έτη από τον κατασκευαστή, με την απόδειξη αγοράς · προαιρετική επέκταση +3 έτη με 54,10\u00a0€");
   assert.equal(warrantyDetail({ months: 24, extMonths: 0 }), "2 έτη από τον κατασκευαστή, με την απόδειξη αγοράς");
   assert.equal(warrantyDetail({ months: 60, extMonths: 0 }), "5 έτη από τον κατασκευαστή, με την απόδειξη αγοράς");
 });

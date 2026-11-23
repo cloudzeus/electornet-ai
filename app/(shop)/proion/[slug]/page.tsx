@@ -74,7 +74,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     getL1(p.category), getRelated(p, 5), getAccessoriesFor(p), getServicesFull(), getStores(),
     // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
     getGridFactor().catch(() => null),
-    // set ειδών (π.χ. εσωτερική + εξωτερική μονάδα), εγγύηση κατασκευαστή, αν δέχεται επέκταση +2 έτη, ρύθμιση AR — στη μνήμη ανά προϊόν
+    // set ειδών (π.χ. εσωτερική + εξωτερική μονάδα), εγγύηση κατασκευαστή, αν δέχεται επέκταση +3 έτη, ρύθμιση AR — στη μνήμη ανά προϊόν
     pdpExtras(p.id, !!p.fromDb),
     // «Δες το στον χώρο σου»: κατηγορίες με AR
     getArCategories(),
@@ -89,7 +89,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const extPrice = extOk ? (await extAddonPrices([{ productId: p.id, price: p.price }])).get(p.id) ?? null : null;
   const addons = services
     .filter((s) => s.addonAt?.includes("pdp") && s.slug !== "paradosi-egkatastasi" && (s.slug !== EXTENSION_SLUG || extPrice))
-    .map((s) => (s.slug === EXTENSION_SLUG ? { ...s, title: `${s.title} +2 έτη`, priceFrom: extPrice! } : s));
+    .map((s) => (s.slug === EXTENSION_SLUG ? { ...s, title: `${s.title} +3 έτη`, priceFrom: extPrice! } : s));
   const similar = related.filter((x) => x.subcategory === p.subcategory).slice(0, 3);
   // «Με μια ματιά»: ολόκληρη ενότητα για ένα χαρακτηριστικό διαβάζεται σαν λάθος — από τρία και πάνω λέει κάτι
   const overview = p.highlights ?? (p.specs ?? []).slice(0, 4).map((x) => `${x.key}: ${x.value}`);

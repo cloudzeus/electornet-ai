@@ -28,7 +28,7 @@ export interface DeviceRow {
   real?: boolean;
   deviceId?: string;
   href?: string | null;
-  /** αγορά επέκτασης +2 έτη: η τιμή από την κλίμακα (15,5 %) · null = δεν προσφέρεται, με τον λόγο στο extendNote */
+  /** αγορά επέκτασης +3 έτη: η τιμή από την κλίμακα (15,5 %) · null = δεν προσφέρεται, με τον λόγο στο extendNote */
   extendPrice?: number | null;
   extendNote?: string | null;
 }

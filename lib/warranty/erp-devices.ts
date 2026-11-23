@@ -8,8 +8,8 @@
  */
 export const DEVICE_MIN_PRICE = 50; // κάτω από αυτό: αξεσουάρ / αναλώσιμα, όχι συσκευή
 export const LEGAL_WARRANTY = 24;
-/** Η επέκταση επί πληρωμή είναι +24 μήνες (όπως στο e-shop), εκτός αν η γραμμή γράφει άλλη διάρκεια. */
-export const EXTENSION_MONTHS = 24;
+/** Η επέκταση επί πληρωμή είναι +36 μήνες (όπως στο e-shop), εκτός αν η γραμμή γράφει άλλη διάρκεια. */
+export const EXTENSION_MONTHS = 36;
 export const EXTENSION_RATE = 0.155;
 
 export function isExtensionLine(title: string, code?: string | null) {
