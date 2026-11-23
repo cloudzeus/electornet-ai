@@ -1579,6 +1579,7 @@ export const HELP_PAGES: HelpPage[] = [
       "Διαγραφή δεν υπάρχει: απενεργοποίηση, γιατί πάνω στους κωδικούς κρέμονται είδη, φίλτρα και σύνδεσμοι.",
       "Μια μετακίνηση που κόπηκε (επανεκκίνηση, σφάλμα δικτύου) συνεχίζει μόνη της μέσα σε ένα λεπτό από το επόμενο είδος.",
       "Οι αλλαγές στο SoftOne ισχύουν και στο παλιό site.",
+      "Η κεντρική «Refurbished» του καταστήματος δεν υπάρχει εδώ ούτε στο SoftOne: τη φτιάχνει μόνο του το κατάστημα, 10η στο μενού (πριν από τη «Διάφορα»). Μαζεύει όσες κατηγορίες έχουν «Refurbished» στο όνομα και έχουν προϊόντα, χωρίς να τις βγάζει από τη θέση τους. Νέα κατηγορία με «Refurbished» στο όνομα μπαίνει εκεί αυτόματα.",
     ],
     related: [{ label: "Χαρακτηριστικά", href: "/admin/catalog/specs" }, { label: "Ρυθμίσεις SoftOne", href: "/admin/settings/softone" }, { label: "Συγχρονισμοί", href: "/admin/softone/sync" }],
     files: ["components/admin/catalog/CategoryTree.tsx", "lib/catalog/category-admin.ts", "lib/catalog/category-ops.ts", "lib/softone/category-write.ts", "lib/softone/category-core.ts"],

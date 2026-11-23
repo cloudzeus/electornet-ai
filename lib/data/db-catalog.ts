@@ -45,7 +45,8 @@ const TTL = 5 * 60_000;
 
 /** `energy`: ο τύπος έχει ευρωπαϊκή ενεργειακή ετικέτα (για Master / Main: κάποιος απόγονός του έχει). */
 export interface CatNode { id: string; slug: string; name: string; depth: number; parentId: string | null; count: number; energy: boolean; fit: boolean; children: CatNode[] }
-interface Tree { roots: CatNode[]; bySlug: Map<string, CatNode>; byId: Map<string, CatNode>; at: number }
+/** `shopRoots` = `roots` + κατηγορίες μόνο του site (Refurbished) — για μενού και λίστες, όχι για κανόνες της διαχείρισης. */
+interface Tree { roots: CatNode[]; shopRoots: CatNode[]; bySlug: Map<string, CatNode>; byId: Map<string, CatNode>; at: number }
 let treeCache: Tree | null = null;
 
 /** Το δέντρο κατηγοριών με πλήθη — κοινό σε όλες τις σελίδες, στη μνήμη 5' με ανανέωση στο παρασκήνιο. */
@@ -68,7 +69,18 @@ async function buildTree(): Promise<Tree> {
   for (const n of [...byId.values()].sort((a, b) => b.depth - a.depth)) if (n.parentId) { const p = byId.get(n.parentId); if (p) { p.count += n.count; if (n.energy && n.count > 0) p.energy = true; if (n.fit && n.count > 0) p.fit = true; } }
   for (const n of byId.values()) if (n.parentId && n.count > 0) byId.get(n.parentId)?.children.push(n);
   const roots = [...byId.values()].filter((n) => n.depth === 0 && n.count > 0);
-  treeCache = { roots, byId, bySlug: new Map([...byId.values()].map((n) => [n.slug, n])), at: Date.now() };
+  // «Refurbished»: κατηγορία μόνο του site (όχι στο SoftOne), τελευταία στο μενού, με παιδιά όσες υποκατηγορίες έχουν refurbished προϊόντα.
+  // Τα παιδιά μένουν στη θέση τους στο δέντρο· ο σύνδεσμος /k/refurbished/<παιδί> ανακατευθύνεται στη δική τους διαδρομή.
+  // shortcut: τα βρίσκει από το όνομα («Refurbished»), αν αποκτήσουν σημαία στο ERP ας γίνει με αυτήν.
+  const shopRoots = [...roots];
+  const renew = [...byId.values()].filter((n) => n.depth > 0 && n.count > 0 && /refurbished/i.test(n.name) && !(n.parentId && /refurbished/i.test(byId.get(n.parentId)?.name ?? "")));
+  if (renew.length) {
+    const v: CatNode = { id: "site:refurbished", slug: "refurbished", name: "Refurbished", depth: 0, parentId: null, count: renew.reduce((a, n) => a + n.count, 0), energy: false, fit: false, children: renew };
+    // 10η κατά τη σειρά του πελάτη: πριν από τη «Διάφορα» (μόνο η επέκταση εγγύησης), αλλιώς τελευταία
+    const at = shopRoots.findIndex((r) => r.slug === "diafora");
+    byId.set(v.id, v); if (at < 0) shopRoots.push(v); else shopRoots.splice(at, 0, v);
+  }
+  treeCache = { roots, shopRoots, byId, bySlug: new Map([...byId.values()].map((n) => [n.slug, n])), at: Date.now() };
   return treeCache;
 }
 /** Ονόματα των «Set ειδών» και των μελών τους → το κύριο είδος και το προϊόν-σετ (SET-<spcs>), για την αναζήτηση. 5′ στη μνήμη. */
@@ -92,7 +104,7 @@ export const dbEnabled = async () => (await catalogTree()).roots.length > 0;
 
 export async function dbNavTree(): Promise<NavCategory[]> {
   const t = await catalogTree();
-  return t.roots.map((m) => ({ slug: m.slug, label: m.name, count: m.count, children: m.children.map((c) => ({ name: c.name, slug: c.slug })) }));
+  return t.shopRoots.map((m) => ({ slug: m.slug, label: m.name, count: m.count, children: m.children.map((c) => ({ name: c.name, slug: c.slug })) }));
 }
 
 /** Η διαδρομή μιας κατηγορίας από τη ρίζα: [master, main?, τύπος?]. */
@@ -379,7 +391,7 @@ async function listProductsFresh(f: ListFilter & { l3?: string }): Promise<ListR
     brands: brandCounts.map((b) => ({ slug: brandBy.get(b.brandId)?.slug ?? "", name: brandBy.get(b.brandId)?.name ?? "", count: b._count._all })).filter((b) => b.slug).sort((a, b) => b.count - a.count),
     energies: energyCounts.filter((e) => ENERGY.has(e.class)).map((e) => ({ cls: e.class, count: e._count._all })).sort((a, b) => a.cls.localeCompare(b.cls)),
     priceRange: [Math.floor(range._min.price ?? 0), Math.ceil(range._max.price ?? 0)], attributes, noSale: true,
-    categories: node ? [] : t.roots.map((m) => ({ slug: m.slug, label: m.name, count: m.count })),
+    categories: node ? [] : t.shopRoots.map((m) => ({ slug: m.slug, label: m.name, count: m.count })),
   };
 }
 

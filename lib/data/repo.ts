@@ -404,7 +404,7 @@ async function buildMegaMenuData(): Promise<MegaMenuEntry[]> {
     // Από τη βάση: πλήθη ανά υποκατηγορία, κορυφαίες μάρκες, τρία πρόσφατα προϊόντα. Χωρίς «προσφορά» — δεν υπάρχουν τιμές ακόμη.
     const dbSmart: Record<string, string> = { "eikona-kai-ichos": "eikona-ixos", computing: "computing", "klimatismos-thermansi": "klimatismos" };
     const t = await catalogTree();
-    return Promise.all(t.roots.map(async (m) => {
+    return Promise.all(t.shopRoots.map(async (m) => {
       const r = await dbListProducts({ l1: m.slug, perPage: 3 });
       return { slug: m.slug, subCounts: Object.fromEntries(m.children.map((c) => [c.slug, c.count])), brands: r.brands.slice(0, 6), quick: null, promo: null, top: r.items.map(cardProduct), guide: smart[dbSmart[m.slug]] ?? null };
     }));
