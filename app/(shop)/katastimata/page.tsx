@@ -74,10 +74,12 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
             <div className="text-eu-muted text-[length:var(--fs-15)] mb-2">
               {place ? (
                 <>Τα <strong className="text-eu-ink">{stores.length}</strong> πιο κοντινά καταστήματα στην περιοχή <strong className="text-eu-ink">{place.label}</strong></>
-              ) : stores.length || !sp.q ? (
-                <><strong className="text-eu-ink">{stores.length}</strong> καταστήματα · ταξινόμηση κατά απόσταση από {geo.source === "gps" ? "εσένα" : geo.city ?? "την Αθήνα"}</>
-              ) : (
+              ) : stores.length ? (
+                <>Ταξινόμηση κατά απόσταση από {geo.source === "gps" ? "εσένα" : geo.city ?? "την Αθήνα"}</>
+              ) : sp.q ? (
                 <>Δεν βρέθηκε κατάστημα ή περιοχή για «{sp.q}». Δοκίμασε τον Τ.Κ. ή το όνομα της πόλης.</>
+              ) : (
+                <>Δεν βρέθηκε κατάστημα με αυτά τα φίλτρα. Δοκίμασε άλλον νομό ή υπηρεσία.</>
               )}
             </div>
             <ul className="m-0 p-0 list-none grid gap-3">

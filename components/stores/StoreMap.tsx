@@ -14,7 +14,7 @@ export function StoreMap({ stores, height, single, visitor }: { stores: MapStore
   return (
     <div className="grid gap-2">
       <Lazy stores={stores} height={height} single={single} visitor={visitor} />
-      {!single && <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">{stores.length} καταστήματα στον χάρτη · οι αριθμοί ομαδοποιούν κοντινά καταστήματα, κλικ για μεγέθυνση.</p>}
+      {!single && <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Οι αριθμοί στον χάρτη ομαδοποιούν κοντινά καταστήματα, κλικ για μεγέθυνση.</p>}
     </div>
   );
 }
