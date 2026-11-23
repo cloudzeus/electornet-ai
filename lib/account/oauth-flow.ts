@@ -12,6 +12,11 @@ export async function publicOrigin(req?: Request) {
   return `${proto}://${host}`;
 }
 
+/** Η διεύθυνση του site για τα κείμενα (όροι, απόρρητο, cookies): από το .env (`AUTH_URL`)· μόνο αν λείπει, όπως τη βλέπει ο browser. */
+export async function envOrigin() {
+  return process.env.AUTH_URL?.trim().replace(/\/+$/, "") || publicOrigin();
+}
+
 /** Ασφαλής επιστροφή: μόνο σχετική διαδρομή του ίδιου site (κοινός έλεγχος: lib/security/safe-next). */
 export const safeNext = (n: unknown) => safePath(n, "/logariasmos");
 
