@@ -35,7 +35,7 @@ export async function saldocForOrder(orderId: string, client: Client = db): Prom
     },
   });
   if (!o) return null;
-  const sh = (o.shipping ?? {}) as { firstName?: string; lastName?: string; email?: string; phone?: string; street?: string; number?: string; floor?: string; zip?: string; city?: string; region?: string; notes?: string; carrierName?: string; slots?: string[]; locker?: { name?: string; address?: string; zip?: string } };
+  const sh = (o.shipping ?? {}) as { firstName?: string; lastName?: string; email?: string; phone?: string; street?: string; number?: string; floor?: string; zip?: string; city?: string; region?: string; notes?: string; carrier?: string; carrierName?: string; slots?: string[]; locker?: { name?: string; address?: string; zip?: string } };
   const inv = (o.invoice ?? null) as { vatNumber?: string; doy?: string; company?: string } | null;
 
   // όροι κάθε προσφοράς όπως ίσχυαν (για το COMMENTS1 της γραμμής)
@@ -71,7 +71,7 @@ export async function saldocForOrder(orderId: string, client: Client = db): Prom
     number: o.number, fulfilment: o.fulfilment, payment: o.payment?.method ?? o.paymentMethod ?? "", email: sh.email ?? o.customer?.email ?? o.guestEmail ?? null,
     contact: { firstName: sh.firstName, lastName: sh.lastName, phone: sh.phone },
     address: { street: sh.street, number: sh.number, floor: sh.floor, zip: sh.zip, city: sh.city, region: sh.region, notes: sh.notes },
-    carrierName: sh.carrierName ?? null, locker: sh.locker ?? null, slots: sh.slots ?? null,
+    carrier: sh.carrier ?? null, carrierName: sh.carrierName ?? null, locker: sh.locker ?? null, slots: sh.slots ?? null,
     pay: o.payment ? { instalments: o.payment.instalments, status: o.payment.status, psp: o.payment.psp, ref: o.payment.pspRef } : null,
     store: o.fulfilment === "click-collect" && o.pickupStore ? o.pickupStore : null,
     invoice: inv, invoiceTrdr, lines, shippingFee: Number(o.shippingFee), total: Number(o.total),

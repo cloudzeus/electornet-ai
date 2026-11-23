@@ -18,10 +18,10 @@ test("τιμή χωρίς ΦΠΑ, όπως στο σημερινό eshop (249,90
   assert.deepEqual(d.needs, []);
 });
 
-test("κεφαλίδα: σειρά, λιανική 200, αριθμός στο FINCODE, ονοματεπώνυμο, email στις παρατηρήσεις· χωρίς PAYMENT / SHIPMENT", () => {
+test("κεφαλίδα: σειρά, λιανική 200, αριθμός στο FINCODE, κωδικός πληρωμής, ονοματεπώνυμο, email στις παρατηρήσεις· χωρίς SHIPMENT", () => {
   const h = composeSaldoc(base, S).data.SALDOC[0];
   assert.equal(h.SERIES, 7005); assert.equal(h.TRDR, 200); assert.equal(h.FINCODE, "EUR-20261016-0007");
-  assert.equal(h.PAYMENT, null); assert.ok(!("SHIPMENT" in h), "τρόπος πληρωμής ρητά κενός, τρόπος αποστολής δεν στέλνεται");
+  assert.equal(h.PAYMENT, 1001); assert.ok(!("SHIPMENT" in h), "ο πίνακας «Τρόποι αποστολής» του SoftOne δεν στέλνεται");
   assert.equal(h.COMMENTS1, "Μαρία Παπά");
   assert.match(String(h.COMMENTS), /e-shop EUR-20261016-0007 · Courier ACS · Κάρτα/);
   assert.match(String(h.REMARKS), /Email: a@b\.gr/);
@@ -38,6 +38,19 @@ test("σειρά: κενή ρύθμιση → 7005 (όπου πέφτει το �
   assert.equal(d.data.SALDOC[0].SERIES, 7005);
   assert.deepEqual(d.needs, []);
   assert.equal(composeSaldoc(base, { ...S, series: "7049" }).data.SALDOC[0].SERIES, 7049);
+});
+
+test("κωδικοί SoftOne της Euronics: πληρωμή ανά τρόπο, μεταφορέας μόνο σε courier με κωδικό", () => {
+  const pay = (p: string) => composeSaldoc({ ...base, payment: p }, S).data.SALDOC[0].PAYMENT;
+  assert.deepEqual(["cod", "card", "no-card", "bank", "iris", "paypal", "apple", "google"].map(pay), [1000, 1001, 1004, 1005, 1006, 1007, 1008, 1009]);
+  // χωρίς κωδικό: ρητά κενό (όχι να λείπει — τότε το SoftOne βάζει την προεπιλογή του πελάτη) και τίποτα δεν μπλοκάρει
+  for (const p of ["klarna", "tbi", "revolut", "store", "later", ""]) { const d = composeSaldoc({ ...base, payment: p }, S); assert.equal(d.data.SALDOC[0].PAYMENT, null, p); assert.ok("PAYMENT" in d.data.SALDOC[0]); assert.deepEqual(d.needs, []); }
+  const car = (o: Partial<SaldocOrder>) => composeSaldoc({ ...base, ...o }, S).data.MTRDOC[0].SOCARRIER;
+  assert.deepEqual(["elta", "geniki", "speedex", "acs", "asap"].map((c) => car({ carrier: c })), [2001, 2002, 2003, 2004, 2006]);
+  assert.equal(car({ carrier: "boxnow", locker: { name: "Θ", zip: "11111" } }), undefined);
+  assert.equal(car({ carrier: null }), undefined);
+  assert.equal(car({ fulfilment: "click-collect", carrier: "acs", store: { name: "Euronics Πειραιά" } }), undefined);
+  assert.equal(car({ fulfilment: "appointment", carrier: "acs" }), undefined);
 });
 
 test("παρατηρήσεις: πλήρης ανάλυση πληρωμής και αποστολής, κανένας τρόπος πληρωμής δεν μπλοκάρει", () => {

@@ -5,8 +5,9 @@
  * 23/11/2026: 258 παραγγελίες από 1/9, όλες σειρά 7005 / τύπος 7005 «ΠΑΡΑΓΓΕΛΙΑ e-Shop», πελάτης 200, SHIPMENT κενό):
  * - SERIES 7005 «ΠΑΡΑΓΓΕΛΙΑ e-Shop» (προεπιλογή, αλλάζει από τις ρυθμίσεις), FINCODE = ο αριθμός της παραγγελίας στο site
  * - TRDR 200 «ΠΕΛΑΤΗΣ ΛΙΑΝΙΚΗΣ» για αποδείξεις· η καρτέλα του πελάτη μόνο όταν ζητήθηκε τιμολόγιο
- * - Τρόπος πληρωμής (PAYMENT) και τρόπος αποστολής (SHIPMENT) ΔΕΝ συμπληρώνονται (απόφαση 23/11/2026): όλες οι οδηγίες
- *   πληρωμής και αποστολής γράφονται αναλυτικά στις παρατηρήσεις (REMARKS)
+ * - Τρόπος πληρωμής (PAYMENT) και μεταφορέας (MTRDOC.SOCARRIER) με τους κωδικούς που έδωσε η Euronics (23/11/2026)·
+ *   όπου δεν υπάρχει κωδικός μένουν κενά. Όλες οι οδηγίες πληρωμής και αποστολής γράφονται ΚΑΙ αναλυτικά στις
+ *   παρατηρήσεις (REMARKS). Ο πίνακας «Τρόποι αποστολής» (SHIPMENT) του SoftOne έχει άλλη χρήση και δεν στέλνεται
  * - COMMENTS1 = ονοματεπώνυμο· στοιχεία αποστολής στο MTRDOC (SHIPPINGADDR / SHPZIP / SHPCITY / SHPDISTRICT, CCCSHP*)
  * - ITELINES.PRICE ΧΩΡΙΣ ΦΠΑ (το SoftOne προσθέτει τον ΦΠΑ του είδους)· το στρογγύλεμα κλείνει με DISC1VAL κεφαλίδας
  * Εκπτώσεις γραμμής (επίσης χωρίς ΦΠΑ): DISC1VAL προσφορά τιμής / δώρο, DISC2VAL κουπόνι, DISC3VAL τρόπος πληρωμής.
@@ -16,6 +17,18 @@
 export const DEFAULT_SERIES = "7005";
 /** Ο γενικός πελάτης λιανικής όπου γράφονται όλες οι αποδείξεις του σημερινού eshop (258 στις 258, 23/11/2026). */
 export const DEFAULT_RETAIL_TRDR = "200";
+/**
+ * Τρόπος πληρωμής του site → κωδικός PAYMENT του SoftOne. 1005–1011 τους έστειλε η Euronics 23/11/2026 για το νέο site·
+ * 1000 / 1001 / 1004 είναι όσοι χρησιμοποιούσε ήδη το παλιό. Όλοι ελέγχθηκαν την ίδια μέρα (selectorFields + calculate
+ * σε σειρά 7005). Το GetTable ΔΕΝ δείχνει τους 1005–1011: μην το εμπιστευτείς για το αν υπάρχει ένας κωδικός.
+ * Χωρίς κωδικό (TBI, Revolut, στο κατάστημα, κατόπιν συνεννόησης): το πεδίο μένει κενό και μιλούν οι παρατηρήσεις.
+ * «bank» = 1005 «Viva Έμβασμα» με εντολή του χρήστη (23/11/2026), παρότι η κατάθεσή μας γίνεται απευθείας στους λογαριασμούς
+ * της εταιρείας· υπάρχει και 1003 «Τραπεζικό Έμβασμα» αν το λογιστήριο ζητήσει αλλαγή.
+ * Υπάρχουν και 1010 Microsoft Pay, 1011 Facebook Pay: το site δεν έχει τέτοιους τρόπους.
+ */
+export const S1_PAYMENT: Record<string, number> = { cod: 1000, card: 1001, "no-card": 1004, bank: 1005, iris: 1006, paypal: 1007, apple: 1008, google: 1009 };
+/** Courier του site → μεταφορέας (SOCARRIER) του SoftOne, όπως τους έστειλε η Euronics 23/11/2026. BOX NOW: δεν έχει κωδικό. */
+export const S1_CARRIER: Record<string, number> = { elta: 2001, geniki: 2002, speedex: 2003, acs: 2004, asap: 2006 };
 export const PAY_LABEL: Record<string, string> = { card: "Κάρτα", apple: "Apple Pay", google: "Google Pay", revolut: "Revolut Pay", paypal: "PayPal", klarna: "Klarna", tbi: "TBI Bank", iris: "IRIS", "no-card": "Δόσεις χωρίς κάρτα", bank: "Κατάθεση σε τράπεζα", cod: "Αντικαταβολή", store: "Στο κατάστημα" };
 const FUL_LABEL: Record<string, string> = { courier: "Courier", freight: "Μεταφορική", "click-collect": "Παραλαβή από κατάστημα", appointment: "Παράδοση με ραντεβού" };
 const PAY_STATE: Record<string, string> = { paid: "ΕΞΟΦΛΗΜΕΝΗ", pending: "σε αναμονή πληρωμής", processing: "η πληρωμή ελέγχεται από τον πάροχο", review: "η πληρωμή θέλει έλεγχο πριν την εκτέλεση", failed: "η πληρωμή απέτυχε", cancelled: "ακυρώθηκε" };
@@ -64,6 +77,8 @@ export interface SaldocOrder {
   contact: { firstName?: string; lastName?: string; phone?: string };
   address: { street?: string; number?: string; floor?: string; zip?: string; city?: string; region?: string; notes?: string };
   carrierName?: string | null;
+  /** ο courier που διάλεξε ο πελάτης (acs, geniki, elta, asap, boxnow) — για τον μεταφορέα του παραστατικού */
+  carrier?: string | null;
   /** η πληρωμή όπως είναι τη στιγμή της σύνθεσης και οι ώρες που βολεύουν τον πελάτη — μόνο για τις παρατηρήσεις */
   pay?: { instalments?: number; status?: string; psp?: string | null; ref?: string | null } | null;
   slots?: string[] | null;
@@ -188,7 +203,7 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
     ship = { addr: street, zip: a.zip ?? "", city: a.city ?? "", district: a.region ?? "", line: cut([street, [a.zip, a.city].filter(Boolean).join(" ")].filter(Boolean).join(", "), 255) };
   }
   const how = [FUL_LABEL[o.fulfilment] ?? o.fulfilment, o.fulfilment === "courier" ? o.carrierName : null, o.fulfilment === "click-collect" ? o.store?.name : null].filter(Boolean).join(" ");
-  // Παρατηρήσεις: ΟΛΕΣ οι οδηγίες πληρωμής και αποστολής, αφού τα πεδία PAYMENT / SHIPMENT μένουν κενά. Οι σημειώσεις του
+  // Παρατηρήσεις: ΟΛΕΣ οι οδηγίες πληρωμής και αποστολής — τα πεδία PAYMENT / SOCARRIER δεν έχουν κωδικό για κάθε τρόπο. Οι σημειώσεις του
   // πελάτη τελευταίες, ώστε ένα μακρύ κείμενο να μην κόψει τις οδηγίες.
   const eur = (n: number) => `${n.toFixed(2).replace(".", ",")} €`;
   const cod = o.payment === "cod", atStore = o.payment === "store", inst = o.pay?.instalments ?? 1;
@@ -219,9 +234,9 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
     data: {
       SALDOC: [{
         SERIES: Number(series), TRDR: trdr ? Number(trdr) : null, FINCODE: o.number,
-        // ρητά κενό: αν το πεδίο λείπει, το SoftOne βάζει μόνο του την προεπιλογή του πελάτη 200 («Μετρητά-Πιστωτική κάρτα-
-        // Προκαταβολή»), που θα ήταν λάθος οδηγία (calculate 23/11/2026). Ο τρόπος αποστολής (SHIPMENT) μένει κενός όταν δεν στέλνεται.
-        PAYMENT: null,
+        // χωρίς κωδικό: ρητά κενό. Αν το πεδίο λείπει, το SoftOne βάζει μόνο του την προεπιλογή του πελάτη 200 («Μετρητά-
+        // Πιστωτική κάρτα-Προκαταβολή»), που θα ήταν λάθος οδηγία (calculate 23/11/2026)
+        PAYMENT: S1_PAYMENT[o.payment] ?? null,
         COMMENTS: cut(`e-shop ${o.number} · ${how} · ${PAY_LABEL[o.payment] ?? o.payment}`, 255),
         COMMENTS1: name || null,
         REMARKS: remarks.slice(0, 2000),
@@ -229,6 +244,8 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
       }],
       MTRDOC: [{
         SHIPPINGADDR: ship.addr || null, SHPZIP: ship.zip || null, SHPCITY: ship.city || null, SHPDISTRICT: ship.district || null,
+        // μεταφορέας μόνο όταν φεύγει με courier που έχει κωδικό· παραλαβή, ραντεβού, μεταφορική, θυρίδα: κενό
+        ...(o.fulfilment === "courier" && o.carrier && S1_CARRIER[o.carrier] ? { SOCARRIER: S1_CARRIER[o.carrier] } : {}),
         // Επωνυμία / ΑΦΜ / ΔΟΥ είναι η ταυτότητα του παραστατικού: σε τιμολόγιο η εταιρεία, σε απόδειξη ο αγοραστής
         // (το ονοματεπώνυμο μένει πάντα στο COMMENTS1). Μήκη όπως τα δηλώνει το SoftOne: NAME 128, AFM 30, ΔΟΥ 64, ADDRESS 128.
         CCCSHPNAME: cut(o.invoice?.company || name, 128) || null, CCCSHPPHONE: phone || null, CCCSHPADDRESS: cut(ship.line, 128) || null,
