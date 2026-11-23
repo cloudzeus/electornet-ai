@@ -42,9 +42,12 @@ export async function StoreFinder({ store, image, zoneNo, geoCity, geoSource = "
         </div>
         <div className="relative bg-eu-blue-dark min-h-[260px] @lg:min-h-0">
           <Image src={image} alt={c.katastima_euronics} fill sizes="(max-width: 1024px) 100vw, 540px" className="object-cover" />
-          <div className="absolute bottom-4 left-4 right-4 @lg:bottom-[18px] @lg:left-5 @lg:right-5">
-            <NearestStoreCard initial={near} geoCity={geoCity} geoSource={geoSource} />
-          </div>
+          {/* κατάστημα μόνο αφού ο πελάτης δώσει θέση (GPS ή ΤΚ/πόλη) — ποτέ από εκτίμηση IP, όπως και στο πλακίδιο του hero */}
+          {(geoSource === "gps" || geoSource === "manual") && (
+            <div className="absolute bottom-4 left-4 right-4 @lg:bottom-[18px] @lg:left-5 @lg:right-5">
+              <NearestStoreCard initial={near} geoCity={geoCity} geoSource={geoSource} />
+            </div>
+          )}
         </div>
       </div>
     </section>

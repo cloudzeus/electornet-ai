@@ -413,7 +413,11 @@ export const generatedCopy = {
     "tachydromikos_kodikas_i_poli": "Ταχυδρομικός κώδικας ή πόλη",
     "vres": "Βρες",
     "chrisi_tis_topothesias_moy": "Χρήση της τοποθεσίας μου",
-    "tk_i_poli": "ΤΚ ή πόλη"
+    "tk_i_poli": "ΤΚ ή πόλη",
+    "katastimata_se_oli_tin": "καταστήματα σε όλη την Ελλάδα!",
+    "ena_einai_dipla_soy": "Ένα είναι δίπλα σου.",
+    "allos_tk_i_poli": "Άλλος ΤΚ ή πόλη",
+    "anazitisi": "Αναζήτηση…"
   },
   "handoff": {
     "to_katastima_soy": "Το κατάστημά σου",

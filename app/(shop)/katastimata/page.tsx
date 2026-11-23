@@ -8,6 +8,7 @@ import { getRegions, getStores } from "@/lib/data/repo";
 import { geoFromRequest, storesNear, geoSourceLabel } from "@/lib/geo/ip";
 import { LocateBar } from "@/components/stores/LocateBar";
 import { NearestStoreCard } from "@/components/stores/NearestStoreCard";
+import { geocodePlace } from "@/lib/stores/geocode";
 
 export const metadata: Metadata = { title: "Καταστήματα Euronics: διευθύνσεις & ωράρια", description: "Βρες το κοντινότερο κατάστημα Euronics: 350 καταστήματα-μέλη σε όλη την Ελλάδα με διεύθυνση, ωράριο, τηλέφωνο, υπηρεσίες και παραλαβή σε 2 ώρες." };
 
@@ -17,7 +18,10 @@ const SERVICE_LABEL: Record<string, string> = { "click-collect": "Παραλαβ
 export default async function StoresPage({ searchParams }: { searchParams: Promise<{ q?: string; region?: string; service?: string }> }) {
   const sp = await searchParams;
   const geo = await geoFromRequest();
-  const [stores, regions] = await Promise.all([getStores({ q: sp.q, region: sp.region, service: sp.service }, geo), getRegions()]);
+  const [byText, regions] = await Promise.all([getStores({ q: sp.q, region: sp.region, service: sp.service }, geo), getRegions()]);
+  // Το κείμενο δεν υπάρχει σε κανένα κατάστημα («Κυψέλη», ΤΚ χωρίς δικό του κατάστημα): το διαβάζουμε ως τόπο και δείχνουμε τα πιο κοντινά του.
+  const place = sp.q?.trim() && !byText.length ? await geocodePlace(sp.q.trim(), 4000) : null;
+  const stores = place ? (await getStores({ region: sp.region, service: sp.service }, place)).slice(0, 12) : byText;
   const near = await storesNear(geo, 3);
   return (
     <div className="eu-container">
@@ -68,7 +72,13 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
         <div className="grid grid-cols-1 @lg:grid-cols-[minmax(0,1fr)_1fr] gap-5 items-start">
           <div>
             <div className="text-eu-muted text-[length:var(--fs-15)] mb-2">
-              <strong className="text-eu-ink">{stores.length}</strong> καταστήματα · ταξινόμηση κατά απόσταση από {geo.source === "gps" ? "εσένα" : geo.city ?? "την Αθήνα"}
+              {place ? (
+                <>Τα <strong className="text-eu-ink">{stores.length}</strong> πιο κοντινά καταστήματα στην περιοχή <strong className="text-eu-ink">{place.label}</strong></>
+              ) : stores.length || !sp.q ? (
+                <><strong className="text-eu-ink">{stores.length}</strong> καταστήματα · ταξινόμηση κατά απόσταση από {geo.source === "gps" ? "εσένα" : geo.city ?? "την Αθήνα"}</>
+              ) : (
+                <>Δεν βρέθηκε κατάστημα ή περιοχή για «{sp.q}». Δοκίμασε τον Τ.Κ. ή το όνομα της πόλης.</>
+              )}
             </div>
             <ul className="m-0 p-0 list-none grid gap-3">
               {stores.map((s) => (
@@ -77,7 +87,7 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
             </ul>
           </div>
           <div className="@lg:sticky @lg:top-4 order-first @lg:order-none">
-            <StoreMap stores={stores.map((s) => ({ id: s.id, slug: s.slug, name: s.name, city: s.city, address: s.address, zip: s.zip, phone: s.phone, openUntil: s.openUntil, lat: s.lat, lng: s.lng }))} height={520} visitor={geo.source === "gps" || geo.source === "manual" ? { lat: geo.lat, lng: geo.lng, label: geo.source === "gps" ? "Η θέση σου" : geo.city ?? "Η περιοχή σου" } : null} />
+            <StoreMap stores={stores.map((s) => ({ id: s.id, slug: s.slug, name: s.name, city: s.city, address: s.address, zip: s.zip, phone: s.phone, openUntil: s.openUntil, lat: s.lat, lng: s.lng }))} height={520} visitor={place ? { lat: place.lat, lng: place.lng, label: place.label } : geo.source === "gps" || geo.source === "manual" ? { lat: geo.lat, lng: geo.lng, label: geo.source === "gps" ? "Η θέση σου" : geo.city ?? "Η περιοχή σου" } : null} />
             <div className="relative h-[140px] rounded-xl overflow-hidden mt-3">
               <Image src="/img/store-front.jpg" alt="Κατάστημα Euronics" fill sizes="600px" className="object-cover" />
             </div>

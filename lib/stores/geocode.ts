@@ -20,6 +20,20 @@ export async function geocodeAddress(q: string, opts: { timeoutMs?: number; pref
   return r ? { lat: Number(r.lat), lng: Number(r.lon), label: r.display_name, score: r.importance ?? 0 } : null;
 }
 
+/**
+ * Ό,τι γράφει ο πελάτης («Κυψέλη», «546 22», «Ερμού 10 Αθήνα») → σημείο + σύντομη ετικέτα για την οθόνη. Μόνο Ελλάδα.
+ * null όταν δεν βρεθεί ή δεν απαντήσει έγκαιρα το Nominatim.
+ */
+export async function geocodePlace(q: string, timeoutMs?: number): Promise<{ lat: number; lng: number; label: string } | null> {
+  const r = await geocodeAddress(/ελλάδα|greece/i.test(q) ? q : `${q}, Ελλάδα`, { timeoutMs }).catch(() => null);
+  if (!r) return null;
+  // ΤΚ: το OpenStreetMap τον ονομάζει «7η Κοινότητα Αθηνών» — ο πελάτης αναγνωρίζει αυτό που έγραψε
+  if (/^\d{3}\s?\d{2}$/.test(q.trim())) return { lat: r.lat, lng: r.lng, label: `Τ.Κ. ${q.trim()}` };
+  const parts = r.label.split(",").map((s) => s.trim()).filter((s) => s && !/^\d{3}\s?\d{2}$/.test(s) && !/^(Δημοτική|Δήμος|Περιφερειακή|Περιφέρεια|Αποκεντρωμένη|Ελλάδα|Greece)/i.test(s));
+  // first meaningful part (city / village / street); a second part only when the first looks like a street number address
+  return { lat: r.lat, lng: r.lng, label: /\d/.test(parts[0] ?? "") ? parts.slice(0, 2).join(", ") : parts[0] ?? r.label };
+}
+
 export const distanceKm = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
   const R = 6371, dLat = ((b.lat - a.lat) * Math.PI) / 180, dLng = ((b.lng - a.lng) * Math.PI) / 180;
   const h = Math.sin(dLat / 2) ** 2 + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
