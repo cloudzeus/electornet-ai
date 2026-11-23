@@ -4,6 +4,7 @@ import { PageIntro } from "@/components/site/PageIntro";
 import { Countdown } from "@/components/commerce/Countdown";
 import { ProductGrid } from "@/components/catalog/ProductGrid";
 import { SortBar } from "@/components/catalog/SortBarServer";
+import { Pagination } from "@/components/catalog/Pagination";
 import { AdSlot } from "@/components/promo/AdSlot";
 import Link from "next/link";
 import { offerProductsPage, pickAd } from "@/lib/promo/landing";
@@ -36,6 +37,7 @@ export default async function OffersPage({ searchParams }: { searchParams: Promi
       <div className="eu-canvas eu-gutter py-8">
         <SortBar total={result.total} page={result.page} pages={result.pages} fit={result.items.some(fitMattersFor)} />
         {result.total ? <ProductGrid products={result.items} view={sp.view === "list" ? "list" : "grid"} /> : <p className="m-0 rounded-2xl bg-eu-surface px-5 py-8 text-center text-eu-ink-2 text-[length:var(--fs-16)]">Δεν τρέχει προσφορά αυτή τη στιγμή. Δες τα <Link href="/proionta" className="font-bold text-eu-blue underline">προϊόντα μας</Link> ή γύρνα σύντομα.</p>}
+        <Pagination page={result.page} pages={result.pages} basePath="/prosfores" params={sp} />
       </div>
     </div>
   );
