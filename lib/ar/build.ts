@@ -27,7 +27,7 @@ import type { Product } from "@/lib/data/types";
 export interface ArInput { id: string; title: string; dims: Dims; /** υποψήφιες φωτογραφίες, cutouts πρώτα */ images: string[]; /** επιλογή διαχειριστή: αυτή γεμίζει την πρόσοψη */ frontImage?: string | null; /** ειδική μορφή (βλ. placement profiles) */ archetype?: "tv"; /** τηλεόραση: πάνελ και βάση (βλ. arPlan) */ tv?: TvSpec }
 export interface ArModel { glb: Buffer; usdz: Buffer; etag: string }
 
-const VERSION = 21; // 21: πάντα συμπαγές στερεό (η φωτογραφία υπό γωνία μπαίνει ολόκληρη στην πρόσοψη) · 17: ρεαλιστικό σώμα · 18: τηλεόραση ως πάνελ με/χωρίς βάση, προφίλ τοποθέτησης · 19: πραγματική βάση TV, USDZ κατά ARKit · 20: ένα mesh στον τοίχο, ετικέτες στο μέγεθος της έδρας
+const VERSION = 23; // 23: πρόσοψη = πάντα η κύρια φωτογραφία του προϊόντος (όχι όποια της γκαλερί ταιριάζει στον λόγο πλευρών: έμπαιναν ετικέτες, σχέδια, ανοιχτές πόρτες) · 21: πάντα συμπαγές στερεό (η φωτογραφία υπό γωνία μπαίνει ολόκληρη στην πρόσοψη) · 17: ρεαλιστικό σώμα · 18: τηλεόραση ως πάνελ με/χωρίς βάση, προφίλ τοποθέτησης · 19: πραγματική βάση TV, USDZ κατά ARKit · 20: ένα mesh στον τοίχο, ετικέτες στο μέγεθος της έδρας
 const mem = new Map<string, ArModel>();
 
 export const arKey = (i: ArInput) => createHash("sha1").update(JSON.stringify({ v: VERSION, id: i.id, w: i.dims.w, h: i.dims.h, d: i.dims.d, imgs: i.images, front: i.frontImage ?? null, a: i.archetype ?? null, tv: i.tv ?? null })).digest("hex").slice(0, 20);

@@ -20,7 +20,7 @@ const icon = "size-11 inline-flex items-center justify-center rounded-full text-
  * τη βιβλιοθήκη πολυμέσων, σειρά (σύρσιμο ή βελάκια — η πρώτη είναι η κύρια),
  * εναλλακτικό κείμενο, αφαίρεση / επαναφορά. Κάθε αλλαγή αποθηκεύεται αμέσως.
  */
-export function ProductImages({ productId, initial, canWrite, canUploadToLibrary, ar, embedded = false, kind = "image" }: { productId: string; initial: ProductImageDTO[]; canWrite: boolean; canUploadToLibrary: boolean; /** μέσα σε ενότητα (accordion): χωρίς δικό του πλαίσιο και τίτλο */ embedded?: boolean; /** banner = εικόνες του κατασκευαστή με κείμενο (χωρίς «κύρια» / AR) */ kind?: ProductMediaKind; /** «Δες το στον χώρο σου»: ποια φωτογραφία γεμίζει την πρόσοψη του στερεού (null = αυτόματα η πιο μετωπική) */ ar?: { front: string | null } }) {
+export function ProductImages({ productId, initial, canWrite, canUploadToLibrary, ar, embedded = false, kind = "image" }: { productId: string; initial: ProductImageDTO[]; canWrite: boolean; canUploadToLibrary: boolean; /** μέσα σε ενότητα (accordion): χωρίς δικό του πλαίσιο και τίτλο */ embedded?: boolean; /** banner = εικόνες του κατασκευαστή με κείμενο (χωρίς «κύρια» / AR) */ kind?: ProductMediaKind; /** «Δες το στον χώρο σου»: ποια φωτογραφία γεμίζει την πρόσοψη του στερεού (null = αυτόματα η κύρια) */ ar?: { front: string | null } }) {
   const [images, setImages] = useState(initial);
   // νέα δεδομένα από τον server (router.refresh, π.χ. μετά από δημοσίευση απόδελτίωσης): η λίστα ακολουθεί χωρίς να χαθεί το μήνυμα
   const [prevInitial, setPrevInitial] = useState(initial);
@@ -33,7 +33,7 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
   const ids = images.filter((i) => !i.hidden).map((i) => i.id).join(",");
   const firstIds = useRef(ids);
   useEffect(() => { if (banner && ids !== firstIds.current) { firstIds.current = ids; router.refresh(); } }, [banner, ids, router]);
-  const chooseArFront = (url: string | null) => { setArFront(url); start(async () => { await setArFrontImage(productId, url); say(url ? "Αυτή η φωτογραφία είναι πλέον η όψη του στερεού στο AR." : "Η όψη του στερεού επιλέγεται πάλι αυτόματα (η πιο μετωπική)."); }); };
+  const chooseArFront = (url: string | null) => { setArFront(url); start(async () => { await setArFrontImage(productId, url); say(url ? "Αυτή η φωτογραφία είναι πλέον η όψη του στερεού στο AR." : "Η όψη του στερεού είναι πάλι η κύρια φωτογραφία."); }); };
   const [picker, setPicker] = useState(false);
   const [cutFor, setCutFor] = useState<{ im: ProductImageDTO; n: number } | null>(null);
   const [msg, setMsg] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
@@ -93,7 +93,7 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className={embedded ? "sr-only" : "m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]"}>{banner ? "Banners" : "Φωτογραφίες"} <span className="text-eu-muted font-normal tabular-nums">· {visible.length}</span></h3>
-          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">{banner ? "Εικόνες του κατασκευαστή με κείμενο (π.χ. από το site του ή το φυλλάδιο). Εμφανίζονται στη σελίδα του προϊόντος με αυτή τη σειρά· πιο κάτω η απόδελτίωση τις κάνει κείμενο και φωτογραφίες." : "Η πρώτη είναι η κύρια. Σύρε για να αλλάξεις σειρά, ή χρησιμοποίησε τα βελάκια."} Κάθε αλλαγή αποθηκεύεται αμέσως.{ar && !banner ? <> Η «Όψη AR» μπαίνει στην πρόσοψη του στερεού στο «Δες το στον χώρο σου»{arFront ? "" : " — τώρα επιλέγεται αυτόματα η πιο μετωπική"}.</> : null}</p>
+          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">{banner ? "Εικόνες του κατασκευαστή με κείμενο (π.χ. από το site του ή το φυλλάδιο). Εμφανίζονται στη σελίδα του προϊόντος με αυτή τη σειρά· πιο κάτω η απόδελτίωση τις κάνει κείμενο και φωτογραφίες." : "Η πρώτη είναι η κύρια. Σύρε για να αλλάξεις σειρά, ή χρησιμοποίησε τα βελάκια."} Κάθε αλλαγή αποθηκεύεται αμέσως.{ar && !banner ? <> Η «Όψη AR» μπαίνει στην πρόσοψη του στερεού στο «Δες το στον χώρο σου»{arFront ? "" : " — τώρα μπαίνει η κύρια φωτογραφία"}.</> : null}</p>
         </div>
         {canWrite && (
           <div className="flex flex-wrap gap-2">

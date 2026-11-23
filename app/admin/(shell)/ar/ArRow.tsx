@@ -176,7 +176,7 @@ export function ArRow({ row: r0, open: open0 = false }: { row: ArRowData; open?:
           </div>
 
           {!r.glbUrl && (
-            <Block title="Πρόσοψη του στερεού" hint={r.frontImage ? "Η επιλεγμένη φωτογραφία γεμίζει ολόκληρη την πρόσοψη (Π × Υ)." : "Αυτόματα μπαίνει η πιο μετωπική φωτογραφία· αν είναι υπό γωνία, μπαίνει ολόκληρη στο κέντρο. Διάλεξε μια μετωπική για να γεμίσει την πρόσοψη."}>
+            <Block title="Πρόσοψη του στερεού" hint={r.frontImage ? "Η επιλεγμένη φωτογραφία γεμίζει ολόκληρη την πρόσοψη (Π × Υ)." : "Αυτόματα μπαίνει η κύρια φωτογραφία του προϊόντος: αν είναι κατά μέτωπο γεμίζει την πρόσοψη, αλλιώς μπαίνει ολόκληρη στο κέντρο. Διάλεξε μια μετωπική για να γεμίσει την πρόσοψη."}>
               <div role="radiogroup" aria-label="Φωτογραφία πρόσοψης" className="grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2">
                 <button type="button" role="radio" aria-checked={front === ""} disabled={pending} onClick={() => setFront(null)}
                   className={`grid place-items-center gap-1 rounded-xl border-2 aspect-square p-1 text-[length:var(--fs-13)] font-bold cursor-pointer ${front === "" ? "border-eu-navy text-eu-navy" : "border-eu-line text-eu-ink-3 hover:border-eu-navy"}`}>

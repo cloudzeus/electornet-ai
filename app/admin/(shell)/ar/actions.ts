@@ -77,7 +77,7 @@ export async function detachArModel(productId: string, kind: "glb" | "usdz") {
   return { ok: true as const };
 }
 
-/** Η φωτογραφία που γεμίζει την πρόσοψη του στερεού όταν δεν υπάρχει 3D μοντέλο. null = αυτόματα η πιο μετωπική. */
+/** Η φωτογραφία που γεμίζει την πρόσοψη του στερεού όταν δεν υπάρχει 3D μοντέλο. null = αυτόματα η κύρια φωτογραφία. */
 export async function setArFrontImage(productId: string, frontImage: string | null) {
   const user = await requirePermission("catalog.products.write");
   await db.productAr.upsert({ where: { productId }, update: { frontImage, updatedById: user.id }, create: { productId, enabled: await autoEnabled(productId), frontImage, updatedById: user.id } });

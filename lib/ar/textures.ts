@@ -3,6 +3,7 @@ import sharp from "sharp";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { resolveInside } from "@/lib/security/local-path";
+import { frontMode, type FrontMode } from "./front";
 
 /**
  * Υφές του μοντέλου AR, όλες PNG με διαφάνεια:
@@ -25,17 +26,16 @@ async function loadImage(src: string): Promise<Buffer | null> {
   } catch { return null; }
 }
 
-export interface FrontSource { trimmed: Buffer; aspect: number; mode: "face" | "billboard" | "top" }
+export interface FrontSource { trimmed: Buffer; aspect: number; mode: FrontMode }
 
 /**
- * Διαλέγει τη φωτογραφία που ταιριάζει καλύτερα στην πρόσοψη Π×Υ και την
- * κόβει στα όριά της (διαφανή ή λευκά περιθώρια). Αν ο λόγος πλευρών της
- * είναι κοντά στο Π/Υ είναι κατά μέτωπο και γεμίζει την έδρα· αλλιώς είναι
- * σε γωνία (φαίνεται και η πλαϊνή πλευρά, άρα πιο φαρδιά) και μπαίνει ως
- * billboard με το πραγματικό ύψος, ώστε να μην παραμορφώνεται.
+ * Η φωτογραφία της πρόσοψης: η ΚΥΡΙΑ του προϊόντος (η πρώτη που φορτώνει), κομμένη στα όριά της (διαφανή ή λευκά
+ * περιθώρια). Κατά μέτωπο γεμίζει την έδρα· αλλιώς μπαίνει ολόκληρη με τις αναλογίες της (βλ. `frontMode`).
+ * Δεν ψάχνουμε στην υπόλοιπη γκαλερί: όποια φωτογραφία «ταίριαζε» στον λόγο πλευρών ήταν συχνά ενεργειακή ετικέτα,
+ * τεχνικό σχέδιο, κοντινό στα κουμπιά, ανοιχτή πόρτα ή λήψη υπό γωνία (έλεγχος με το μάτι σε 82 τέτοιες: οι μισές λάθος).
+ * Άλλη φωτογραφία μπαίνει μόνο με επιλογή του διαχειριστή («Όψη AR»).
  */
 export async function pickFront(candidates: string[], faceAspect: number, forceFace = false, topAspect?: number): Promise<FrontSource | null> {
-  let best: FrontSource | null = null, bestErr = Infinity;
   for (const src of candidates) {
     const raw = await loadImage(src);
     if (!raw) continue;
@@ -44,15 +44,9 @@ export async function pickFront(candidates: string[], faceAspect: number, forceF
     const meta = await sharp(trimmed).metadata();
     if (!meta.width || !meta.height) continue;
     const aspect = meta.width / meta.height;
-    const errFace = Math.abs(Math.log(aspect / faceAspect));
-    // Επίπεδες συσκευές (εστίες, σκούπες ρομπότ): η φωτογραφία είναι από πάνω — ταιριάζει με την πάνω έδρα Π×Β
-    const errTop = topAspect && !forceFace ? Math.abs(Math.log(aspect / topAspect)) : Infinity;
-    const err = Math.min(errFace, errTop);
-    // Όταν τη διάλεξε ο διαχειριστής ως «όψη», γεμίζει πάντα την πρόσοψη
-    if (err < bestErr) { bestErr = err; best = { trimmed, aspect, mode: errTop < errFace && errTop <= 0.2 ? "top" : forceFace || errFace <= 0.12 ? "face" : "billboard" }; }
-    if (bestErr <= 0.05) break;
+    return { trimmed, aspect, mode: frontMode(aspect, faceAspect, forceFace, topAspect) };
   }
-  return best;
+  return null;
 }
 
 /**

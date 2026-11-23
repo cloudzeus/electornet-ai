@@ -92,7 +92,7 @@ export default async function ArAdminPage({ searchParams }: { searchParams: Prom
         <p className="m-0 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[75ch]">Ο πελάτης βλέπει τη συσκευή στον χώρο του σε πραγματικό μέγεθος. Ισχύει αυτόματα για κάθε προϊόν με <b className="text-eu-ink">διαστάσεις</b> και φωτογραφία, στις κατηγορίες που συμμετέχουν· εδώ βλέπεις ποια έχουν AR, γιατί όχι τα υπόλοιπα, και ρυθμίζεις το καθένα.</p>
       </div>
 
-      <nav aria-label="Κατάσταση AR" className="grid grid-cols-2 @3xl:grid-cols-4 gap-2">
+      <nav data-help="ar.tiles" aria-label="Κατάσταση AR" className="grid grid-cols-2 @3xl:grid-cols-4 gap-2">
         {TILES.map((t) => {
           const on = f === t.v;
           return (
@@ -106,7 +106,7 @@ export default async function ArAdminPage({ searchParams }: { searchParams: Prom
         })}
       </nav>
 
-      <details className="group/cats rounded-2xl border border-eu-line bg-white">
+      <details data-help="ar.categories" className="group/cats rounded-2xl border border-eu-line bg-white">
         <summary className="flex flex-wrap items-center gap-2 p-4 min-h-11 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
           <LayoutList className="size-4 text-eu-blue shrink-0" aria-hidden />
           <span className="font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Κατηγορίες που συμμετέχουν στο AR</span>
@@ -116,7 +116,7 @@ export default async function ArAdminPage({ searchParams }: { searchParams: Prom
         <div className="px-4 pb-4"><ArCategories tree={catTree} initial={arCats} canWrite={can(user.permissions, "catalog.products.write")} /></div>
       </details>
 
-      <form className="grid gap-2 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,16rem)_auto] items-end">
+      <form data-help="ar.filter" className="grid gap-2 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,16rem)_auto] items-end">
         <label className="grid gap-1 text-[length:var(--fs-13)] font-bold text-eu-ink-2">Αναζήτηση
           <span className="relative">
             <Search className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-eu-muted" aria-hidden />
@@ -133,7 +133,7 @@ export default async function ArAdminPage({ searchParams }: { searchParams: Prom
 
       <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]" aria-live="polite"><b className="text-eu-ink tabular-nums">{total.toLocaleString("el-GR")}</b> {total === 1 ? "προϊόν" : "προϊόντα"}{filter.v ? <> · {filter.label}</> : null}{q ? <> · «{q}»</> : null}{bounds > 0 && !f ? <> · <a href="?f=bounds" className="font-bold text-eu-red hover:underline">{bounds} με διαστάσεις εκτός ορίων</a></> : null}</p>
 
-      <div className="grid gap-3 @container">
+      <div data-help="ar.list" className="grid gap-3 @container">
         {slice.map((r) => <ArRow key={r.id} row={r} />)}
         {!slice.length && <p className="m-0 rounded-2xl border border-eu-line bg-white p-8 text-center text-eu-muted">Κανένα προϊόν με αυτά τα κριτήρια.</p>}
         <div className="flex justify-center"><Pagination page={page} pages={pages} total={total} label="προϊόντα" href={href} /></div>
