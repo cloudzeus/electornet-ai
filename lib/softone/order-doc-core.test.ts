@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { composeSaldoc, fincodeFilter, softoneTotals, type SaldocOrder, type SaldocSettings } from "./order-doc-core";
 
-const S: SaldocSettings = { series: "7005", retailTrdr: "200", payment: {}, shippingMtrl: "99001" };
+const S: SaldocSettings = { series: "7005", retailTrdr: "200", shippingMtrl: "99001" };
 const base: SaldocOrder = {
   number: "EUR-20261016-0007", fulfilment: "courier", payment: "card", email: "a@b.gr",
   contact: { firstName: "Μαρία", lastName: "Παπά", phone: "6900000000" },
@@ -18,9 +18,10 @@ test("τιμή χωρίς ΦΠΑ, όπως στο σημερινό eshop (249,90
   assert.deepEqual(d.needs, []);
 });
 
-test("κεφαλίδα: σειρά, λιανική 200, αριθμός στο FINCODE, πληρωμή, ονοματεπώνυμο, email στις παρατηρήσεις", () => {
+test("κεφαλίδα: σειρά, λιανική 200, αριθμός στο FINCODE, ονοματεπώνυμο, email στις παρατηρήσεις· χωρίς PAYMENT / SHIPMENT", () => {
   const h = composeSaldoc(base, S).data.SALDOC[0];
-  assert.equal(h.SERIES, 7005); assert.equal(h.TRDR, 200); assert.equal(h.FINCODE, "EUR-20261016-0007"); assert.equal(h.PAYMENT, 1001);
+  assert.equal(h.SERIES, 7005); assert.equal(h.TRDR, 200); assert.equal(h.FINCODE, "EUR-20261016-0007");
+  assert.equal(h.PAYMENT, null); assert.ok(!("SHIPMENT" in h), "τρόπος πληρωμής ρητά κενός, τρόπος αποστολής δεν στέλνεται");
   assert.equal(h.COMMENTS1, "Μαρία Παπά");
   assert.match(String(h.COMMENTS), /e-shop EUR-20261016-0007 · Courier ACS · Κάρτα/);
   assert.match(String(h.REMARKS), /Email: a@b\.gr/);
@@ -32,13 +33,32 @@ test("MTRDOC: διεύθυνση αποστολής και CCCSHP*", () => {
   assert.equal(m.CCCSHPNAME, "Μαρία Παπά"); assert.equal(m.CCCSHPPHONE, "6900000000"); assert.equal(m.CCCSHPADDRESS, "Ερμού 10, 10563 Αθήνα");
 });
 
-test("πληρωμές: προεπιλεγμένοι κωδικοί, υπερισχύει η ρύθμιση, άγνωστος τρόπος → λείπει", () => {
-  assert.equal(composeSaldoc({ ...base, payment: "no-card" }, S).data.SALDOC[0].PAYMENT, 1004);
-  assert.equal(composeSaldoc({ ...base, payment: "cod" }, S).data.SALDOC[0].PAYMENT, 1000);
-  assert.equal(composeSaldoc({ ...base, payment: "iris" }, { ...S, payment: { iris: "1005" } }).data.SALDOC[0].PAYMENT, 1005);
-  const d = composeSaldoc({ ...base, payment: "klarna" }, S);
-  assert.equal(d.data.SALDOC[0].PAYMENT, null);
-  assert.ok(d.needs.some((n) => n.includes("Klarna")));
+test("σειρά: κενή ρύθμιση → 7005 (όπου πέφτει το σημερινό eshop), η ρύθμιση υπερισχύει", () => {
+  const d = composeSaldoc(base, { ...S, series: null });
+  assert.equal(d.data.SALDOC[0].SERIES, 7005);
+  assert.deepEqual(d.needs, []);
+  assert.equal(composeSaldoc(base, { ...S, series: "7049" }).data.SALDOC[0].SERIES, 7049);
+});
+
+test("παρατηρήσεις: πλήρης ανάλυση πληρωμής και αποστολής, κανένας τρόπος πληρωμής δεν μπλοκάρει", () => {
+  const rm = (o: Partial<SaldocOrder>) => { const d = composeSaldoc({ ...base, ...o }, S); assert.deepEqual(d.needs, []); return String(d.data.SALDOC[0].REMARKS); };
+  const card = rm({ pay: { instalments: 6, status: "paid", psp: "viva", ref: "ABC123" } });
+  for (const want of ["ΠΛΗΡΩΜΗ", "Τρόπος: Κάρτα σε 6 δόσεις", "Κατάσταση: ΕΞΟΦΛΗΜΕΝΗ", "Συναλλαγή: viva ABC123", "Σύνολο παραγγελίας με ΦΠΑ: 249,90 €", "ΑΠΟΣΤΟΛΗ", "Τρόπος: Courier — ACS", "Παραλήπτης: Μαρία Παπά, τηλ. 6900000000", "Παράδοση: Ερμού 10, 10563 Αθήνα, Αττική", "Μεταφορικά: δωρεάν", "Παραστατικό: απόδειξη λιανικής"]) assert.ok(card.includes(want), `${want}\n---\n${card}`);
+  const cod = rm({ payment: "cod", shippingFee: 3.9, total: 253.8, pay: { status: "pending" } });
+  assert.match(cod, /ΕΙΣΠΡΑΞΗ από τον πελάτη στην παράδοση: 253,80 €/);
+  assert.match(cod, /Μεταφορικά και χρέωση αντικαταβολής: 3,90 €/);
+  assert.match(rm({ payment: "bank", pay: { status: "pending" } }), /σε αναμονή πληρωμής — αναμένεται κατάθεση 249,90 €/);
+  assert.match(rm({ payment: "klarna" }), /Τρόπος: Klarna/); // πριν: «λείπει κωδικός πληρωμής»
+  const cc = rm({ payment: "store", fulfilment: "click-collect", carrierName: null, store: { name: "Euronics Πειραιά", address: "Γρ. Λαμπράκη 1", zip: "18533", city: "Πειραιάς" } });
+  assert.match(cc, /ΕΙΣΠΡΑΞΗ στο κατάστημα κατά την παραλαβή: 249,90 €/);
+  assert.match(cc, /Τρόπος: Παραλαβή από κατάστημα — Euronics Πειραιά/);
+  assert.ok(!cc.includes("Μεταφορικά"));
+  const ap = rm({ fulfilment: "appointment", carrierName: "Κανονική παράδοση euronics", slots: ["09:00–10:00", "12:00–13:00"], address: { ...base.address, floor: "3", notes: "Κουδούνι Παπά" } });
+  assert.match(ap, /Τρόπος: Παράδοση με ραντεβού — Κανονική παράδοση euronics/);
+  assert.match(ap, /Ώρες που βολεύουν τον πελάτη για τηλέφωνο: 09:00–10:00, 12:00–13:00/);
+  assert.match(ap, /3ος όροφος/);
+  assert.ok(ap.trimEnd().endsWith("Σημειώσεις πελάτη: Κουδούνι Παπά"), "οι σημειώσεις τελευταίες");
+  assert.ok(rm({ address: { ...base.address, notes: "ν".repeat(5000) } }).length <= 2000);
 });
 
 test("τιμολόγιο: καρτέλα του πελάτη· χωρίς καρτέλα → λείπει (όχι λιανική)", () => {

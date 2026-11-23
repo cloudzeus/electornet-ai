@@ -14,21 +14,14 @@ type Client = PrismaClient | Prisma.TransactionClient;
 export async function saldocSettings(): Promise<SaldocSettings> {
   const { data } = await getSetting("softone").catch(() => ({ data: {} as Record<string, unknown> }));
   const s = (k: string) => String(data[k] ?? "").trim() || null;
-  const payment: Record<string, string> = {};
-  for (const k of ["card", "no-card", "iris", "paypal", "klarna", "tbi", "bank", "cod", "store", "revolut"]) {
-    const v = s(`orderPay_${k}`);
-    if (v) payment[k] = v;
-  }
-  // Apple / Google Pay είναι πληρωμή με κάρτα
-  if (payment.card) { payment.apple ??= payment.card; payment.google ??= payment.card; }
-  return { series: s("orderSeries"), retailTrdr: s("orderRetailTrdr"), payment, shippingMtrl: s("orderShippingMtrl") };
+  return { series: s("orderSeries"), retailTrdr: s("orderRetailTrdr"), shippingMtrl: s("orderShippingMtrl") };
 }
 
 export async function saldocForOrder(orderId: string, client: Client = db): Promise<SaldocDoc | null> {
   const o = await client.order.findUnique({
     where: { id: orderId },
     select: {
-      number: true, fulfilment: true, paymentMethod: true, payment: { select: { method: true } }, guestEmail: true, shipping: true, invoice: true, shippingFee: true, total: true,
+      number: true, fulfilment: true, paymentMethod: true, payment: { select: { method: true, instalments: true, status: true, psp: true, pspRef: true } }, guestEmail: true, shipping: true, invoice: true, shippingFee: true, total: true,
       customer: { select: { email: true, erpTrdr: true, vatNumber: true } },
       pickupStore: { select: { name: true, address: true, zip: true, city: true } },
       lines: {
@@ -42,7 +35,7 @@ export async function saldocForOrder(orderId: string, client: Client = db): Prom
     },
   });
   if (!o) return null;
-  const sh = (o.shipping ?? {}) as { firstName?: string; lastName?: string; email?: string; phone?: string; street?: string; number?: string; floor?: string; zip?: string; city?: string; region?: string; notes?: string; carrierName?: string; locker?: { name?: string; address?: string; zip?: string } };
+  const sh = (o.shipping ?? {}) as { firstName?: string; lastName?: string; email?: string; phone?: string; street?: string; number?: string; floor?: string; zip?: string; city?: string; region?: string; notes?: string; carrierName?: string; slots?: string[]; locker?: { name?: string; address?: string; zip?: string } };
   const inv = (o.invoice ?? null) as { vatNumber?: string; doy?: string; company?: string } | null;
 
   // όροι κάθε προσφοράς όπως ίσχυαν (για το COMMENTS1 της γραμμής)
@@ -78,7 +71,8 @@ export async function saldocForOrder(orderId: string, client: Client = db): Prom
     number: o.number, fulfilment: o.fulfilment, payment: o.payment?.method ?? o.paymentMethod ?? "", email: sh.email ?? o.customer?.email ?? o.guestEmail ?? null,
     contact: { firstName: sh.firstName, lastName: sh.lastName, phone: sh.phone },
     address: { street: sh.street, number: sh.number, floor: sh.floor, zip: sh.zip, city: sh.city, region: sh.region, notes: sh.notes },
-    carrierName: sh.carrierName ?? null, locker: sh.locker ?? null,
+    carrierName: sh.carrierName ?? null, locker: sh.locker ?? null, slots: sh.slots ?? null,
+    pay: o.payment ? { instalments: o.payment.instalments, status: o.payment.status, psp: o.payment.psp, ref: o.payment.pspRef } : null,
     store: o.fulfilment === "click-collect" && o.pickupStore ? o.pickupStore : null,
     invoice: inv, invoiceTrdr, lines, shippingFee: Number(o.shippingFee), total: Number(o.total),
   }, await saldocSettings());
@@ -158,6 +152,7 @@ export async function sendSaldoc(orderId: string, staffId?: string | null): Prom
     await db.erpSync.update({ where: { orderId }, data: { status: "sent", erpDocId: String(findoc), lastError: null } }).catch(() => null);
     const { audit } = await import("@/lib/rbac/audit");
     await audit(staffId ?? null, "order.erp-send", "Order", orderId, null, { findoc, fincode: o.number, total: doc.totals.expected });
+    void import("@/lib/orders/staff-mail").then((m) => m.sendStaffOrderMail(orderId, "erp")).catch(() => null);
     return { ok: true, message, findoc };
   };
 

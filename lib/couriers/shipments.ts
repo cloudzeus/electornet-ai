@@ -115,6 +115,7 @@ export async function createShipment(orderId: string, input: { weightKg: number;
     }
     const sh = await db.shipment.create({ data: { orderId, carrier, env: made.env, jobId: made.jobId, voucher: made.voucher, subVouchers: made.subVouchers, pieces, weightKg, codAmount: d.cod, services: made.services, createdById: staffId } });
     await db.order.update({ where: { id: orderId }, data: { tracking: made.voucher, courier: carrier, ...(d.cod === 0 ? { status: "processing" } : {}) } });
+    void import("@/lib/orders/staff-mail").then((m) => m.sendStaffOrderMail(orderId, "voucher")).catch(() => null);
     return { ok: true as const, shipment: sh };
   } catch (e) {
     return { ok: false as const, error: errText(e, `Η σύνδεση με ${carrier === "elta" ? "την ΕΛΤΑ Courier" : carrier === "asap" ? "την ASAP" : "τη Γενική"} απέτυχε.`) };

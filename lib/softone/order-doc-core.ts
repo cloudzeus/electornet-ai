@@ -1,26 +1,28 @@
 /**
  * Παραγγελία e-shop → παραστατικό πώλησης SoftOne (SALDOC + MTRDOC + ITELINES). Καθαρή σύνθεση, χωρίς δίκτυο.
  *
- * Ακολουθεί ό,τι στέλνει σήμερα το eshop της Euronics (getData σε 480 παραγγελίες της σειράς 7005, 16/10/2026):
- * - SERIES 7005 «ΠΑΡΑΓΓΕΛΙΑ e-Shop», FINCODE = ο αριθμός της παραγγελίας στο site
+ * Ακολουθεί ό,τι στέλνει σήμερα το eshop της Euronics (getData σε 480 παραγγελίες της σειράς 7005, 16/10/2026· ξανά
+ * 23/11/2026: 258 παραγγελίες από 1/9, όλες σειρά 7005 / τύπος 7005 «ΠΑΡΑΓΓΕΛΙΑ e-Shop», πελάτης 200, SHIPMENT κενό):
+ * - SERIES 7005 «ΠΑΡΑΓΓΕΛΙΑ e-Shop» (προεπιλογή, αλλάζει από τις ρυθμίσεις), FINCODE = ο αριθμός της παραγγελίας στο site
  * - TRDR 200 «ΠΕΛΑΤΗΣ ΛΙΑΝΙΚΗΣ» για αποδείξεις· η καρτέλα του πελάτη μόνο όταν ζητήθηκε τιμολόγιο
- * - PAYMENT με τους κωδικούς του SoftOne (1001 Κάρτα, 1004 EurobankLoans, 1000 Αντικαταβολή, 1003 Έμβασμα, 1002 Paypal)
+ * - Τρόπος πληρωμής (PAYMENT) και τρόπος αποστολής (SHIPMENT) ΔΕΝ συμπληρώνονται (απόφαση 23/11/2026): όλες οι οδηγίες
+ *   πληρωμής και αποστολής γράφονται αναλυτικά στις παρατηρήσεις (REMARKS)
  * - COMMENTS1 = ονοματεπώνυμο· στοιχεία αποστολής στο MTRDOC (SHIPPINGADDR / SHPZIP / SHPCITY / SHPDISTRICT, CCCSHP*)
  * - ITELINES.PRICE ΧΩΡΙΣ ΦΠΑ (το SoftOne προσθέτει τον ΦΠΑ του είδους)· το στρογγύλεμα κλείνει με DISC1VAL κεφαλίδας
  * Εκπτώσεις γραμμής (επίσης χωρίς ΦΠΑ): DISC1VAL προσφορά τιμής / δώρο, DISC2VAL κουπόνι, DISC3VAL τρόπος πληρωμής.
  */
 
-export type PayKey = "card" | "apple" | "google" | "revolut" | "paypal" | "klarna" | "tbi" | "iris" | "no-card" | "bank" | "cod" | "store";
-/** Οι κωδικοί PAYMENT που βρέθηκαν στο SoftOne της Euronics. Όσα λείπουν συμπληρώνονται στις Ρυθμίσεις → SoftOne. */
-export const DEFAULT_PAYMENT: Partial<Record<PayKey, string>> = { card: "1001", apple: "1001", google: "1001", "no-card": "1004", cod: "1000", bank: "1003", paypal: "1002" };
+/** Η σειρά όπου πέφτουν οι παραγγελίες του σημερινού eshop. Ισχύει όταν η ρύθμιση είναι κενή. */
+export const DEFAULT_SERIES = "7005";
+/** Ο γενικός πελάτης λιανικής όπου γράφονται όλες οι αποδείξεις του σημερινού eshop (258 στις 258, 23/11/2026). */
+export const DEFAULT_RETAIL_TRDR = "200";
 export const PAY_LABEL: Record<string, string> = { card: "Κάρτα", apple: "Apple Pay", google: "Google Pay", revolut: "Revolut Pay", paypal: "PayPal", klarna: "Klarna", tbi: "TBI Bank", iris: "IRIS", "no-card": "Δόσεις χωρίς κάρτα", bank: "Κατάθεση σε τράπεζα", cod: "Αντικαταβολή", store: "Στο κατάστημα" };
 const FUL_LABEL: Record<string, string> = { courier: "Courier", freight: "Μεταφορική", "click-collect": "Παραλαβή από κατάστημα", appointment: "Παράδοση με ραντεβού" };
+const PAY_STATE: Record<string, string> = { paid: "ΕΞΟΦΛΗΜΕΝΗ", pending: "σε αναμονή πληρωμής", processing: "η πληρωμή ελέγχεται από τον πάροχο", review: "η πληρωμή θέλει έλεγχο πριν την εκτέλεση", failed: "η πληρωμή απέτυχε", cancelled: "ακυρώθηκε" };
 
 export interface SaldocSettings {
   series: string | null;
   retailTrdr: string | null;
-  /** τρόπος πληρωμής του site → κωδικός PAYMENT του SoftOne (υπερισχύει του DEFAULT_PAYMENT) */
-  payment: Partial<Record<string, string>>;
   /** είδος (MTRL) για τα μεταφορικά / έξοδα αντικαταβολής */
   shippingMtrl: string | null;
 }
@@ -62,6 +64,9 @@ export interface SaldocOrder {
   contact: { firstName?: string; lastName?: string; phone?: string };
   address: { street?: string; number?: string; floor?: string; zip?: string; city?: string; region?: string; notes?: string };
   carrierName?: string | null;
+  /** η πληρωμή όπως είναι τη στιγμή της σύνθεσης και οι ώρες που βολεύουν τον πελάτη — μόνο για τις παρατηρήσεις */
+  pay?: { instalments?: number; status?: string; psp?: string | null; ref?: string | null } | null;
+  slots?: string[] | null;
   locker?: { name?: string; address?: string; zip?: string } | null;
   store?: { name: string; address?: string | null; zip?: string | null; city?: string | null } | null;
   invoice?: { vatNumber?: string; doy?: string; company?: string } | null;
@@ -117,8 +122,7 @@ export function fincodeFilter(number: string): string | null {
 
 export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
   const needs: string[] = [];
-  const series = s.series?.trim() || null;
-  if (!series) needs.push("Σειρά παραστατικού (Ρυθμίσεις → SoftOne → Σειρά παραστατικού παραγγελίας· σήμερα 7005)");
+  const series = s.series?.trim() || DEFAULT_SERIES;
 
   // πελάτης: απόδειξη → πελάτης λιανικής· τιμολόγιο → η καρτέλα του πελάτη (ΑΦΜ)
   let trdr: string | null;
@@ -126,12 +130,8 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
     trdr = o.invoiceTrdr ?? null;
     if (!trdr) needs.push(`Καρτέλα πελάτη τιμολογίου στο SoftOne για ΑΦΜ ${o.invoice.vatNumber} (δημιουργείται πριν την αποστολή)`);
   } else {
-    trdr = s.retailTrdr?.trim() || null;
-    if (!trdr) needs.push("Πελάτης λιανικής (TRDR — σήμερα 200 «ΠΕΛΑΤΗΣ ΛΙΑΝΙΚΗΣ»)");
+    trdr = s.retailTrdr?.trim() || DEFAULT_RETAIL_TRDR;
   }
-
-  const payment = s.payment[o.payment]?.trim() || DEFAULT_PAYMENT[o.payment as PayKey] || null;
-  if (!payment) needs.push(`Κωδικός τρόπου πληρωμής στο SoftOne για «${PAY_LABEL[o.payment] ?? o.payment}» (Ρυθμίσεις → SoftOne)`);
 
   // γραμμές: τιμή και εκπτώσεις χωρίς ΦΠΑ
   const nets: NetLine[] = [];
@@ -188,17 +188,43 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
     ship = { addr: street, zip: a.zip ?? "", city: a.city ?? "", district: a.region ?? "", line: cut([street, [a.zip, a.city].filter(Boolean).join(" ")].filter(Boolean).join(", "), 255) };
   }
   const how = [FUL_LABEL[o.fulfilment] ?? o.fulfilment, o.fulfilment === "courier" ? o.carrierName : null, o.fulfilment === "click-collect" ? o.store?.name : null].filter(Boolean).join(" ");
-  const remarks = [o.email ? `Email: ${o.email}` : null, phone ? `Τηλέφωνο: ${phone}` : null, o.invoice?.vatNumber ? `Τιμολόγιο: ${[o.invoice.company, `ΑΦΜ ${o.invoice.vatNumber}`, o.invoice.doy ? `ΔΟΥ ${o.invoice.doy}` : null].filter(Boolean).join(" · ")}` : null, a.notes ? `Σημειώσεις πελάτη: ${a.notes}` : null].filter(Boolean).join("\n");
+  // Παρατηρήσεις: ΟΛΕΣ οι οδηγίες πληρωμής και αποστολής, αφού τα πεδία PAYMENT / SHIPMENT μένουν κενά. Οι σημειώσεις του
+  // πελάτη τελευταίες, ώστε ένα μακρύ κείμενο να μην κόψει τις οδηγίες.
+  const eur = (n: number) => `${n.toFixed(2).replace(".", ",")} €`;
+  const cod = o.payment === "cod", atStore = o.payment === "store", inst = o.pay?.instalments ?? 1;
+  const remarks = [
+    "ΠΛΗΡΩΜΗ",
+    `Τρόπος: ${PAY_LABEL[o.payment] ?? (o.payment || "δεν δηλώθηκε")}${inst > 1 ? ` σε ${inst} δόσεις` : ""}`,
+    cod ? `ΕΙΣΠΡΑΞΗ από τον πελάτη στην παράδοση: ${eur(expected)}`
+      : atStore ? `ΕΙΣΠΡΑΞΗ στο κατάστημα κατά την παραλαβή: ${eur(expected)}`
+      : o.pay?.status ? `Κατάσταση: ${PAY_STATE[o.pay.status] ?? o.pay.status}${o.pay.status !== "paid" && o.payment === "bank" ? ` — αναμένεται κατάθεση ${eur(expected)}, αποστολή μετά την επιβεβαίωση` : ""}` : null,
+    o.pay?.ref ? `Συναλλαγή: ${[o.pay.psp, o.pay.ref].filter(Boolean).join(" ")}` : null,
+    `Σύνολο παραγγελίας με ΦΠΑ: ${eur(expected)}`,
+    "",
+    "ΑΠΟΣΤΟΛΗ",
+    `Τρόπος: ${[FUL_LABEL[o.fulfilment] ?? o.fulfilment, o.fulfilment === "click-collect" ? o.store?.name : o.carrierName].filter(Boolean).join(" — ")}`,
+    `${o.fulfilment === "click-collect" ? "Παραλαμβάνει" : "Παραλήπτης"}: ${[name, phone ? `τηλ. ${phone}` : null].filter(Boolean).join(", ") || "—"}`,
+    `${o.fulfilment === "click-collect" ? "Σημείο" : "Παράδοση"}: ${[ship.line, o.fulfilment !== "click-collect" && !o.locker ? ship.district : null].filter(Boolean).join(", ") || "—"}`,
+    o.slots?.length ? `Ώρες που βολεύουν τον πελάτη για τηλέφωνο: ${o.slots.join(", ")}` : null,
+    o.fulfilment === "click-collect" ? null : (o.shippingFee > 0 ? `Μεταφορικά${cod ? " και χρέωση αντικαταβολής" : ""}: ${eur(o.shippingFee)} (ξεχωριστή γραμμή στο παραστατικό)` : "Μεταφορικά: δωρεάν"),
+    "",
+    "ΠΕΛΑΤΗΣ",
+    o.email ? `Email: ${o.email}` : null,
+    o.invoice?.vatNumber ? `Τιμολόγιο: ${[o.invoice.company, `ΑΦΜ ${o.invoice.vatNumber}`, o.invoice.doy ? `ΔΟΥ ${o.invoice.doy}` : null].filter(Boolean).join(" · ")}` : "Παραστατικό: απόδειξη λιανικής",
+    a.notes ? `Σημειώσεις πελάτη: ${a.notes}` : null,
+  ].filter((l) => l != null).join("\n");
 
   return {
     OBJECT: "SALDOC",
     data: {
       SALDOC: [{
-        SERIES: series ? Number(series) : null, TRDR: trdr ? Number(trdr) : null, FINCODE: o.number,
-        PAYMENT: payment ? Number(payment) : null,
+        SERIES: Number(series), TRDR: trdr ? Number(trdr) : null, FINCODE: o.number,
+        // ρητά κενό: αν το πεδίο λείπει, το SoftOne βάζει μόνο του την προεπιλογή του πελάτη 200 («Μετρητά-Πιστωτική κάρτα-
+        // Προκαταβολή»), που θα ήταν λάθος οδηγία (calculate 23/11/2026). Ο τρόπος αποστολής (SHIPMENT) μένει κενός όταν δεν στέλνεται.
+        PAYMENT: null,
         COMMENTS: cut(`e-shop ${o.number} · ${how} · ${PAY_LABEL[o.payment] ?? o.payment}`, 255),
         COMMENTS1: name || null,
-        ...(remarks ? { REMARKS: remarks.slice(0, 2000) } : {}),
+        REMARKS: remarks.slice(0, 2000),
         ...(rounding ? { DISC1VAL: rounding } : {}),
       }],
       MTRDOC: [{

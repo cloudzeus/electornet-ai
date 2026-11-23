@@ -72,6 +72,8 @@ export async function runErpStages(): Promise<{ ok: boolean; message: string; id
       // καταγραφή όλων των νέων (και όσων δεν στέλνουν email), ώστε να μην ξαναδοκιμαστούν
       await db.orderErpStage.createMany({ skipDuplicates: true, data: fresh.map((d) => ({ orderId: o.id, findoc: d.findoc, fprms: d.fprms, docNo: d.docNo || null, docDate: d.date || null, notifiedAt: results.get(d.findoc)?.at ?? null, mailError: results.get(d.findoc)?.error ?? null })) });
       recorded += fresh.length;
+      // το προσωπικό μαθαίνει κάθε νέο παραστατικό της πορείας (PKP, δελτίο, απόδειξη…) με όλη την παραγγελία μαζί
+      await import("./staff-mail").then((m) => m.sendStaffOrderMail(o.id, "erp-doc")).catch(() => null);
       for (const [, r] of results) if (r.error) errors.push(`${o.number}: ${r.error}`);
     } catch (e) {
       console.error("[erp-stages]", o.number, e); // λεπτομέρειες μόνο στα logs

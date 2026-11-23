@@ -90,6 +90,8 @@ export interface QuoteGift { promotionId: string; code: string; version: number;
 export interface Quote {
   lines: QuoteLine[]; missing: string[]; gifts: QuoteGift[]; hints: string[];
   freeShipping: { promotionId: string; code: string; version: number; label: string; saved: number } | null;
+  /** γιατί βγήκε αυτό το ποσό μεταφορικών, σε απλά ελληνικά — για το προσωπικό (email παραγγελίας)· δεν πάει στον browser */
+  shippingWhy: string[];
   goods: number; addons: number; discPrice: number; discCoupon: number; discPayment: number; payment: EngineResult["payment"]; shipping: number; codFee: number; total: number; vat: number;
   coupon: { applied: string | null; message: string | null };
   trace: EngineResult["trace"];
@@ -248,10 +250,32 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   const shipping = freeShipping ? 0 : baseShipping;
   const codFee = input.payment === "cod" ? rules.cod : 0;
   const total = goods + shipping + codFee;
+  const e2 = (c: number) => `${(c / 100).toFixed(2).replace(".", ",")} €`;
+  const dec = (n: number) => String(Math.round(n * 10) / 10).replace(".", ",");
+  const zipTxt = `Τ.Κ. ${(input.zip ?? "").trim() || "—"}`;
+  const cr = carrier ? rated(carrier.id) : null;
+  const byTable = (r: NonNullable<typeof cr>) => `τιμοκατάλογος, ζώνη «${r.zone.name}» × χρεώσιμο βάρος ${dec(r.kg)} κιλά${r.remote ? " + επιβάρυνση δυσπρόσιτης περιοχής" : ""}: ${e2(r.fee)}${r.cost != null ? ` (δικό μας κόστος ${e2(r.cost)})` : ""}`;
+  const shippingWhy: string[] = !out.length ? [] : [
+    input.delivery === "click-collect" ? "Παραλαβή από κατάστημα: χωρίς μεταφορικά."
+    : zipNeeded ? "Δεν δόθηκε Τ.Κ.: καμία χρέωση μεταφορικών."
+    : onRequest ? `${zipTxt} (${onRequest}): περιοχή χωρίς συμφωνημένη τιμή αποστολής. Τα μεταφορικά ορίζονται στο τηλέφωνο και ΔΕΝ έχουν μπει στο σύνολο.`
+    : attica.attica ? (isExpress ? `${zipTxt} (Αττική): ASAP Express, τιμή της ASAP για αυτή τη διεύθυνση ${e2(express!.fee)} (ζώνη ${express!.zone}).` : `${zipTxt} (Αττική): «Κανονική παράδοση euronics», πάντα δωρεάν.`)
+    : viaFreight ? (storeArea ? `${zipTxt}: περιοχή με κατάστημα Euronics, η παράδοση είναι δωρεάν.`
+      : near ? `Συσκευή που δεν πάει με courier, εκτός Αττικής: την παραδίδει το κατάστημα ${near.name} (${near.address}, ${near.city}), ${dec(near.km)} χλμ. οδικώς. Δωρεάν έως ${lr.freeKm} χλμ.${near.fee ? ` Πιο μακριά χρεώνεται ανά συσκευή: ${devices} × ${e2(near.fee / devices)} = ${e2(near.fee)}.` : ""}`
+      : fr ? `Μεταφορική, ${byTable(fr)}.`
+      : `Μεταφορική${central ? ` από το κεντρικό (κανένα συνεργαζόμενο κατάστημα μέσα σε ${lr.maxKm} χλμ.)` : ""}: ${devices} ${devices === 1 ? "συσκευή" : "συσκευές"} × ${e2(unitFee)} = ${e2(freight!.fee)}.`)
+    : (input.delivery && input.delivery !== "courier") || !bulky.courier ? "Παράδοση euronics με ραντεβού: χωρίς χρέωση μεταφορικών."
+    : storeArea ? `${zipTxt}: περιοχή με κατάστημα Euronics, τα μεταφορικά είναι δωρεάν.`
+    : carrier ? (cr ? `${carrier.name}, ${byTable(cr)}.` : `${carrier.name}: σταθερή τιμή των ρυθμίσεων ${e2(carrier.fee)}.`)
+    : `Γενικό κόστος αποστολής των ρυθμίσεων: ${e2(rules.fee)}.`,
+    ...(freeShipping ? [`Προσφορά «${freeShipping.label}» (${freeShipping.code}): δωρεάν μεταφορικά, ο πελάτης γλίτωσε ${e2(freeShipping.saved)}.`] : []),
+    ...(codFee ? [`Αντικαταβολή: χρέωση ${e2(codFee)}.`] : []),
+    `Χρεώθηκαν στον πελάτη: ${e2(shipping + codFee)}${codFee ? ` (μεταφορικά ${e2(shipping)} + αντικαταβολή ${e2(codFee)})` : ""}.`,
+  ];
   // «σου λείπουν Χ € για δωρεάν μεταφορικά» δεν έχει νόημα όταν τα μεταφορικά είναι ήδη δωρεάν
   const hints = baseShipping === 0 ? engine.hints.filter((h) => !h.includes("δωρεάν μεταφορικά")) : engine.hints;
-  return { lines: out, missing, gifts, hints, freeShipping, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, discPayment: engine.discPayment, payment: engine.payment, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, storeArea, zipNeeded, areaHint, pricedArea: priced, carriers: carriers2, carrier: isExpress ? "asap" : attica.attica ? null : carrier?.id ?? null, bulky, freight, attica, onRequest, engine };
+  return { lines: out, missing, gifts, hints, freeShipping, shippingWhy, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, discPayment: engine.discPayment, payment: engine.payment, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, storeArea, zipNeeded, areaHint, pricedArea: priced, carriers: carriers2, carrier: isExpress ? "asap" : attica.attica ? null : carrier?.id ?? null, bulky, freight, attica, onRequest, engine };
 }
 
 /** Για το JSON προς τον browser: χωρίς το εσωτερικό αποτέλεσμα της μηχανής. */
-export const publicQuote = ({ engine: _e, ...q }: Quote) => { void _e; return { ...q, attica: { ...q.attica, why: null }, trace: q.trace.map((t) => ({ name: t.name, applied: t.applied, amount: t.amount, reason: t.reason })) }; };
+export const publicQuote = ({ engine: _e, ...q }: Quote) => { void _e; return { ...q, shippingWhy: [], attica: { ...q.attica, why: null }, trace: q.trace.map((t) => ({ name: t.name, applied: t.applied, amount: t.amount, reason: t.reason })) }; };

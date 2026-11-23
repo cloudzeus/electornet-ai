@@ -154,7 +154,7 @@ export async function placeOrder(input: PlaceInput) {
       const order = await tx.order.create({
         data: {
           number, customerId: me?.id ?? null, guestEmail: me ? null : email, status: "pending", fulfilment: input.fulfilment, pickupStoreId: input.fulfilment === "click-collect" ? input.storeId : null,
-          shipping: { ...input.contact, ...input.address, ...carrier, ...(slots.length ? { slots } : {}) } as Prisma.InputJsonValue, invoice: input.invoice ? (input.invoice as Prisma.InputJsonValue) : undefined,
+          shipping: { ...input.contact, ...input.address, ...carrier, ...(slots.length ? { slots } : {}), calc: q.shippingWhy } as Prisma.InputJsonValue, invoice: input.invoice ? (input.invoice as Prisma.InputJsonValue) : undefined,
           subtotal: eur(q.goods + q.addons), shippingFee: eur(q.shipping + q.codFee), vat: eur(q.vat), total: eur(q.total), discountTotal: eur(discountTotal),
           couponCode: q.coupon.applied, paymentMethod: input.payment,
           promoTrace: q.trace.map((t) => ({ code: t.code, name: t.name, applied: t.applied, amount: t.amount, reason: t.reason })) as Prisma.InputJsonValue,
@@ -232,6 +232,8 @@ export async function placeOrder(input: PlaceInput) {
     // «Αποστολή»· οι πληρωμές με Viva/Klarna στέλνονται από το markPaid όταν επιβεβαιωθεί η πληρωμή
     // «κατόπιν συνεννόησης»: δεν φεύγει παραστατικό πριν μπουν τα μεταφορικά — μένει σε προεπισκόπηση για τη διαχείριση
     if (input.payment !== "later") void import("@/lib/softone/order-doc").then((m) => m.maybeSendSaldoc(result.orderId)).catch(() => null);
+    // πλήρης ανάλυση της παραγγελίας στο προσωπικό (οι πληρωμές με Viva/Klarna: από το markPaid, όταν επιβεβαιωθούν)
+    void import("@/lib/orders/staff-mail").then((m) => m.sendStaffOrderMail(result.orderId, "new")).catch(() => null);
     // email επιβεβαίωσης — εκτός συναλλαγής· αποτυχία αποστολής δεν ακυρώνει την παραγγελία
     void (async () => {
       const store = input.fulfilment === "click-collect" && input.storeId ? await db.store.findUnique({ where: { id: input.storeId } }).catch(() => null) : null;

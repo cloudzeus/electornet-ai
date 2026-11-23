@@ -79,6 +79,7 @@ export async function markPaid(orderId: string, pspRef: string) {
   // αποστολή στο ERP μόνο όταν ο διακόπτης είναι σε «Αποστολή» (αλλιώς δεν γίνεται καμία κλήση)
   await import("@/lib/softone/order-doc").then((m) => m.maybeSendSaldoc(orderId)).catch(() => null);
   await sendConfirmation(orderId).catch(() => null);
+  await import("@/lib/orders/staff-mail").then((m) => m.sendStaffOrderMail(orderId, "new")).catch(() => null);
   await import("@/lib/warranty/server").then((m) => m.devicesFromOrder(orderId)).catch(() => null);
 }
 
