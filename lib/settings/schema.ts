@@ -290,6 +290,7 @@ export const SECTIONS: Section[] = [
       { key: "cards", title: "Πληρωμή με κάρτα", help: "Τα στοιχεία από το περιβάλλον του παρόχου. Ξεκίνα σε «Test» και γύρνα σε «Live» μόνο αφού ολοκληρωθεί μια δοκιμαστική αγορά.", guide: "Viva: στην πηγή πληρωμής (Online payments → Websites/Apps) βάλε Success URL https://<το site>/api/payments/viva/success και Failure URL https://<το site>/api/payments/viva/failure· στα Webhooks πρόσθεσε https://<το site>/api/webhooks/viva για «Transaction Payment Created» και «Transaction Failed»." },
       { key: "wallets", title: "Wallets & άλλοι τρόποι (μέσω Viva)", help: "Ο πελάτης τα διαλέγει στο checkout και η σελίδα της Viva ανοίγει κατευθείαν σε αυτά. Ο πελάτης που έχει πληρώσει με Viva σε άλλο κατάστημα βλέπει εκεί τις αποθηκευμένες κάρτες του. Apple Pay / Google Pay εμφανίζονται μόνο σε συσκευές που τα υποστηρίζουν." },
       { key: "cod", title: "Αντικαταβολή" },
+      { key: "store", title: "Πληρωμή στο κατάστημα", help: "Μόνο για παραλαβή από κατάστημα: ο πελάτης παραγγέλνει χωρίς να πληρώσει online και εξοφλεί στο ταμείο του καταστήματος." },
       { key: "bank", title: "Κατάθεση σε τράπεζα", help: "Ο πελάτης βλέπει τους λογαριασμούς μετά την παραγγελία και στο email επιβεβαίωσης, με αιτιολογία τον αριθμό παραγγελίας." },
     ],
     fields: ([
@@ -312,6 +313,7 @@ export const SECTIONS: Section[] = [
       yesNo("cod", "Αντικαταβολή", "Πληρωμή στον courier κατά την παράδοση.", true),
       { key: "codFee", label: "Χρέωση αντικαταβολής", type: "number", public: true, width: "half", group: "cod", showIf: on("cod"), min: 0, max: 50, step: 0.01, unit: "€", placeholder: "2.00" },
       { key: "codMax", label: "Μέγιστο ποσό αντικαταβολής", type: "number", public: true, width: "half", group: "cod", showIf: on("cod"), min: 0, step: 1, unit: "€", placeholder: "500", help: "Πάνω από αυτό η αντικαταβολή δεν προσφέρεται. Νόμιμο όριο μετρητών: 500 €." },
+      { ...yesNo("payInStore", "Πληρωμή στο κατάστημα", "Κλειστό = στην παραλαβή από κατάστημα ο πελάτης πληρώνει μόνο με τους υπόλοιπους τρόπους (κάρτα, κατάθεση…) και το site δεν δέχεται παραγγελία με πληρωμή στο κατάστημα. Οι παλιές παραγγελίες δεν αλλάζουν.", true), group: "store" },
       yesNo("bankTransfer", "Κατάθεση σε τράπεζα", undefined, true),
       { key: "bankAccounts", label: "Λογαριασμοί (τράπεζα · δικαιούχος · IBAN)", type: "bank-accounts", public: true, group: "bank", showIf: on("bankTransfer"), help: "Λογότυπο, όνομα τράπεζας, δικαιούχος και IBAN. Ο πελάτης τα βλέπει, με τη σειρά που ορίζεις εδώ, μετά την παραγγελία και στο email επιβεβαίωσης. Χωρίς κανέναν λογαριασμό η «Κατάθεση σε τράπεζα» δεν εμφανίζεται στο checkout." },
     ] as Field[]).map((f) => (["applePay", "googlePay", "paypal", "iris", "tbi", "revolutPay"].includes(f.key) ? { ...f, group: "wallets" } : f.key === "cod" ? { ...f, group: "cod" } : f.key === "bankTransfer" ? { ...f, group: "bank" } : f)),

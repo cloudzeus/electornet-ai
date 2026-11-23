@@ -54,7 +54,7 @@ const REGIONS = [...DISTRICTS.map((d) => d.name).sort((a, b) => a.localeCompare(
  * (Directive 2011/83). Mobile: sticky total + CTA at the bottom.
  * Every text ≥ 14px, every control ≥ 48px.
  */
-export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarnaDirect = false, bankSub = null, cod = true, cardInstMax = 0 }: { /** Ρυθμίσεις → Πληρωμές → «Μέγιστες άτοκες δόσεις»· 0 = δεν δίνονται δόσεις */ cardInstMax?: number; /** Ρυθμίσεις → Πληρωμές → Αντικαταβολή· κλειστή = δεν προσφέρεται */ cod?: boolean; stores: StoreLite[]; boxnowPartnerId?: string | null; vivaPays?: string[]; klarnaDirect?: boolean; /** οι τράπεζες των λογαριασμών (Ρυθμίσεις → Πληρωμές)· null = η κατάθεση δεν προσφέρεται */ bankSub?: string | null }) {
+export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarnaDirect = false, bankSub = null, cod = true, storePay = false, cardInstMax = 0 }: { /** Ρυθμίσεις → Πληρωμές → «Πληρωμή στο κατάστημα»· κλειστή (προεπιλογή) = δεν προσφέρεται */ storePay?: boolean; /** Ρυθμίσεις → Πληρωμές → «Μέγιστες άτοκες δόσεις»· 0 = δεν δίνονται δόσεις */ cardInstMax?: number; /** Ρυθμίσεις → Πληρωμές → Αντικαταβολή· κλειστή = δεν προσφέρεται */ cod?: boolean; stores: StoreLite[]; boxnowPartnerId?: string | null; vivaPays?: string[]; klarnaDirect?: boolean; /** οι τράπεζες των λογαριασμών (Ρυθμίσεις → Πληρωμές)· null = η κατάθεση δεν προσφέρεται */ bankSub?: string | null }) {
   // Viva: οι online τρόποι (κάρτα, Apple/Google Pay, PayPal, IRIS, Klarna) ολοκληρώνονται στη σελίδα της Viva
   const viva = vivaPays.length > 0;
   const viaViva = (p: string) => viva && vivaPays.includes(p);
@@ -299,12 +299,12 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
     ...(klarnaDirect ? [KLARNA_OPT] : []),
     ...(bankSub ? [{ v: "bank" as Pay, icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: bankSub }] : []),
     ...(!cod ? [] : [{ v: "cod" as Pay, icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Δεν ισχύει άνω των 500 € — διάλεξε κάρτα ή κατάθεση", disabled: total > 500 }]),
-    ...(ful === "click-collect" ? [{ v: "store" as Pay, icon: StoreIcon, t: "Στο κατάστημα", sub: "Μετρητά ή κάρτα κατά την παραλαβή" }] : []),
+    ...(storePay && ful === "click-collect" ? [{ v: "store" as Pay, icon: StoreIcon, t: "Στο κατάστημα", sub: "Μετρητά ή κάρτα κατά την παραλαβή" }] : []),
   ] : [
     ...(klarnaDirect ? [KLARNA_OPT] : []),
     ...(bankSub ? [{ v: "bank" as Pay, icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: bankSub }] : []),
     ...(!cod ? [] : [{ v: "cod" as Pay, icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Δεν ισχύει άνω των 500 € — διάλεξε κάρτα ή κατάθεση", disabled: total > 500 }]),
-    ...(ful === "click-collect" ? [{ v: "store" as Pay, icon: StoreIcon, t: "Στο κατάστημα", sub: "Μετρητά ή κάρτα κατά την παραλαβή" }] : []),
+    ...(storePay && ful === "click-collect" ? [{ v: "store" as Pay, icon: StoreIcon, t: "Στο κατάστημα", sub: "Μετρητά ή κάρτα κατά την παραλαβή" }] : []),
   ];
 
   return (

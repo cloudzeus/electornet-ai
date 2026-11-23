@@ -77,6 +77,7 @@ export async function placeOrder(input: PlaceInput) {
   // κατάθεση χωρίς λογαριασμούς (ή κλειστή στις Ρυθμίσεις) = παραγγελία χωρίς τρόπο πληρωμής
   if (input.payment === "bank" && !(await bankTransfer()).enabled) return { ok: false as const, error: "Η κατάθεση σε τράπεζα δεν είναι διαθέσιμη αυτή τη στιγμή. Διάλεξε άλλον τρόπο πληρωμής." };
   if (input.payment === "cod" && (await getSetting("payments").catch(() => null))?.data.cod === false) return { ok: false as const, error: "Η αντικαταβολή δεν είναι διαθέσιμη αυτή τη στιγμή. Διάλεξε άλλον τρόπο πληρωμής." };
+  if (input.payment === "store" && (await getSetting("payments").catch(() => null))?.data.payInStore !== true) return { ok: false as const, error: "Η πληρωμή στο κατάστημα δεν είναι διαθέσιμη αυτή τη στιγμή. Διάλεξε άλλον τρόπο πληρωμής." };
   if (input.fulfilment === "click-collect" && !(await import("@/lib/stores/repo").then((m) => m.pickupStoreIds())).has(input.storeId ?? "")) return { ok: false as const, error: "Αυτό το κατάστημα δεν εξυπηρετεί παραλαβές του e-shop. Διάλεξε άλλο κατάστημα." };
   // online πληρωμή μέσω Viva: η παραγγελία περιμένει την πληρωμή (χωρίς email, χωρίς ERP μέχρι να πληρωθεί)
   // Klarna με απευθείας σύμβαση (Ρυθμίσεις → Πληρωμές → Klarna «απευθείας»)· αλλιώς η Klarna πάει μέσω Viva
@@ -84,7 +85,7 @@ export async function placeOrder(input: PlaceInput) {
   const viva = !klarna && isVivaPay(input.payment) && !input.dryRun ? await vivaConfig() : null;
   // online τρόπος χωρίς πάροχο (Viva/Klarna αρύθμιστα) = παραγγελία που «πληρώθηκε» χωρίς πληρωμή — δεν καταχωρείται
   if (!viva && !klarna && !input.dryRun && !["cod", "bank", "store", "later"].includes(input.payment))
-    return { ok: false as const, error: "Η online πληρωμή δεν είναι διαθέσιμη αυτή τη στιγμή. Διάλεξε αντικαταβολή, κατάθεση σε τράπεζα ή πληρωμή στο κατάστημα." };
+    return { ok: false as const, error: "Η online πληρωμή δεν είναι διαθέσιμη αυτή τη στιγμή. Διάλεξε άλλον τρόπο πληρωμής." };
   const me = await getCustomerSession();
   const email = (me?.email ?? input.contact.email).trim().toLowerCase();
   const cart = await currentCart(false);

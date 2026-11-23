@@ -89,7 +89,7 @@ export async function settingsOverview() {
       title: "Πληρωμές",
       items: [
         chip("Κάρτα", cardReady, href("payments", "provider"), cardReady ? `${PROVIDER[String(pay.data.provider ?? "viva")] ?? "Viva"} · ${pay.data.mode === "live" ? "Live" : "Test"}` : undefined),
-        ...([["applePay", "Apple Pay"], ["googlePay", "Google Pay"], ["paypal", "PayPal"], ["iris", "IRIS"], ["tbi", "TBI Bank"], ["revolutPay", "Revolut Pay"], ["cod", "Αντικαταβολή"], ["bankTransfer", "Κατάθεση σε τράπεζα"]] as const).map(([k, l]) => chip(l, on(pay.data[k]), href("payments", k))),
+        ...([["applePay", "Apple Pay"], ["googlePay", "Google Pay"], ["paypal", "PayPal"], ["iris", "IRIS"], ["tbi", "TBI Bank"], ["revolutPay", "Revolut Pay"], ["cod", "Αντικαταβολή"], ["payInStore", "Πληρωμή στο κατάστημα"], ["bankTransfer", "Κατάθεση σε τράπεζα"]] as const).map(([k, l]) => chip(l, on(pay.data[k]), href("payments", k))),
       ],
     },
     {
