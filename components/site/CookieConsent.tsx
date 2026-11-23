@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { copyOf } from "@/lib/cms/copy";
 
 const c = copyOf("cookies");
 
 const KEY = "euronics.consent.v1";
+const OPEN_EVENT = "eu:cookie-settings";
+
+/** Μόνιμος τρόπος αλλαγής ή ανάκλησης της συγκατάθεσης cookies (GDPR άρ. 7.3): ανοίγει ξανά το banner στις ρυθμίσεις. */
+export function CookieSettingsButton({ label, className }: { label: string; className?: string }) {
+  return <button type="button" onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))} className={className}>{label}</button>;
+}
 
 /** GDPR / ePrivacy: equal-weight accept & reject, settings reachable, nothing pre-ticked. */
 export function CookieConsent() {
@@ -14,6 +20,7 @@ export function CookieConsent() {
   const [settings, setSettings] = useState(false);
   const [analytics, setAnalytics] = useState(false);
   const [marketing, setMarketing] = useState(false);
+  const shown = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -26,7 +33,24 @@ export function CookieConsent() {
     return () => clearTimeout(t);
   }, []);
 
-  const save = (a: boolean, m: boolean) => {
+  // «Ρυθμίσεις cookies» (υποσέλιδο): ξανανοίγει το banner με τις σημερινές επιλογές, για αλλαγή ή ανάκληση όποτε θέλει ο επισκέπτης
+  useEffect(() => {
+    const open = () => {
+      try {
+        const v = JSON.parse(localStorage.getItem(KEY) ?? "{}") as { analytics?: boolean; marketing?: boolean };
+        setAnalytics(!!v.analytics);
+        setMarketing(!!v.marketing);
+      } catch {}
+      setSettings(true);
+      setShow(true);
+    };
+    window.addEventListener(OPEN_EVENT, open);
+    return () => window.removeEventListener(OPEN_EVENT, open);
+  }, []);
+
+  const save = (a: boolean, m: boolean, choice: "accept-all" | "reject-all" | "custom") => {
+    // αποδεικτικό στο μητρώο συναινέσεων (με το κείμενο όπως ακριβώς φάνηκε)· η επιλογή ισχύει και αν αποτύχει η αποστολή
+    fetch("/api/consents/cookies", { method: "POST", keepalive: true, headers: { "content-type": "application/json" }, body: JSON.stringify({ analytics: a, marketing: m, choice, shown: shown.current?.textContent ?? "" }) }).catch(() => {});
     try {
       localStorage.setItem(KEY, JSON.stringify({ analytics: a, marketing: m, at: new Date().toISOString() }));
       window.dispatchEvent(new Event("eu:consent"));
@@ -38,7 +62,7 @@ export function CookieConsent() {
   return (
     <div role="dialog" aria-label={c.rythmiseis_cookies} className="fixed inset-x-3 bottom-3 sm:left-auto sm:right-4 sm:bottom-4 sm:w-[420px] z-[80] bg-white rounded-xl shadow-[var(--shadow-overlay)] border border-eu-line p-4">
       <div className="font-extrabold text-eu-ink text-[length:var(--fs-16)] mb-1">Cookies</div>
-      <p className="m-0 text-eu-ink-2 text-[length:var(--fs-14)] leading-relaxed">
+      <p ref={shown} className="m-0 text-eu-ink-2 text-[length:var(--fs-14)] leading-relaxed">
         Χρησιμοποιούμε απαραίτητα cookies για να λειτουργεί το κατάστημα. Τα cookies μέτρησης και marketing ενεργοποιούνται μόνο αν το επιλέξεις.{" "}
         <Link href="/cookies" className="text-eu-blue underline">
           {c.politiki_cookies}
@@ -58,14 +82,14 @@ export function CookieConsent() {
         </div>
       )}
       <div className="grid grid-cols-2 gap-2 mt-3">
-        <button type="button" onClick={() => save(false, false)} className="rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] py-2.5 min-h-11 hover:bg-eu-surface">
+        <button type="button" onClick={() => save(false, false, "reject-all")} className="rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] py-2.5 min-h-11 hover:bg-eu-surface">
           {c.aporripsi}
         </button>
-        <button type="button" onClick={() => save(true, true)} className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-14)] py-2.5 min-h-11 hover:bg-eu-blue">
+        <button type="button" onClick={() => save(true, true, "accept-all")} className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-14)] py-2.5 min-h-11 hover:bg-eu-blue">
           {c.apodochi_olon}
         </button>
         {settings ? (
-          <button type="button" onClick={() => save(analytics, marketing)} className="col-span-2 rounded-full bg-eu-surface text-eu-ink font-bold text-[length:var(--fs-14)] py-2.5 min-h-11 hover:bg-eu-chip">
+          <button type="button" onClick={() => save(analytics, marketing, "custom")} className="col-span-2 rounded-full bg-eu-surface text-eu-ink font-bold text-[length:var(--fs-14)] py-2.5 min-h-11 hover:bg-eu-chip">
             {c.apothikeysi_epilogon}
           </button>
         ) : (

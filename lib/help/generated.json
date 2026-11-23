@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-23T08:54:09.450Z",
+ "generatedAt": "2026-11-23T10:19:06.129Z",
  "routes": [
   {
    "route": "/admin",
@@ -2846,7 +2846,17 @@
     "label": "GDPR"
    },
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "gdpr.tabs",
+    "gdpr.kpis",
+    "gdpr.now",
+    "gdpr.filters",
+    "gdpr.export",
+    "gdpr.record",
+    "gdpr.ledger",
+    "gdpr.texts",
+    "gdpr.text-new"
+   ],
    "changes": [],
    "updatedAt": null,
    "shots": {}
@@ -5375,6 +5385,12 @@
  ],
  "recent": [
   {
+   "hash": "2a9b931",
+   "date": "2026-11-23T10:54:36+02:00",
+   "text": "Κατηγορίες: «Refurbished» 10η στο μενού, μόνο στο site, με όσες υποκατηγορίες έχουν refurbished",
+   "routes": []
+  },
+  {
    "hash": "cf918cb",
    "date": "2026-11-23T09:59:33+02:00",
    "text": "Προσφορές: σημείωση όταν η καμπάνια έχει δική της «Έναρξη αγορών»",
@@ -5671,12 +5687,6 @@
     "/admin/softone",
     "/admin/softone/catalog"
    ]
-  },
-  {
-   "hash": "7b42150",
-   "date": "2026-11-17T14:16:41+02:00",
-   "text": "Εγγραφή πελάτη: επιβεβαίωση email πριν δημιουργηθεί ο λογαριασμός (σύνδεσμος 24 ωρών σε κρυπτογραφημένο token, ο λογαριασμός γράφεται και συνδέεται μόνο όταν πατηθεί), πεδίο «Επανάληψη κωδικού», εξήγηση ότι το email ε…",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -6001,6 +6011,18 @@
   ],
   "eggyiseis.table": [
    "app/admin/(shell)/eggyiseis/page.tsx"
+  ],
+  "gdpr.tabs": [
+   "app/admin/(shell)/gdpr/page.tsx"
+  ],
+  "gdpr.kpis": [
+   "app/admin/(shell)/gdpr/page.tsx"
+  ],
+  "gdpr.now": [
+   "app/admin/(shell)/gdpr/page.tsx"
+  ],
+  "gdpr.filters": [
+   "app/admin/(shell)/gdpr/page.tsx"
   ],
   "subscribers.campaigns": [
    "app/admin/(shell)/newsletter/page.tsx"
@@ -6902,6 +6924,21 @@
   ],
   "competitors-suggestions-bulk": [
    "components/admin/competitors/SuggestionsReview.tsx"
+  ],
+  "gdpr.export": [
+   "components/admin/customers/ConsentLedger.tsx"
+  ],
+  "gdpr.record": [
+   "components/admin/customers/ConsentLedger.tsx"
+  ],
+  "gdpr.ledger": [
+   "components/admin/customers/ConsentLedger.tsx"
+  ],
+  "gdpr.texts": [
+   "components/admin/customers/ConsentTexts.tsx"
+  ],
+  "gdpr.text-new": [
+   "components/admin/customers/ConsentTexts.tsx"
   ],
   "customers.list": [
    "components/admin/customers/CustomerList.tsx"

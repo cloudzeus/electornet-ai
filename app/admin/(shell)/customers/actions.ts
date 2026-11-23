@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
+import { recordConsent } from "@/lib/gdpr/consent";
 import { pushCustomerToErp, pullCustomerFromErp, searchErpCustomers, linkCustomerToErp } from "@/lib/softone/customers";
 import { requestPasswordReset } from "@/lib/account/password-reset";
 import { geocodeCustomerAddress } from "@/lib/customers/geocode-address";
@@ -62,7 +63,7 @@ export async function deleteAddress(customerId: string, addressId: string) {
 
 export async function setConsent(customerId: string, topic: string, channel: string, granted: boolean) {
   const user = await requirePermission("customers.write");
-  await db.consent.create({ data: { customerId, topic, channel, granted, source: "admin", staffId: user.id, textVersion: "admin" } });
+  await recordConsent({ customerId, topic, channel, granted, method: "admin", source: "admin", staffId: user.id, evidence: { by: user.name } });
   if (topic === "newsletter" && channel === "email") await db.customer.update({ where: { id: customerId }, data: { newsletter: granted } });
   await ev(customerId, "consent", { by: user.name, topic, channel, granted }, user.id);
   await audit(user.id, "customer.consent", "Customer", customerId, null, { topic, channel, granted });

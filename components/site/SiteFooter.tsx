@@ -2,14 +2,17 @@ import { copyOf } from "@/lib/cms/copy";
 import { getPublicSettings } from "@/lib/settings/store";
 import Image from "@/components/ui/Image";
 import Link from "next/link";
+import { CookieSettingsButton } from "./CookieConsent";
 
 const c = copyOf("footer");
+/** όχι σελίδα: ξανανοίγει το banner cookies (CookieSettingsButton) */
+const COOKIE_SETTINGS = "#cookie-settings";
 
 const cols: { title: string; links: { label: string; href: string }[] }[] = [
   { title: "Αγορές", links: [{ label: "Τρόποι πληρωμής", href: "/tropoi-pliromis" }, { label: "Τρόποι & χρόνοι αποστολής", href: "/tropoi-apostolis" }, { label: "Δόσεις χωρίς κάρτα", href: "/ypiresies/xrimatodotisi" }, { label: "Παραλαβή σε 2 ώρες", href: "/ypiresies/paralavi-2-ores" }, { label: "Κάρτες δώρου", href: "/kartes-dorou" }, { label: "Euronics Renew", href: "/renew" }] },
   { title: "Εξυπηρέτηση", links: [{ label: "Παρακολούθηση παραγγελίας", href: "/entopismos" }, { label: "Επιστροφές προϊόντων", href: "/epistrofes" }, { label: "Εγγυήσεις & service", href: "/ypiresies/syntirisi-episkeyi" }, { label: "Ανακύκλωση ΑΗΗΕ", href: "/ypiresies/anakyklosi-aiie" }, { label: "Συχνές ερωτήσεις", href: "/syxnes-erotiseis" }, { label: "Επικοινωνία", href: "/epikoinonia" }] },
   { title: "Χρήσιμα links", links: [{ label: "Χάρτης πλοήγησης", href: "/proionta" }, { label: "Δίκτυο καταστημάτων", href: "/katastimata" }, { label: "Οικονομικά στοιχεία", href: "/oikonomika-stoixeia" }, { label: "Οι υπηρεσίες μας", href: "/ypiresies" }, { label: "Τρόποι πληρωμής", href: "/tropoi-pliromis" }, { label: "Τρόποι αποστολής", href: "/tropoi-apostolis" }, { label: "Πολιτική Επιστροφών", href: "/epistrofes" }, { label: "Ποιοι είμαστε", href: "/etaireia" }, { label: "Νέα & ανακοινώσεις", href: "/nea" }, { label: "Έξυπνος οδηγός αγοράς", href: "/odigos-agoras" }, { label: "Οδηγοί & blog", href: "/odigoi" }] },
-  { title: "Νομικά", links: [{ label: "Όροι Χρήσης", href: "/oroi-chrisis" }, { label: "Πολιτική Απορρήτου", href: "/aporrito" }, { label: "Πολιτική Cookies", href: "/cookies" }, { label: "Δήλωση προσβασιμότητας", href: "/prosvasimotita" }, { label: "Εναλλακτική επίλυση διαφορών", href: "/oroi-chrisis" }, { label: "Πλατφόρμα ΗΕΔ της ΕΕ", href: "https://ec.europa.eu/consumers/odr" }] },
+  { title: "Νομικά", links: [{ label: "Όροι Χρήσης", href: "/oroi-chrisis" }, { label: "Πολιτική Απορρήτου", href: "/aporrito" }, { label: "Πολιτική Cookies", href: "/cookies" }, { label: "Ρυθμίσεις cookies", href: COOKIE_SETTINGS }, { label: "Δήλωση προσβασιμότητας", href: "/prosvasimotita" }, { label: "Εναλλακτική επίλυση διαφορών", href: "/oroi-chrisis" }, { label: "Πλατφόρμα ΗΕΔ της ΕΕ", href: "https://ec.europa.eu/consumers/odr" }] },
 ];
 
 /** DSA trader details, WEEE registry and ADR reachable on every page. */
@@ -38,7 +41,7 @@ export async function SiteFooter() {
                 {c.links.map((l) => (
                   <li key={l.label}>
                     {/* εξωτερικός σύνδεσμος (π.χ. πλατφόρμα ΗΕΔ της ΕΕ): ανοίγει σε νέο παράθυρο, και το λέει στους αναγνώστες οθόνης */}
-                    {l.href.startsWith("http") ? <a href={l.href} target="_blank" rel="noopener noreferrer" className="hover:text-white">{l.label}<span className="sr-only"> (ανοίγει σε νέο παράθυρο)</span></a> : (
+                    {l.href === COOKIE_SETTINGS ? <CookieSettingsButton label={l.label} className="hover:text-white text-left cursor-pointer" /> : l.href.startsWith("http") ? <a href={l.href} target="_blank" rel="noopener noreferrer" className="hover:text-white">{l.label}<span className="sr-only"> (ανοίγει σε νέο παράθυρο)</span></a> : (
                     <Link href={l.href} className="hover:text-white">
                       {l.label}
                     </Link>
