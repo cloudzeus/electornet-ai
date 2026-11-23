@@ -4,7 +4,7 @@ import { PageIntro } from "@/components/site/PageIntro";
 import { NewsletterForm } from "@/components/widgets/NewsletterForm";
 import { activeConsentText } from "@/lib/gdpr/consent";
 
-export const metadata = { title: "Newsletter" };
+export const metadata = { title: "Newsletter: προσφορές πρώτα σε εσένα", description: "Γράψου στο newsletter της Euronics και μάθε πρώτος τις προσφορές σε ηλεκτρικές συσκευές και τεχνολογία. Διαγράφεσαι όποτε θέλεις." };
 
 /** Landing for confirm / unsubscribe links and a plain signup form. */
 export default async function NewsletterPage({ searchParams }: { searchParams: Promise<{ ok?: string }> }) {

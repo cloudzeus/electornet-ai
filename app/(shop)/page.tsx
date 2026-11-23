@@ -15,6 +15,8 @@ import { BrandFrame } from "@/components/brand/BrandFrame";
 import { getHomeDoc, getPublishedHome } from "@/lib/cms/home-store";
 import { previewTokenOk, runDueScenarios } from "@/lib/cms/home-plans";
 import { afterZone, audienceOk, hideClass, sectionActive, sectionDef, sectionExtras, sectionWidget, TOP_ZONE } from "@/lib/cms/home-sections";
+import { jsonLd } from "@/lib/security/json-ld";
+import { homeJsonLd } from "@/lib/seo/pages";
 
 /**
  * Αρχική = οι ενότητες και τα components της διαχείρισης (Περιεχόμενο → Ζώνες αρχικής), όπως ισχύουν για αυτό το
@@ -66,6 +68,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   return (
     <>
       {preview && <div role="status" className="sticky top-0 z-40 bg-eu-yellow text-eu-navy text-center font-extrabold text-[length:var(--fs-14)] px-4 py-2">Προεπισκόπηση πρόχειρου της αρχικής — οι επισκέπτες δεν το βλέπουν</div>}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(homeJsonLd()) }} />
       <ZonesToggle enabled={sp.zones === "1"} />
       {zone(TOP_ZONE)}
       {sections.map(({ s, el }) => (

@@ -6,6 +6,7 @@ import { getPublicSettings } from "@/lib/settings/store";
 import { Analytics } from "@/components/site/Analytics";
 import { cleanAnalyticsIds } from "@/lib/security/analytics-ids";
 import { headers } from "next/headers";
+import { BASE_SEO } from "@/lib/seo/pages";
 import { NonceProvider } from "@/components/ui/SxStyleTag";
 import "./globals.css";
 
@@ -28,8 +29,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const BASE_METADATA: Metadata = {
-  title: { default: "euronics.gr — Πρόταση ανασχεδιασμού", template: "%s · euronics" },
-  description: "Νέο frontend euronics.gr: 350 καταστήματα, 12 υπηρεσίες, αγορά σε ένα βήμα.",
+  // τίτλος, περιγραφή, canonical, Open Graph, Twitter, robots για κάθε σελίδα: lib/seo/pages.ts
+  ...BASE_SEO,
   // Το Safari του iPhone κάνει μόνο του συνδέσμους τους μεγάλους αριθμούς (κωδικός, EAN) και αλλάζει το HTML πριν
   // φορτώσει το React — σφάλμα hydration. Τα τηλέφωνα καταστημάτων είναι ήδη ρητοί σύνδεσμοι tel:.
   formatDetection: { telephone: false, address: false, email: false, date: false },

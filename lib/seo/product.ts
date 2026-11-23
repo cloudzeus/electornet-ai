@@ -19,6 +19,8 @@ import { ADVERTISED_COURIER_FEE } from "@/lib/shipping/carriers";
  * per SKU, so it scales to the ERP catalogue.
  */
 export const SITE = "https://www.euronics.gr";
+/** Η επιχείρηση στα δομημένα δεδομένα: ίδιο @id παντού, ώστε προϊόν, νέα και αρχική να δείχνουν στον ίδιο οργανισμό. */
+export const ORG = { "@type": "Organization", "@id": `${SITE}/#org`, name: "Euronics", url: SITE, logo: `${SITE}/design/logo-on-blue.svg`, telephone: "+302104835143" } as const;
 export interface Crumb {
   label: string;
   href?: string;
@@ -93,7 +95,7 @@ export function productMetadata(p: Product, crumbs: Crumb[]): Metadata {
     keywords: [p.brand, p.title, p.sku, ...(p.ean ? [p.ean] : []), ...crumbs.filter((c) => c.href).map((c) => c.label), "Euronics", "δόσεις χωρίς κάρτα"],
     alternates: { canonical: url, languages: { "el-GR": url } },
     robots: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
-    openGraph: { title, description, url, siteName: "Euronics", locale: "el_GR", images: images.slice(0, 1).map((i) => ({ url: i, alt: name(p) })) },
+    openGraph: { type: "website", title, description, url, siteName: "Euronics", locale: "el_GR", images: images.slice(0, 1).map((i) => ({ url: i, alt: name(p) })) },
     twitter: { card: "summary_large_image", title, description, images: images.slice(0, 1) },
     other: { ...(p.noPrice ? {} : { "product:price:amount": String(p.price), "product:price:currency": "EUR" }), "product:availability": p.availability.kind === "order" ? "preorder" : "instock", "product:retailer_item_id": p.sku, "product:brand": p.brand },
   };
@@ -104,7 +106,7 @@ export function productJsonLd(p: Product, crumbs: Crumb[], w?: WarrantyInfo) {
   const images = (p.images?.length ? p.images : p.image ? [p.image] : []).map((i) => (i.startsWith("http") ? i : `${SITE}${i}`));
   const a = p.availability;
   const priceValidUntil = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
-  const org = { "@type": "Organization", "@id": `${SITE}/#org`, name: "Euronics", url: SITE, logo: `${SITE}/design/logo-on-blue.svg`, telephone: "+302104835143" };
+  const org = ORG;
   return {
     "@context": "https://schema.org",
     "@graph": [

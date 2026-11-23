@@ -37,7 +37,11 @@ const nextConfig: NextConfig = {
     }, {
       source: "/admin",
       headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-    }];
+    },
+    // προσωπικές σελίδες και αποτελέσματα αναζήτησης: εκτός ευρετηρίου, αλλά οι σύνδεσμοί τους ακολουθούνται. Σε ένα σημείο,
+    // ώστε νέα σελίδα λογαριασμού / ταμείου να μη χρειάζεται δικό της meta robots (το robots.txt κόβει μόνο τη σάρωση)
+    ...["/kalathi", "/checkout", "/logariasmos", "/eisodos", "/eggrafi", "/syndesi", "/ksexasa-kodiko", "/anazitisi", "/sygkrisi", "/lista", "/entopismos", "/eg"].flatMap((p) => [p, `${p}/:path*`]).map((source) => ({ source, headers: [{ key: "X-Robots-Tag", value: "noindex, follow" }] })),
+    ];
   },
   /** τα screenshots του wiki (εκτός public/) μπαίνουν στο standalone για το /api/help-shot */
   /** η γραμματοσειρά (ελληνικά) του δελτίου παράδοσης PDF διαβάζεται από αρχείο */

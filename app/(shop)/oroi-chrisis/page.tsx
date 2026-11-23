@@ -4,10 +4,11 @@ import { PolicyPage } from "@/components/site/PolicyPage";
 import { getPolicy } from "@/lib/data/repo";
 import { sitePolicy } from "@/lib/data/policies-social";
 import { envOrigin } from "@/lib/account/oauth-flow";
+import { infoMeta } from "@/lib/seo/pages";
 
 export async function generateMetadata(): Promise<Metadata> {
   const p = await getPolicy("oroi-chrisis");
-  return p ? { title: p.title, description: p.intro } : {};
+  return p ? infoMeta(p) : {};
 }
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {

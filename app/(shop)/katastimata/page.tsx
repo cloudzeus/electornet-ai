@@ -9,7 +9,7 @@ import { geoFromRequest, storesNear, geoSourceLabel } from "@/lib/geo/ip";
 import { LocateBar } from "@/components/stores/LocateBar";
 import { NearestStoreCard } from "@/components/stores/NearestStoreCard";
 
-export const metadata: Metadata = { title: "Καταστήματα Euronics", description: "350 καταστήματα-μέλη σε όλη την Ελλάδα: απόσταση, ωράριο, υπηρεσίες, παραλαβή σε 2 ώρες." };
+export const metadata: Metadata = { title: "Καταστήματα Euronics: διευθύνσεις & ωράρια", description: "Βρες το κοντινότερο κατάστημα Euronics: 350 καταστήματα-μέλη σε όλη την Ελλάδα με διεύθυνση, ωράριο, τηλέφωνο, υπηρεσίες και παραλαβή σε 2 ώρες." };
 
 const SERVICE_LABEL: Record<string, string> = { "click-collect": "Παραλαβή σε 2 ώρες", installation: "Εγκατάσταση", "service-point": "Service point", recycling: "Ανακύκλωση", parking: "Parking" };
 

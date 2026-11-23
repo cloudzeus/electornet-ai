@@ -6,7 +6,7 @@ import { PageIntro } from "@/components/site/PageIntro";
 import { ContactForm } from "@/components/site/ContactForm";
 import { PageZone, ZonesPreviewBar } from "@/components/site/PageZone";
 
-export const metadata: Metadata = { title: "Επικοινωνία", description: "MEGA ELECTRICS ΑΕΒΕ · Δαμάσκου Σταμάτη 12, Αχαρνές · 210 483 5143 · info@euronics.gr" };
+export const metadata: Metadata = { title: "Επικοινωνία: τηλέφωνο, email, διεύθυνση", description: "Επικοινώνησε με τη Euronics: τηλέφωνο 210 483 5143, email info@euronics.gr. MEGA ELECTRICS ΑΕΒΕ, Δαμάσκου Σταμάτη 12, Αχαρνές." };
 
 /** Contact: real details from euronics.gr/contactus, hours, live chat entry, form with subject routing. */
 export default async function ContactPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {

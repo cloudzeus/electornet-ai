@@ -5,7 +5,7 @@ import { getFaqs } from "@/lib/data/repo";
 import { PageZone, ZonesPreviewBar } from "@/components/site/PageZone";
 import { jsonLd } from "@/lib/security/json-ld";
 
-export const metadata: Metadata = { title: "Συχνές ερωτήσεις", description: "Παραγγελίες, πληρωμές, αποστολή, επιστροφές, υπηρεσίες, καταστήματα." };
+export const metadata: Metadata = { title: "Συχνές ερωτήσεις: παραγγελίες & επιστροφές", description: "Απαντήσεις για παραγγελίες, τρόπους πληρωμής και δόσεις, αποστολή και παραλαβή από κατάστημα, επιστροφές, εγγυήσεις και υπηρεσίες της Euronics." };
 
 /** FAQ hub (the current site has none) with FAQPage JSON-LD. */
 export default async function FaqPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {

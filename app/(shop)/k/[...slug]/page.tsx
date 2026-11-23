@@ -18,6 +18,7 @@ import { AskAris } from "@/components/advisor/AskAris";
 import { isEnergyQuestion } from "@/lib/catalog/energy-types";
 import { isFitQuestion } from "@/lib/catalog/fit-types";
 
+import { categoryMeta } from "@/lib/seo/pages";
 const GUIDE_FOR: Record<string, { kind: string; t: string }> = { tileoraseis: { kind: "tileoraseis", t: "Ποια τηλεόραση σού ταιριάζει; 5 ερωτήσεις, αιτιολογημένη πρόταση." }, laptops: { kind: "ypologistes", t: "Ποιος υπολογιστής σού ταιριάζει; 5 ερωτήσεις, αιτιολογημένη πρόταση." }, tablets: { kind: "ypologistes", t: "Laptop ή tablet; Ο έξυπνος οδηγός αποφασίζει μαζί σου." }, "air-condition": { kind: "klimatistika", t: "Πόσα BTU χρειάζεσαι; Ο έξυπνος οδηγός τα υπολογίζει από τα τετραγωνικά." } };
 
 type Params = { slug: string[] };
@@ -27,14 +28,12 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const { slug } = await params;
   const cat = await resolveCategory(slug);
   if (cat) {
-    const name = cat.path.map((p) => p.name).reverse().join(" · ");
-    return { title: name, description: `${cat.path[cat.path.length - 1].name}: ${cat.path[cat.path.length - 1].count.toLocaleString("el-GR")} προϊόντα, δόσεις χωρίς κάρτα, παραλαβή σε 2 ώρες από 350 καταστήματα Euronics.`, alternates: { canonical: `/k/${cat.path.map((p) => p.slug).join("/")}` } };
+    return categoryMeta(cat.path);
   }
   const l1 = await getL1(slug[0]);
   if (!l1) return {};
   const l2 = slug[1] ? l1.children.find((c) => c.slug === slug[1]) : null;
-  const name = l2 ? `${l2.name} · ${l1.label}` : l1.label;
-  return { title: name, description: `${name}: προσφορές, δόσεις χωρίς κάρτα, παραλαβή σε 2 ώρες από 350 καταστήματα Euronics.` };
+  return categoryMeta([{ name: l1.label, slug: l1.slug }, ...(l2 ? [{ name: l2.name, slug: l2.slug }] : [])]);
 }
 
 /**

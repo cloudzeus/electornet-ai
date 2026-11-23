@@ -6,7 +6,7 @@ import { getBrands, getBrandStores } from "@/lib/data/repo";
 import { BrandStoreTiles } from "@/components/brand/BrandStoreTiles";
 import { UniformLogo } from "@/components/brand/UniformLogo";
 
-export const metadata: Metadata = { title: "Μάρκες", description: "Όλες οι μάρκες που διαθέτει η Euronics: LG, Samsung, Bosch, AEG, Apple, Miele και άλλες." };
+export const metadata: Metadata = { title: "Μάρκες ηλεκτρικών συσκευών & τεχνολογίας", description: "Όλες οι μάρκες που διαθέτει η Euronics: LG, Samsung, Bosch, AEG, Apple, Miele και άλλες. Δες τα προϊόντα, τις τιμές και τις προσφορές κάθε μάρκας." };
 
 /** Brand wall — the current euronics.gr /manufacturer/all lists 10 brands with 0 products. */
 export default async function BrandsPage() {

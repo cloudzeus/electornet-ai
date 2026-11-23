@@ -17,6 +17,7 @@ import { can } from "@/lib/rbac/permissions";
 import { getStoreDoc } from "@/lib/cms/brand-stores";
 import { previewTokenOk, runDueScenarios } from "@/lib/cms/doc-plans";
 import { brandTarget } from "@/lib/cms/brand-plans";
+import { brandMeta } from "@/lib/seo/pages";
 
 /**
  * ?preview=1 από το προσωπικό με δικαίωμα σελίδων μαρκών, ή ?pt=<token> από σύνδεσμο προεπισκόπησης (λήγει):
@@ -37,7 +38,7 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
   if (sp.pt || sp.preview) return { title: store?.seo.title ?? slug, robots: { index: false, follow: false } };
   if (store) return { title: store.seo.title, description: store.seo.description };
   const b = await getBrand(slug);
-  return b ? { title: `${b.name} — προϊόντα`, description: `Όλα τα προϊόντα ${b.name} στη Euronics με εργοστασιακή εγγύηση και δόσεις.` } : {};
+  return b ? brandMeta(b.name) : {};
 }
 
 export default async function BrandPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | undefined>> }) {

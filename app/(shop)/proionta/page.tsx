@@ -9,7 +9,7 @@ import { Pagination } from "@/components/catalog/Pagination";
 import { ProductGrid } from "@/components/catalog/ProductGrid";
 import { filterFromParams, getCategoryTree, listProducts } from "@/lib/data/repo";
 
-export const metadata: Metadata = { title: "Όλα τα προϊόντα", description: "Όλα τα προϊόντα της Euronics με φίλτρα ανά κατηγορία, μάρκα, τιμή, ενεργειακή κλάση και χαρακτηριστικά. Σύγκριση έως 4 προϊόντων." };
+export const metadata: Metadata = { title: "Ηλεκτρικές συσκευές & τεχνολογία: όλα τα προϊόντα", description: "Όλες οι ηλεκτρικές συσκευές και τα προϊόντα τεχνολογίας της Euronics, με φίλτρα ανά κατηγορία, μάρκα, τιμή και ενεργειακή κλάση. Σύγκριση έως 4 προϊόντων." };
 
 type SP = Record<string, string | undefined>;
 
