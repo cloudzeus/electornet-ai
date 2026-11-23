@@ -77,7 +77,7 @@ function stepIssues(d: PromoDraft): Issues[] {
  * προσφορά σε μία πρόταση, πώς φαίνεται στην κάρτα, τα βασικά στοιχεία, η λίστα ελέγχου ανά βήμα και πού θα εμφανίζεται.
  * Ό,τι συμπληρώνεται εδώ τρέχει στην ίδια μηχανή με το καλάθι.
  */
-export function PromoWizard({ initial, names: initialNames, status, code, canApprove, services, segments = [], stores = [], startStep = 0, appears = [], overview, campaigns = [] }: { campaigns?: { id: string; label: string; published: boolean }[]; initial: PromoDraft; names: Record<string, string>; status: PromoStatus | null; code: string | null; canApprove: boolean; services: Svc[]; segments?: { id: string; label: string }[]; stores?: StoreOpt[]; startStep?: number; appears?: WizardAppearance[]; overview?: ReactNode }) {
+export function PromoWizard({ initial, names: initialNames, status, code, canApprove, services, segments = [], stores = [], startStep = 0, appears = [], overview, campaigns = [] }: { campaigns?: { id: string; label: string; published: boolean; cartOpensAt?: string | null }[]; initial: PromoDraft; names: Record<string, string>; status: PromoStatus | null; code: string | null; canApprove: boolean; services: Svc[]; segments?: { id: string; label: string }[]; stores?: StoreOpt[]; startStep?: number; appears?: WizardAppearance[]; overview?: ReactNode }) {
   const router = useRouter();
   const [d, setD] = useState<PromoDraft>(initial);
   const [step, setStep] = useState(startStep);
@@ -255,6 +255,12 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
                   <input type="checkbox" className="size-5 mt-0.5 accent-eu-navy shrink-0" checked={!!d.rules.cartOpensAt} onChange={(e) => setRules({ cartOpensAt: e.target.checked ? d.startsAt ?? new Date().toISOString() : undefined })} />
                   <span className="grid"><span className="font-bold text-eu-ink text-[length:var(--fs-15)]">Οι αγορές ξεκινούν αργότερα</span><span className="text-eu-ink-3 text-[length:var(--fs-13)] leading-snug">Η προσφορά φαίνεται από την έναρξη, αλλά ο πελάτης μπορεί να αγοράσει από την ημέρα και ώρα που θα ορίσεις. Ως τότε βλέπει μήνυμα με αντίστροφη μέτρηση.</span></span>
                 </label>
+                {camp?.cartOpensAt && (
+                  <p className="m-0 flex items-start gap-2 rounded-lg bg-eu-yellow/25 p-2.5 text-eu-ink text-[length:var(--fs-13)] leading-snug">
+                    <Lock className="size-4 mt-0.5 shrink-0 text-eu-navy" aria-hidden />
+                    <span>Η καμπάνια <b>{camp.label}</b> έχει δική της έναρξη αγορών: <b>{new Date(camp.cartOpensAt).toLocaleString("el-GR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Athens" })}</b>. Ισχύει για όλες τις προσφορές της, ακόμη κι αν εδώ το κουτάκι είναι κλειστό. <Link href={`/admin/prosfores/kampanies/${camp.id}`} className="font-bold text-eu-blue underline">Άλλαξέ τη στην καμπάνια</Link>.</span>
+                  </p>
+                )}
                 {d.rules.cartOpensAt && <Field l="Έναρξη αγορών"><input type="datetime-local" className={`${input} @xl:max-w-xs`} value={localDt(d.rules.cartOpensAt)} onChange={(e) => setRules({ cartOpensAt: fromLocal(e.target.value) ?? undefined })} /></Field>}
               </div>
             </Group>

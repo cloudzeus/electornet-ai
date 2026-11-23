@@ -227,11 +227,11 @@ export async function setCampaignState(id: string, action: "pause" | "resume" | 
   return { ok: true };
 }
 
-export type CampaignOption = { id: string; label: string; published: boolean };
+export type CampaignOption = { id: string; label: string; published: boolean; cartOpensAt: string | null };
 /** Καμπάνιες που μπορούν να δεχτούν προσφορά (όχι στο αρχείο / όχι λήξη), για τον οδηγό προσφοράς. */
 export async function campaignOptions(): Promise<CampaignOption[]> {
-  const rows = await db.campaign.findMany({ where: { code: { not: null }, status: { notIn: ["archived", "ended"] } }, orderBy: { startsAt: "desc" }, select: { id: true, code: true, title: true, status: true, startsAt: true, endsAt: true } });
-  return rows.filter((c) => shownStatus(c) !== "ended").map((c) => ({ id: c.id, label: `${c.code} · ${c.title}`, published: ["scheduled", "live", "paused"].includes(c.status) }));
+  const rows = await db.campaign.findMany({ where: { code: { not: null }, status: { notIn: ["archived", "ended"] } }, orderBy: { startsAt: "desc" }, select: { id: true, code: true, title: true, status: true, startsAt: true, endsAt: true, cartOpensAt: true } });
+  return rows.filter((c) => shownStatus(c) !== "ended").map((c) => ({ id: c.id, label: `${c.code} · ${c.title}`, published: ["scheduled", "live", "paused"].includes(c.status), cartOpensAt: c.cartOpensAt && c.cartOpensAt > new Date() ? c.cartOpensAt.toISOString() : null }));
 }
 
 /**
