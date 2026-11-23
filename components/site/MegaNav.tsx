@@ -11,7 +11,7 @@ import type { MegaMenuEntry } from "@/lib/data/repo";
 import { ZoneBadge } from "./ZoneBadge";
 import { useDevice } from "@/components/fluid/DeviceProvider";
 import { ProductImage } from "@/components/commerce/ProductImage";
-import { priceShort, instalment, priceLong } from "@/lib/format";
+import { priceShort, instalmentLine } from "@/lib/format";
 import { useCart } from "@/components/commerce/CartProvider";
 import { copyOf } from "@/lib/cms/copy";
 
@@ -534,10 +534,11 @@ export function MegaNav({ data = [], categories: navCategories = demoCategories 
                       </s>
                     )}
                   </div>
-                  <div className="text-eu-blue font-bold text-[length:var(--fs-13)]">
-                    ή 12 × {priceLong(instalment(entry.promo.price))} χωρίς
-                    κάρτα
-                  </div>
+                  {instalmentLine(entry.promo.price) && (
+                    <div className="text-eu-blue font-bold text-[length:var(--fs-13)]">
+                      ή {instalmentLine(entry.promo.price)}
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => {

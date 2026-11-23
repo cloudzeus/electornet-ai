@@ -4,7 +4,7 @@ import { ArrowRight, Cpu, Eye, Zap, Wifi, ShieldCheck, Sparkles, Leaf, Camera } 
 import type { BrandBlock } from "@/lib/cms/brand-store";
 import type { Product } from "@/lib/data/types";
 import { cutoutFor } from "@/lib/data/cutouts";
-import { priceShort, priceLong, instalment } from "@/lib/format";
+import { priceShort, instalmentLine } from "@/lib/format";
 import { ProductCard } from "@/components/commerce/ProductCard";
 import { CardCarousel } from "@/components/commerce/CardCarousel";
 import { Countdown } from "@/components/commerce/Countdown";
@@ -46,7 +46,7 @@ export function NewArrivals({ b, products }: { b: Extract<BrandBlock, { type: "n
                     <span className="mt-2 flex items-baseline gap-2">
                       <span className="font-heading font-extrabold text-[length:var(--fs-26)] tracking-[-0.02em]"><Price value={p.price} short /></span>
                       {p.wasPrice && p.wasPrice > p.price ? <s className="text-[var(--bs-muted)] text-[length:var(--fs-15)]">{priceShort(p.wasPrice)}</s> : null}
-                      <span className="text-[var(--bs-muted)] text-[length:var(--fs-14)]">ή 24 × {priceLong(instalment(p.price, 24))}</span>
+                      {instalmentLine(p.price) && <span className="text-[var(--bs-muted)] text-[length:var(--fs-14)]">ή {instalmentLine(p.price, true)} άτοκα</span>}
                     </span>
                   </span>
                   <ArrowRight className="absolute bottom-5 right-5 size-5 text-[var(--bs-accent)] transition-transform group-hover:translate-x-1" aria-hidden />

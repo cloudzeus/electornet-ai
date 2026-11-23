@@ -303,7 +303,7 @@ export const SECTIONS: Section[] = [
       { key: "apiKey", label: "API key", type: "secret", width: "half", group: "cards", help: "Viva: API key. Stripe: secret key (sk_…). Cardlink: shared secret." },
       { key: "webhookSecret", label: "Webhook secret", type: "secret", width: "half", group: "cards", help: "Επιβεβαιώνει ότι οι ειδοποιήσεις πληρωμής έρχονται πράγματι από τον πάροχο." },
       { key: "sourceCode", label: "Source code (Viva)", type: "text", width: "half", group: "cards", showIf: is("provider", "viva"), placeholder: "1234", rule: R.int, help: "Viva → Sales → Online payments → Websites/Apps → κωδικός πηγής." },
-      { key: "maxInstalments", label: "Μέγιστες άτοκες δόσεις", type: "number", public: true, width: "half", group: "cards", min: 0, max: 60, step: 1, placeholder: "12", help: "0 = χωρίς δόσεις. Οι δόσεις ανά ποσό ορίζονται στον πάροχο." },
+      { key: "maxInstalments", label: "Μέγιστες άτοκες δόσεις", type: "number", public: true, width: "half", group: "cards", min: 0, max: 60, step: 1, placeholder: "12", help: "Κενό ή 0 = το ταμείο δεν δίνει δόσεις. Ο πελάτης διαλέγει τον αριθμό στο ταμείο και η Viva χρεώνει ακριβώς τόσες: έως 3 από 100 €, 6 από 200 €, 12 από 400 €, 24 από 800 €, ποτέ πάνω από αυτό το όριο." },
       yesNo("applePay", "Apple Pay", undefined, true),
       yesNo("googlePay", "Google Pay", undefined, true),
       yesNo("paypal", "PayPal", "Μέσω Viva.", true),

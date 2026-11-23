@@ -2,10 +2,11 @@
 
 
 import { useEffect, useMemo, useState } from "react";
-import { Minus, Plus, Package, ShieldCheck } from "lucide-react";
+import { CreditCard, Minus, Plus, Package, ShieldCheck } from "lucide-react";
 import type { Product, Service } from "@/lib/data/types";
 import type { PickupStore } from "@/components/pdp/PickupStorePicker";
-import { discountPct, instalment, priceLong, priceShort, weekday } from "@/lib/format";
+import { discountPct, maxInstalments, priceLong, priceShort, weekday } from "@/lib/format";
+import { InstalmentSelect } from "@/components/commerce/InstalmentSelect";
 import { useCart, type CartAddon } from "@/components/commerce/CartProvider";
 import { WishlistButton, CompareCheckbox } from "@/components/commerce/WishlistButton";
 import { ProductImage } from "@/components/commerce/ProductImage";
@@ -17,8 +18,8 @@ import { Price } from "@/components/commerce/Price";
 const c = copyOf("buybox");
 
 /**
- * Sticky buy box. Price + Omnibus 30-day price, instalments with and
- * without card, variants with price per option, availability with date,
+ * Sticky buy box. Price + Omnibus 30-day price, interest-free card
+ * instalments (the customer picks how many), variants with price per option, availability with date,
  * store selector with real-time stock, delivery choice, and the
  * «Ολοκληρωμένη λύση» bundle: warranty extension, e-support and an
  * accessory with a running total. «Προσθήκη στο καλάθι» is the one primary
@@ -31,6 +32,7 @@ export function BuyBox({ product: p, addons, accessory, warranty }: { product: P
   const [sel, setSel] = useState<Record<string, string>>(() => Object.fromEntries((p.variants ?? []).map((v) => [v.name, v.options[0].label])));
   const [chosen, setChosen] = useState<CartAddon[]>([]);
   const [withAcc, setWithAcc] = useState(false);
+  const [months, setMonths] = useState<number | null>(null);
 
   const price = useMemo(() => {
     let pr = p.price;
@@ -41,6 +43,9 @@ export function BuyBox({ product: p, addons, accessory, warranty }: { product: P
     return pr;
   }, [p, sel]);
   const pct = discountPct(price, p.wasPrice);
+  // άτοκες δόσεις: ο πελάτης διαλέγει πόσες· ξεκινά από τις περισσότερες (μικρότερη δόση) και ακολουθεί την τιμή της παραλλαγής
+  const maxInst = maxInstalments(price);
+  const inst = Math.min(months ?? maxInst, maxInst);
   const variantLabel = Object.values(sel).join(" · ") || undefined;
   const a = p.availability;
   const date = a.kind === "order" ? null : weekday(new Date(a.deliveryDate));
@@ -85,16 +90,15 @@ export function BuyBox({ product: p, addons, accessory, warranty }: { product: P
             {p.dealEndsAt && <DealCountdown until={p.dealEndsAt} />}
           </div>
         )}
-        <div className="grid grid-cols-2 gap-2 mt-3">
-          <div className="rounded-xl bg-eu-chip p-3.5">
-            <div className="font-extrabold text-eu-blue text-[length:var(--fs-18)]">12 × {priceLong(instalment(price))}</div>
-            <div className="text-eu-muted text-[length:var(--fs-13-5)]">{c.choris_karta_eurobank}</div>
+        {maxInst > 1 && (
+          <div className="rounded-xl bg-eu-chip p-3.5 mt-3 grid gap-2" data-testid="pdp-instalments">
+            <label htmlFor="pdp-inst" className="flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-15)]">
+              <CreditCard className="size-5 text-eu-blue shrink-0" aria-hidden /> Άτοκες δόσεις με κάρτα
+            </label>
+            <InstalmentSelect id="pdp-inst" amount={price} max={maxInst} value={inst} onChange={setMonths} />
+            <div className="text-eu-ink-2 text-[length:var(--fs-14)]">Χωρίς τόκους. Τον αριθμό των δόσεων τον ορίζεις στο ταμείο, όταν πληρώσεις με κάρτα</div>
           </div>
-          <div className="rounded-xl bg-eu-surface p-3.5">
-            <div className="font-extrabold text-eu-ink text-[length:var(--fs-18)]">24 × {priceLong(instalment(price, 24))}</div>
-            <div className="text-eu-muted text-[length:var(--fs-13-5)]">{c.atoka_me_karta}</div>
-          </div>
-        </div>
+        )}
       </div>
 
       {p.variants?.map((v) => (

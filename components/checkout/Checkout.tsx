@@ -8,7 +8,8 @@ import { readPickup, savePickup } from "@/lib/geo/pickup-pref";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CreditCard, Landmark, Banknote, Smartphone, Wallet as Wallet2, ExternalLink, Store as StoreIcon, Truck, Container, CalendarClock, ShieldCheck, Lock, RotateCcw, Pencil, Recycle, Check, Tag, Home, Zap, Loader2, Phone } from "lucide-react";
-import { instalment, priceLong } from "@/lib/format";
+import { instalment, maxInstalments, priceLong } from "@/lib/format";
+import { InstalmentSelect } from "@/components/commerce/InstalmentSelect";
 import { useCart, type Fulfilment } from "@/components/commerce/CartProvider";
 import { Stepper } from "./Stepper";
 import { ProductImage } from "@/components/commerce/ProductImage";
@@ -53,7 +54,7 @@ const REGIONS = [...DISTRICTS.map((d) => d.name).sort((a, b) => a.localeCompare(
  * (Directive 2011/83). Mobile: sticky total + CTA at the bottom.
  * Every text ≥ 14px, every control ≥ 48px.
  */
-export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarnaDirect = false, bankSub = null, cod = true }: { /** Ρυθμίσεις → Πληρωμές → Αντικαταβολή· κλειστή = δεν προσφέρεται */ cod?: boolean; stores: StoreLite[]; boxnowPartnerId?: string | null; vivaPays?: string[]; klarnaDirect?: boolean; /** οι τράπεζες των λογαριασμών (Ρυθμίσεις → Πληρωμές)· null = η κατάθεση δεν προσφέρεται */ bankSub?: string | null }) {
+export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarnaDirect = false, bankSub = null, cod = true, cardInstMax = 0 }: { /** Ρυθμίσεις → Πληρωμές → «Μέγιστες άτοκες δόσεις»· 0 = δεν δίνονται δόσεις */ cardInstMax?: number; /** Ρυθμίσεις → Πληρωμές → Αντικαταβολή· κλειστή = δεν προσφέρεται */ cod?: boolean; stores: StoreLite[]; boxnowPartnerId?: string | null; vivaPays?: string[]; klarnaDirect?: boolean; /** οι τράπεζες των λογαριασμών (Ρυθμίσεις → Πληρωμές)· null = η κατάθεση δεν προσφέρεται */ bankSub?: string | null }) {
   // Viva: οι online τρόποι (κάρτα, Apple/Google Pay, PayPal, IRIS, Klarna) ολοκληρώνονται στη σελίδα της Viva
   const viva = vivaPays.length > 0;
   const viaViva = (p: string) => viva && vivaPays.includes(p);
@@ -86,7 +87,8 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   const [slots, setSlots] = useState<string[]>([]);
   // χωρίς ρυθμισμένη Viva δεν υπάρχει online πληρωμή: μόνο αντικαταβολή / κατάθεση / στο κατάστημα
   const [pay, setPay] = useState<Pay>(viva ? "card" : cod || !bankSub ? "cod" : "bank");
-  const inst = 1; // τις δόσεις τις διαλέγει ο πελάτης στη σελίδα της Viva
+  // άτοκες δόσεις με κάρτα: τις διαλέγει ο πελάτης εδώ και η Viva χρεώνει ακριβώς τόσες
+  const [instPick, setInst] = useState(1);
   const [vatLookup, setVatLookup] = useState<"idle" | "loading" | "ok" | "err">("idle");
   const [err, setErr] = useState<string | null>(null);
   const [coupon, setCoupon] = useState(() => savedCoupon() ?? "");
@@ -151,7 +153,8 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   const shipping = quote ? quote.shipping / 100 : 0;
   const codFee = quote ? quote.codFee / 100 : payUse === "cod" ? 2 : 0;
   const total = quote ? quote.total / 100 : Math.max(0, localGoods) + shipping + codFee;
-  const maxInst = total >= 800 ? 24 : total >= 400 ? 12 : total >= 200 ? 6 : total >= 100 ? 3 : 1;
+  const maxInst = viaViva("card") ? maxInstalments(total, cardInstMax) : 1;
+  const inst = payUse === "card" ? Math.min(instPick, maxInst) : 1;
   const store = stores.find((s) => s.id === storeId);
   const eta = onRequest && ful !== "click-collect" ? "Κατόπιν συνεννόησης · σε καλούμε για τα μεταφορικά και την ημέρα" : ful === "click-collect" ? "Θα λάβεις SMS όταν είναι έτοιμη για παραλαβή" : expressSel ? "ASAP Express · 1–2 ημέρες" : attica ? quote!.attica.standard.eta : ful === "appointment" ? "Από συνεργαζόμενο κατάστημα · κατόπιν συνεννόησης για ημέρα και ώρα"  : ful === "freight" ? freight?.eta ?? "" : offer ? offer.eta : "Παράδοση σε 1–3 εργάσιμες";
 
@@ -576,7 +579,15 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                 {viaViva(payUse) && (
                   <div className="grid gap-3 rounded-xl bg-eu-surface p-4 @md:p-5 text-[length:var(--fs-15)] text-eu-ink-2">
                     <p className="m-0 flex items-start gap-2"><ExternalLink className="size-5 text-eu-blue shrink-0" aria-hidden /> <span>Θα μεταφερθείς στην ασφαλή σελίδα πληρωμής της <b className="text-eu-ink">Viva</b> για να πληρώσεις με {VIVA_NAME[payUse]}. Αν έχεις πληρώσει με Viva σε άλλο κατάστημα, θα δεις εκεί τις αποθηκευμένες κάρτες σου.</span></p>
-                    {payUse === "card" && maxInst > 1 && <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Τις άτοκες δόσεις (έως {maxInst}) τις διαλέγεις στη σελίδα της Viva.</p>}
+                    {payUse === "card" && maxInst > 1 && (
+                      <div className="grid gap-1.5">
+                        <label htmlFor="co-inst" className="font-bold text-eu-ink text-[length:var(--fs-15)]">Σε πόσες άτοκες δόσεις;</label>
+                        <InstalmentSelect id="co-inst" amount={total} max={maxInst} value={inst} onChange={setInst} none />
+                        <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">
+                          {inst > 1 ? `Η κάρτα σου χρεώνεται ${priceLong(instalment(total, inst))} τον μήνα για ${inst} μήνες, χωρίς τόκους. Χρειάζεται πιστωτική κάρτα που δέχεται δόσεις` : `Έως ${maxInst} άτοκες δόσεις για αυτό το ποσό. Αν δεν διαλέξεις, χρεώνεται όλο το ποσό μία φορά`}
+                        </p>
+                      </div>
+                    )}
                     <p className="m-0 text-eu-muted text-[length:var(--fs-14)] flex items-start gap-2"><ShieldCheck className="size-5 text-eu-green shrink-0" aria-hidden /> Τα στοιχεία πληρωμής δεν περνούν από εμάς.</p>
                   </div>
                 )}
@@ -704,7 +715,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                 <dt className="font-extrabold text-eu-ink text-[length:var(--fs-17)]">{c.synolo}</dt>
                 <dd className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-28)] leading-none">{priceLong(total)}</dd>
               </div>
-              {maxInst > 1 && <div className="text-eu-blue font-bold text-[length:var(--fs-14)] text-right">ή {maxInst} × {priceLong(instalment(total, maxInst))} άτοκα</div>}
+              {maxInst > 1 && <div className="text-eu-blue font-bold text-[length:var(--fs-14)] text-right">{inst > 1 ? `σε ${inst} άτοκες δόσεις × ${priceLong(instalment(total, inst))}` : `ή έως ${maxInst} άτοκες δόσεις × ${priceLong(instalment(total, maxInst))} με κάρτα`}</div>}
             </dl>
             <div className="rounded-xl bg-eu-surface px-4 py-3 text-[length:var(--fs-14)] text-eu-ink-2 flex items-center gap-2">
               <Truck className="size-5 text-eu-blue shrink-0" aria-hidden /> {eta}

@@ -1,6 +1,6 @@
 import "server-only";
 import { getSetting } from "@/lib/settings/store";
-import { vivaHosts, type VivaMode, type VivaTransaction } from "./viva-core";
+import { vivaHosts, vivaInstalments, type VivaMode, type VivaTransaction } from "./viva-core";
 
 /**
  * Viva Smart Checkout (OAuth2 client credentials). Στοιχεία από Ρυθμίσεις → Πληρωμές (πάροχος «Viva Wallet»):
@@ -69,7 +69,7 @@ export async function createVivaOrder(c: VivaConfig, i: VivaOrderInput): Promise
     customerTrns: `Euronics · παραγγελία ${i.number}`,
     customer: { email: i.customer.email || undefined, fullName: i.customer.fullName, phone: i.customer.phone ?? undefined, countryCode: i.customer.countryCode ?? "GR", requestLang: "el-GR" },
     paymentTimeout: 1800,
-    maxInstallments: Math.min(c.maxInstalments, i.instalments && i.instalments > 1 ? i.instalments : c.maxInstalments),
+    ...vivaInstalments(c.maxInstalments, i.instalments),
     merchantTrns: i.number,
     tags: ["eshop"],
     ...(c.sourceCode ? { sourceCode: c.sourceCode } : {}),

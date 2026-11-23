@@ -11,7 +11,7 @@ import { ProductImage } from "./ProductImage";
 import { EnergyChip } from "./EnergyChip";
 import {
   discountPct,
-  instalment,
+  instalmentLine,
   priceLong,
   priceShort,
   weekday,
@@ -189,24 +189,16 @@ function Body({ p }: { p: Product }) {
                 : ""}
               με ΦΠΑ 24%
             </div>
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              <div className="rounded-xl bg-eu-chip p-3">
+            {instalmentLine(p.price) && (
+              <div className="rounded-xl bg-eu-chip p-3 mt-3">
                 <div className="font-extrabold text-eu-blue text-[length:var(--fs-16)]">
-                  12 × {priceLong(instalment(p.price))}
+                  έως {instalmentLine(p.price)}
                 </div>
                 <div className="text-eu-muted text-[length:var(--fs-13-5)]">
-                  {c.choris_karta}
+                  με κάρτα · τον αριθμό των δόσεων τον διαλέγεις στο ταμείο
                 </div>
               </div>
-              <div className="rounded-xl bg-eu-surface p-3">
-                <div className="font-extrabold text-eu-ink text-[length:var(--fs-16)]">
-                  24 × {priceLong(instalment(p.price, 24))}
-                </div>
-                <div className="text-eu-muted text-[length:var(--fs-13-5)]">
-                  {c.atoka_me_karta}
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
           <div

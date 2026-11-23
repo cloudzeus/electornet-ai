@@ -11,7 +11,7 @@ import { useVoice } from "@/lib/voice/client";
 import { useMySpace } from "@/components/space/MySpaceProvider";
 import { navCategories as demoCategories, type NavCategory } from "@/lib/data/nav";
 import type { SuggestResult } from "@/lib/data/repo";
-import { priceShort, instalment, priceLong } from "@/lib/format";
+import { priceShort, instalmentLine } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
 
@@ -363,7 +363,7 @@ export function SearchBox({ compact = false, categories: navCategories = demoCat
                             </div>
                             <div className="font-bold text-eu-ink text-[length:var(--fs-15)] leading-tight line-clamp-1">{hl(p.title)}</div>
                             <div className="flex items-center gap-2 text-[length:var(--fs-13-5)] text-eu-muted">
-                              <span className={`size-2 rounded-full ${avail[p.avail][0]}`} aria-hidden /> {p.noPrice ? "Τιμή και διαθεσιμότητα στο κατάστημα" : <>{avail[p.avail][1]} · 12 × {priceLong(instalment(p.price))}</>}
+                              <span className={`size-2 rounded-full ${avail[p.avail][0]}`} aria-hidden /> {p.noPrice ? "Τιμή και διαθεσιμότητα στο κατάστημα" : <>{avail[p.avail][1]}{instalmentLine(p.price) ? ` · ${instalmentLine(p.price, true)} άτοκα` : ""}</>}
                             </div>
                           </div>
                           <div className="text-right shrink-0">

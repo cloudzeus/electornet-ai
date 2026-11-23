@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "@/components/ui/Image";
 import { Plus, Zap } from "lucide-react";
 import type { Product } from "@/lib/data/types";
-import { discountPct, instalment, priceLong, priceShort } from "@/lib/format";
+import { discountPct, instalmentLine, priceLong, priceShort } from "@/lib/format";
 import { useCart } from "@/components/commerce/CartProvider";
 import { Countdown } from "@/components/commerce/Countdown";
 import { ProductImage } from "@/components/commerce/ProductImage";
@@ -47,7 +47,7 @@ export function DealOfDayTile({ product: p, endsAt }: { product: Product; endsAt
               {p.wasPrice && <s className="font-medium text-eu-muted-2 text-[length:var(--fs-13-5)]">{priceShort(p.wasPrice)}</s>}
             </div>
             <div className="text-eu-muted text-[length:var(--fs-13)] leading-snug mt-1.5">
-              {p.lowest30 && <>Χαμηλότερη 30 ημερών: {priceLong(p.lowest30)} · </>}12 × {priceLong(instalment(p.price))} χωρίς κάρτα
+              {p.lowest30 && <>Χαμηλότερη 30 ημερών: {priceLong(p.lowest30)} · </>}{instalmentLine(p.price) ?? "με ΦΠΑ 24%"}
             </div>
           </div>
           <div className="relative aspect-square eu-cutout-field rounded-xl overflow-hidden" data-tilt-layer>

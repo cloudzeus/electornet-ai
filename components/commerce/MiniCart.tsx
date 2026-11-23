@@ -6,7 +6,7 @@ import { Minus, Plus, Trash2, X, Check, Truck, ShieldCheck, RotateCcw, ChevronRi
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import type { Product } from "@/lib/data/types";
 import { useCart } from "./CartProvider";
-import { instalment, priceLong } from "@/lib/format";
+import { instalmentLine, priceLong } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
 import { Price } from "@/components/commerce/Price";
@@ -158,7 +158,7 @@ export function MiniCart({ suggestions = [] }: { suggestions?: Product[] }) {
                   <dd className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-24)] leading-none">{priceLong(goods + shipping)}</dd>
                 </div>
               </dl>
-              <div className="text-eu-blue font-bold text-[length:var(--fs-14)]">ή 12 × {priceLong(instalment(goods + shipping))} χωρίς κάρτα · έως 24 άτοκες με κάρτα</div>
+              {instalmentLine(goods + shipping) && <div className="text-eu-blue font-bold text-[length:var(--fs-14)]">ή έως {instalmentLine(goods + shipping)} με κάρτα</div>}
               <Link href="/checkout" onClick={() => setMiniOpen(false)} className="rounded-full bg-eu-yellow text-eu-navy text-center font-extrabold text-[length:var(--fs-16)] min-h-[52px] inline-flex items-center justify-center gap-1 hover:bg-eu-yellow-dark">
                 {c.oloklirosi_agoras} <ChevronRight className="size-5" aria-hidden />
               </Link>

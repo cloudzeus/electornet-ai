@@ -48,7 +48,7 @@ export const DEFAULT_HERO_DOC: HeroDoc = {
     {
       ...none, id: "summer-clima", active: true, permanent: false, to: "2026-09-30",
       kicker: "Καλοκαίρι 2026 · κλιματισμός", title: ["Δροσιά", "που δεν καίει", "ρεύμα"],
-      body: "Inverter έως A+++, τοποθέτηση από πιστοποιημένο τεχνικό του καταστήματος της γειτονιάς σου, δόσεις χωρίς κάρτα.",
+      body: "Inverter έως A+++, τοποθέτηση από πιστοποιημένο τεχνικό του καταστήματος της γειτονιάς σου, άτοκες δόσεις με κάρτα.",
       primary: { label: "Δες τα 186 μοντέλα", href: "/k/klimatismos/air-condition" }, secondary: { label: "Υπολόγισε BTU", href: "/odigoi/epilogi-klimatistikou" },
       bullets: ["Παράδοση με ραντεβού", "Εγκατάσταση", "Εγγύηση έως 5 έτη"],
       image: { url: "/img/hero-clima.jpg", alt: "Δροσερό σαλόνι με κλιματιστικό inverter" }, video: { url: "/video/hero-clima.mp4" },
@@ -59,7 +59,7 @@ export const DEFAULT_HERO_DOC: HeroDoc = {
       kicker: "Σεπτέμβριος · computing", title: ["Laptop", "για κάθε", "σχολή"],
       body: "Από 399 €, με δωρεάν τσάντα και εγκατάσταση Office από το κατάστημα.",
       primary: { label: "Δες τα 154 μοντέλα", href: "/k/computing/laptops" }, secondary: { label: "Οδηγός επιλογής", href: "/odigoi" },
-      bullets: ["Παραλαβή σε 2 ώρες", "Δόσεις χωρίς κάρτα", "Επίσημη εγγύηση"],
+      bullets: ["Παραλαβή σε 2 ώρες", "Άτοκες δόσεις", "Επίσημη εγγύηση"],
       image: { url: "/img/hero-laptop.jpg", alt: "Φοιτήτρια με laptop στο γραφείο της" },
       cutout: "/img/cutouts/r-157206-0.webp", productHref: "/proion/apple-mdhe4gr-a-midnight",
     },

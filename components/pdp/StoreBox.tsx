@@ -19,7 +19,7 @@ export function StoreBox({ product: p, stores }: { product: Product; stores: Sto
     <section aria-label="Διαθεσιμότητα και τιμή" className="rounded-2xl border border-eu-line bg-white shadow-[var(--shadow-card)] p-5 @lg:p-6 grid gap-4">
       <div>
         <div className="font-extrabold text-eu-ink text-[length:var(--fs-27)] leading-tight">Τιμή στο κατάστημα</div>
-        <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] leading-snug">Η τιμή και η διαθεσιμότητα αυτού του προϊόντος δίνονται από το κατάστημα Euronics της περιοχής σου — μαζί με δόσεις χωρίς κάρτα, παράδοση και εγκατάσταση.</p>
+        <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] leading-snug">Η τιμή και η διαθεσιμότητα αυτού του προϊόντος δίνονται από το κατάστημα Euronics της περιοχής σου — μαζί με δόσεις, παράδοση και εγκατάσταση.</p>
       </div>
       <Link href="/katastimata" className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-17)] py-4 min-h-[56px] inline-flex items-center justify-center gap-2 hover:bg-eu-yellow-dark">
         <MapPin className="size-5" aria-hidden /> Βρες το κοντινότερο κατάστημα

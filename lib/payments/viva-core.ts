@@ -32,6 +32,15 @@ export function judgeTransaction(t: VivaTransaction, expect: { orderCode: string
   return "failed";
 }
 
+/**
+ * Δόσεις προς τη Viva: ακριβώς όσες διάλεξε ο πελάτης στο ταμείο μας (forceMaxInstallments — η Viva δεν ξαναρωτά),
+ * ποτέ πάνω από το όριο των ρυθμίσεων. Χωρίς επιλογή δεν στέλνουμε τίποτα: η Viva δεν προσφέρει δόσεις.
+ */
+export function vivaInstalments(max: number, chosen?: number | null): { maxInstallments?: number; forceMaxInstallments?: true } {
+  const n = Math.min(Math.floor(max) || 0, Math.floor(chosen ?? 1) || 1);
+  return n > 1 ? { maxInstallments: n, forceMaxInstallments: true } : {};
+}
+
 /** Οι τρόποι Viva που δείχνει το checkout, από τις δημόσιες ρυθμίσεις πληρωμών (η κάρτα πάντα). */
 export function enabledVivaPays(p: Record<string, unknown>): VivaPay[] {
   if (p.provider !== "viva") return [];

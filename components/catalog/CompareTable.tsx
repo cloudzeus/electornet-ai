@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import type { Product } from "@/lib/data/types";
-import { priceShort, instalment, priceLong } from "@/lib/format";
+import { priceShort, instalmentLine } from "@/lib/format";
 import { compareRows } from "@/lib/data/attributes";
 import { useCart } from "@/components/commerce/CartProvider";
 import { CompareStacked } from "./CompareStacked";
@@ -91,7 +91,7 @@ export function CompareTable({ initial }: { initial: Product[] }) {
                       {p.wasPrice && <s className="text-eu-muted-2 text-[length:var(--fs-14)]">{priceShort(p.wasPrice)}</s>}
                       {!p.noPrice && p.price === cheapest && initial.length > 1 && <span className="rounded-full bg-eu-green text-white text-[length:var(--fs-13)] font-bold px-2 py-0.5">{c.fthinotero}</span>}
                     </div>
-                    {!p.noPrice && <div className="text-eu-blue font-semibold text-[length:var(--fs-14)] mt-1 truncate">ή 12 × {priceLong(instalment(p.price))} χωρίς κάρτα</div>}
+                    {!p.noPrice && instalmentLine(p.price) && <div className="text-eu-blue font-semibold text-[length:var(--fs-14)] mt-1 truncate">ή {instalmentLine(p.price)}</div>}
                     <div className="grid gap-2 mt-3">
                       <button type="button" onClick={() => openQuickBuy(p)} className="w-full rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] py-2.5 min-h-11 hover:bg-eu-yellow-dark">
                         {c.agora_me_1_klik}

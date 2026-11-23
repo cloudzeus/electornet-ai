@@ -19,9 +19,22 @@ export function discountPct(price: number, was?: number) {
   if (!was || was <= price) return null;
   return Math.round(((was - price) / was) * 100);
 }
-/** Instalment without card: n equal monthly payments, rounded to cents. */
+/** n ίσες μηνιαίες δόσεις, στρογγυλεμένες στο λεπτό. */
 export function instalment(price: number, months = 12) {
   return Math.round((price / months) * 100) / 100;
+}
+/**
+ * Άτοκες δόσεις με κάρτα: οι περισσότερες που δίνουμε για ένα ποσό (1 = χωρίς δόσεις).
+ * Μία κλίμακα για σελίδα προϊόντος, καλάθι, ταμείο και server· cap = το όριο των ρυθμίσεων πληρωμών.
+ */
+export function maxInstalments(amount: number, cap = 24) {
+  const n = amount >= 800 ? 24 : amount >= 400 ? 12 : amount >= 200 ? 6 : amount >= 100 ? 3 : 1;
+  return Math.max(1, Math.min(n, Math.floor(cap)));
+}
+/** «12 άτοκες δόσεις × 33,25 €» (short: «12 × 33,25 €») με τις περισσότερες δόσεις του ποσού· null όταν δεν βγαίνει σε δόσεις. */
+export function instalmentLine(amount: number, short = false) {
+  const n = maxInstalments(amount);
+  return n > 1 ? `${n}${short ? "" : " άτοκες δόσεις"} × ${priceLong(instalment(amount, n))}` : null;
 }
 export function weekday(d: Date) {
   return new Intl.DateTimeFormat("el-GR", { weekday: "short", day: "numeric", month: "numeric" }).format(d);

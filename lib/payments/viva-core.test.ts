@@ -24,3 +24,13 @@ test("τρόποι στο checkout: μόνο με Viva, η κάρτα πάντα
   assert.deepEqual(enabledVivaPays({ provider: "viva" }), ["card"]);
   assert.deepEqual(enabledVivaPays({ provider: "viva", applePay: true, paypal: true, iris: true }), ["card", "apple", "paypal", "iris"]);
 });
+
+test("δόσεις προς τη Viva: ακριβώς όσες διάλεξε ο πελάτης, μέχρι το όριο των ρυθμίσεων", async () => {
+  const { vivaInstalments } = await import("./viva-core");
+  assert.deepEqual(vivaInstalments(24, 12), { maxInstallments: 12, forceMaxInstallments: true });
+  assert.deepEqual(vivaInstalments(6, 12), { maxInstallments: 6, forceMaxInstallments: true });
+  // χωρίς επιλογή, ή με κενή ρύθμιση: καμία δόση
+  assert.deepEqual(vivaInstalments(24, 1), {});
+  assert.deepEqual(vivaInstalments(24, undefined), {});
+  assert.deepEqual(vivaInstalments(0, 12), {});
+});

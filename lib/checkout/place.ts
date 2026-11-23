@@ -1,4 +1,5 @@
 import "server-only";
+import { maxInstalments } from "@/lib/format";
 import { randomInt } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -158,7 +159,8 @@ export async function placeOrder(input: PlaceInput) {
           subtotal: eur(q.goods + q.addons), shippingFee: eur(q.shipping + q.codFee), vat: eur(q.vat), total: eur(q.total), discountTotal: eur(discountTotal),
           couponCode: q.coupon.applied, paymentMethod: input.payment,
           promoTrace: q.trace.map((t) => ({ code: t.code, name: t.name, applied: t.applied, amount: t.amount, reason: t.reason })) as Prisma.InputJsonValue,
-          payment: { create: { method: input.payment, instalments: Math.max(1, input.instalments ?? 1), ...(viva ? { psp: "viva" } : klarna ? { psp: "klarna" } : {}) } },
+          payment: { create: { method: input.payment, // δόσεις μόνο με κάρτα και ποτέ πάνω από την κλίμακα του ποσού (ο browser δεν ορίζει το όριο)
+            instalments: input.payment === "card" ? Math.max(1, Math.min(Math.floor(input.instalments ?? 1) || 1, maxInstalments(q.total / 100))) : 1, ...(viva ? { psp: "viva" } : klarna ? { psp: "klarna" } : {}) } },
         },
       });
       // σετ: στιγμιότυπο των μελών τη στιγμή της παραγγελίας (το παραστατικό βγαίνει από αυτό, όχι από το σημερινό σετ)

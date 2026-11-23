@@ -12,7 +12,7 @@ import { ORG, SITE } from "./product";
  */
 export const SITE_NAME = "Euronics";
 export const DEFAULT_TITLE = "Euronics | Ηλεκτρικές συσκευές, τηλεοράσεις, κλιματιστικά";
-export const DEFAULT_DESCRIPTION = "Ηλεκτρικές συσκευές, τηλεοράσεις, κλιματιστικά, υπολογιστές και μικροσυσκευές στη Euronics. Προσφορές, δόσεις χωρίς κάρτα, παράδοση ή παραλαβή από κατάστημα.";
+export const DEFAULT_DESCRIPTION = "Ηλεκτρικές συσκευές, τηλεοράσεις, κλιματιστικά, υπολογιστές και μικροσυσκευές στη Euronics. Προσφορές, άτοκες δόσεις, παράδοση ή παραλαβή από κατάστημα.";
 /** Εικόνα κοινοποίησης για όσες σελίδες δεν έχουν δική τους (1200 × 630, public/design/og-default.png). */
 export const OG_IMAGE = { url: "/design/og-default.png", width: 1200, height: 630, alt: "Euronics — ηλεκτρικές συσκευές και τεχνολογία" };
 
@@ -41,7 +41,7 @@ export function categoryMeta(path: { name: string; slug: string }[]): Metadata {
   const full = `${leaf} – τιμές & προσφορές`, withParent = parent ? `${full} · ${parent}` : full;
   return {
     title: withParent.length <= TITLE_MAX ? withParent : full.length <= TITLE_MAX ? full : cap(leaf, TITLE_MAX),
-    description: cap(`${leaf}${parent ? ` (${parent})` : ""} στη Euronics: τιμές, προσφορές και διαθεσιμότητα. Δόσεις χωρίς κάρτα, παράδοση στο σπίτι ή παραλαβή από κατάστημα.`, 160),
+    description: cap(`${leaf}${parent ? ` (${parent})` : ""} στη Euronics: τιμές, προσφορές και διαθεσιμότητα. Άτοκες δόσεις, παράδοση στο σπίτι ή παραλαβή από κατάστημα.`, 160),
     alternates: { canonical: `/k/${path.map((p) => p.slug).join("/")}` },
   };
 }
@@ -51,7 +51,7 @@ export function brandMeta(name: string): Metadata {
   const full = `${name} – συσκευές, τιμές & προσφορές`;
   return {
     title: full.length <= TITLE_MAX ? full : cap(`${name} – τιμές & προσφορές`, TITLE_MAX),
-    description: cap(`Προϊόντα ${name} στη Euronics: τιμές, προσφορές και διαθεσιμότητα, με εργοστασιακή εγγύηση. Δόσεις χωρίς κάρτα, παράδοση στο σπίτι ή παραλαβή από κατάστημα.`, 160),
+    description: cap(`Προϊόντα ${name} στη Euronics: τιμές, προσφορές και διαθεσιμότητα, με εργοστασιακή εγγύηση. Άτοκες δόσεις, παράδοση στο σπίτι ή παραλαβή από κατάστημα.`, 160),
   };
 }
 

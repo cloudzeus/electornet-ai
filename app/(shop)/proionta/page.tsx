@@ -31,7 +31,7 @@ export default async function AllProducts({ searchParams }: { searchParams: Prom
       <PageIntro
         kicker="Κατάλογος"
         title={current ? current.label : "Όλα τα προϊόντα"}
-        lead={`${noCounts ? "" : `${result.total} προϊόντα · `}φίλτρα ανά μάρκα, τιμή, ενεργειακή κλάση και χαρακτηριστικά · σύγκριση έως 4 · δόσεις χωρίς κάρτα · παραλαβή σε 2 ώρες.`}
+        lead={`${noCounts ? "" : `${result.total} προϊόντα · `}φίλτρα ανά μάρκα, τιμή, ενεργειακή κλάση και χαρακτηριστικά · σύγκριση έως 4 · άτοκες δόσεις με κάρτα · παραλαβή σε 2 ώρες.`}
       />
 
       <div className="eu-canvas eu-gutter pb-5">

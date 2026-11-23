@@ -393,7 +393,7 @@ export const generatedCopy = {
     "episimos_synergatis_euronics": "Επίσημος συνεργάτης Euronics",
     "ergostasiaki_eggyisi": "Εργοστασιακή εγγύηση",
     "service_antiprosopeias": "Service αντιπροσωπείας",
-    "doseis_choris_karta": "Δόσεις χωρίς κάρτα",
+    "doseis_choris_karta": "Άτοκες δόσεις με κάρτα",
     "paralavi_se_2_ores": "Παραλαβή σε 2 ώρες από 350 καταστήματα"
   },
   "wallet": {

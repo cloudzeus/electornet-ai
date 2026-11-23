@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Product } from "@/lib/data/types";
-import { discountPct, instalment, priceLong, priceShort } from "@/lib/format";
+import { discountPct, instalmentLine, priceLong, priceShort } from "@/lib/format";
 import { useCart } from "./CartProvider";
 import { EnergyChip } from "./EnergyChip";
 import { WishlistButton } from "./WishlistButton";
@@ -54,7 +54,7 @@ export function ProductRow({ product: p }: { product: Product }) {
             {p.wasPrice && <s className="text-eu-muted-2 text-[length:var(--fs-14)]">{priceShort(p.wasPrice)}</s>}
           </div>
           {p.lowest30 && <div className="text-eu-muted text-[length:var(--fs-13)] mt-1">Χαμηλότερη τιμή 30 ημερών: {priceLong(p.lowest30)}</div>}
-          <div className="font-bold text-eu-blue text-[length:var(--fs-14)] mt-1 mb-2">{p.noPrice ? "Δόσεις χωρίς κάρτα · ρώτησε στο κατάστημα" : <>ή 12 × {priceLong(instalment(p.price))} χωρίς κάρτα</>}</div>
+          <div className="font-bold text-eu-blue text-[length:var(--fs-14)] mt-1 mb-2">{p.noPrice ? "Άτοκες δόσεις · ρώτησε στο κατάστημα" : instalmentLine(p.price) && <>ή {instalmentLine(p.price)}</>}</div>
         </div>
         {p.noPrice ? (
           <>

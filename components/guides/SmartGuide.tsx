@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, AlertTriangle, RotateCcw, Sparkles, Scale, Heart } from "lucide-react";
 import type { Product } from "@/lib/data/types";
 import { GUIDES, evaluate, type Answers, type GuideKind } from "@/lib/guides/smart";
-import { instalment, priceLong, priceShort } from "@/lib/format";
+import { instalmentLine, priceShort } from "@/lib/format";
 import { useCart } from "@/components/commerce/CartProvider";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
@@ -205,7 +205,7 @@ function Pick({ s, rank, noun, compact = false, onAdd, onQuick, onCompare, compa
               <span className="font-extrabold text-eu-ink text-[length:var(--fs-28)] leading-none">{priceShort(p.price)}</span>
               {p.wasPrice && <s className="text-eu-muted-2 text-[length:var(--fs-15)]">{priceShort(p.wasPrice)}</s>}
             </div>
-            <div className="text-eu-blue font-bold text-[length:var(--fs-14)] mt-1">ή 12 × {priceLong(instalment(p.price))} χωρίς κάρτα</div>
+            {instalmentLine(p.price) && <div className="text-eu-blue font-bold text-[length:var(--fs-14)] mt-1">ή {instalmentLine(p.price)}</div>}
           </div>
         </div>
         <div className="grid gap-4 content-start">

@@ -5,7 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Minus, Plus, Trash2, Heart, ShieldCheck, Truck, RotateCcw, Store as StoreIcon, Compass, Tag, Check, ChevronRight, Gift } from "lucide-react";
 import type { Product, Service } from "@/lib/data/types";
-import { instalment, priceLong, priceShort, weekday } from "@/lib/format";
+import { instalmentLine, priceLong, priceShort, weekday } from "@/lib/format";
 import { EXTENSION_SLUG } from "@/lib/warranty/policy";
 import { useCart } from "@/components/commerce/CartProvider";
 import { EmailCartButton } from "@/components/commerce/EmailCartButton";
@@ -199,7 +199,7 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
                   <div className="hidden @md:flex flex-col items-end gap-2 min-w-[120px]">
                     <span className="font-extrabold text-eu-ink text-[length:var(--fs-22)] leading-none">{priceLong(lineTotal)}</span>
                     {lineWas && lineWas > lineTotal && <s className="text-eu-muted-2 text-[length:var(--fs-14)]">{priceLong(lineWas)}</s>}
-                    <span className="text-eu-blue font-semibold text-[length:var(--fs-14)]">ή 12 × {priceLong(instalment(lineTotal))}</span>
+                    {instalmentLine(lineTotal) && <span className="text-eu-blue font-semibold text-[length:var(--fs-14)]">ή {instalmentLine(lineTotal, true)} άτοκα</span>}
                     <Qty qty={l.qty} onChange={(q) => setQty(p.id, q)} />
                   </div>
                 </li>
@@ -273,9 +273,11 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
               </div>
               {zipNeeded && <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">{c.choris_metaforika_to_synolo}</p>}
             </dl>
-            <div className="rounded-xl bg-eu-chip text-eu-blue px-4 py-3 text-[length:var(--fs-14)] font-bold">
-              ή 12 × {priceLong(instalment(total))} χωρίς κάρτα <span className="font-normal text-eu-ink-2">{c.eos_24_atokes_me}</span>
-            </div>
+            {instalmentLine(total) && (
+              <div className="rounded-xl bg-eu-chip text-eu-blue px-4 py-3 text-[length:var(--fs-14)] font-bold">
+                ή έως {instalmentLine(total)} με κάρτα <span className="block font-normal text-eu-ink-2">Τον αριθμό των δόσεων τον διαλέγεις στο ταμείο, στο βήμα της πληρωμής</span>
+              </div>
+            )}
             <Link href="/checkout" className="rounded-full bg-eu-yellow text-eu-navy text-center font-extrabold text-[length:var(--fs-17)] py-4 min-h-14 inline-flex items-center justify-center gap-1 hover:bg-eu-yellow-dark">
               {c.oloklirosi_agoras} <ChevronRight className="size-5" aria-hidden />
             </Link>

@@ -73,7 +73,7 @@ export default async function BrandPage({ params, searchParams }: { params: Prom
   return (
     <div className="eu-container">
       <Breadcrumbs items={[{ label: "Μάρκες", href: "/brands" }, { label: brand.name }]} />
-      <PageIntro tone="blue" kicker="Επίσημος μεταπωλητής" title={brand.name} lead={`${brand.count} προϊόντα ${brand.name} με εργοστασιακή εγγύηση, service αντιπροσωπείας και δόσεις χωρίς κάρτα.`} />
+      <PageIntro tone="blue" kicker="Επίσημος μεταπωλητής" title={brand.name} lead={`${brand.count} προϊόντα ${brand.name} με εργοστασιακή εγγύηση, service αντιπροσωπείας και άτοκες δόσεις με κάρτα.`} />
       <div className="eu-canvas eu-gutter py-8 flex gap-6 items-start">
         <Facets result={{ ...result, brands: [] }} />
         <div className="flex-1 min-w-0 eu-container">

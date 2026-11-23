@@ -78,7 +78,7 @@ export const defaultSettings: Settings = {
     brand: { name: "Euronics", legalName: "MEGA ELECTRICS ΑΕΒΕ", storesCount: 350 },
     contact: { phone: "+302104835143", phoneDisplay: "210 483 5143", phoneLabel: "Τηλ. παραγγελίες", email: "info@euronics.gr", address: "Δαμάσκου Σταμάτη 12, 136 71 Αχαρνές" },
     commerce: { returnDays: 14, warrantyYears: 2, maxInstalments: 24, noCardInstalments: { min: 200, max: 2000, months: 24 }, codMax: 500, codFee: 2, clickCollectHours: 2, kwhPrice: 0.19 },
-    announcement: { left: ["350 καταστήματα", "Δωρεάν μεταφορικά όπου έχουμε κατάστημα", "Δόσεις με ή χωρίς κάρτα"], right: ["Επιστροφή μέσα σε 14 ημέρες"], accent: { label: "Παρακολούθηση παραγγελίας", href: "/entopismos" } },
+    announcement: { left: ["350 καταστήματα", "Δωρεάν μεταφορικά όπου έχουμε κατάστημα", "Έως 24 άτοκες δόσεις"], right: ["Επιστροφή μέσα σε 14 ημέρες"], accent: { label: "Παρακολούθηση παραγγελίας", href: "/entopismos" } },
     social: [
       { label: "Facebook", href: "https://www.facebook.com/euronicsgreece" },
       { label: "Instagram", href: "https://www.instagram.com/euronics_greece" },
@@ -123,7 +123,7 @@ export const defaultSettings: Settings = {
       delayMs: 8000,
       title: "Πριν φύγεις… τι σε κράτησε;",
       reasons: [
-        { label: "Η τιμή", reply: "Το καταλαβαίνω. Έχεις έως 24 άτοκες δόσεις ή δόσεις χωρίς κάρτα, και αν βρεις φθηνότερα σε 14 ημέρες, το επιστρέφεις." },
+        { label: "Η τιμή", reply: "Το καταλαβαίνω. Έχεις έως 24 άτοκες δόσεις με κάρτα, και αν βρεις φθηνότερα σε 14 ημέρες, το επιστρέφεις." },
         { label: "Θέλω να το σκεφτώ", reply: "Κανένα πρόβλημα. Σου κρατάω το καλάθι σε ένα email για όταν είσαι έτοιμος." },
         { label: "Δεν βρήκα αυτό που ήθελα", reply: "Πες μου τι ψάχνεις στην αναζήτηση με απλά λόγια, ή ζήτα να σε πάρει το κατάστημα." },
         { label: "Τα μεταφορικά / παράδοση", reply: "Στις περιοχές όπου έχουμε κατάστημα τα μεταφορικά είναι δωρεάν, ανεξάρτητα από το ποσό. Αλλού βάζεις τον Τ.Κ. σου στο ταμείο και βλέπεις το κόστος πριν πληρώσεις." },

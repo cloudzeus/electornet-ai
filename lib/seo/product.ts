@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { Product } from "@/lib/data/types";
 import { attributesOf } from "@/lib/data/attributes";
-import { instalment, priceLong, weekday } from "@/lib/format";
+import { instalmentLine, priceLong, weekday } from "@/lib/format";
 import { warrantyDetail, warrantyLabel, type WarrantyInfo } from "@/lib/warranty/policy";
 import { ADVERTISED_COURIER_FEE } from "@/lib/shipping/carriers";
 
@@ -64,7 +64,7 @@ export function answersFor(p: Product, w?: WarrantyInfo): QA[] {
     {
       q: `Πόσο κοστίζει το ${p.title} και με ποιες δόσεις;`,
       label: "Πόσο κοστίζει και με ποιες δόσεις;",
-      a: p.noPrice ? `Η τιμή του ${p.title} δίνεται από το κατάστημα Euronics της περιοχής σου, όπου θα βρεις και τις τρέχουσες προσφορές. Πληρώνεται σε δόσεις χωρίς κάρτα ή έως 24 άτοκες δόσεις με κάρτα.` : `Κοστίζει ${priceLong(p.price)} με ΦΠΑ 24%${p.wasPrice ? ` (προηγούμενη τιμή ${priceLong(p.wasPrice)})` : ""}${p.lowest30 ? `, χαμηλότερη τιμή 30 ημερών ${priceLong(p.lowest30)}` : ""}. Πληρώνεται σε 12 δόσεις των ${priceLong(instalment(p.price))} χωρίς κάρτα (Eurobank) ή έως 24 άτοκες δόσεις με κάρτα, ${priceLong(instalment(p.price, 24))} τον μήνα.`,
+      a: p.noPrice ? `Η τιμή του ${p.title} δίνεται από το κατάστημα Euronics της περιοχής σου, όπου θα βρεις και τις τρέχουσες προσφορές. Πληρώνεται και σε άτοκες δόσεις με κάρτα.` : `Κοστίζει ${priceLong(p.price)} με ΦΠΑ 24%${p.wasPrice ? ` (προηγούμενη τιμή ${priceLong(p.wasPrice)})` : ""}${p.lowest30 ? `, χαμηλότερη τιμή 30 ημερών ${priceLong(p.lowest30)}` : ""}.${instalmentLine(p.price) ? ` Πληρώνεται και σε έως ${instalmentLine(p.price)} τον μήνα, με πιστωτική κάρτα.` : ""}`,
     },
     {
       q: `Πότε και πώς παραδίδεται το ${p.title};`,
@@ -92,7 +92,7 @@ export function productMetadata(p: Product, crumbs: Crumb[]): Metadata {
   return {
     title,
     description,
-    keywords: [p.brand, p.title, p.sku, ...(p.ean ? [p.ean] : []), ...crumbs.filter((c) => c.href).map((c) => c.label), "Euronics", "δόσεις χωρίς κάρτα"],
+    keywords: [p.brand, p.title, p.sku, ...(p.ean ? [p.ean] : []), ...crumbs.filter((c) => c.href).map((c) => c.label), "Euronics", "άτοκες δόσεις"],
     alternates: { canonical: url, languages: { "el-GR": url } },
     robots: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
     openGraph: { type: "website", title, description, url, siteName: "Euronics", locale: "el_GR", images: images.slice(0, 1).map((i) => ({ url: i, alt: name(p) })) },
