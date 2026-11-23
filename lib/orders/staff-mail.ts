@@ -5,6 +5,7 @@ import { renderStaffOrder, type StaffEvent, type StaffOrderData } from "@/lib/em
 import { sendMail } from "@/lib/email/send";
 import { payLabel } from "@/lib/account/labels";
 import { carrierDef } from "@/lib/shipping/carriers";
+import { S1_SERVICE_MTRL } from "@/lib/softone/order-doc-core";
 import { trackUrl } from "@/lib/couriers/timeline-model";
 import { MODE_LABEL } from "@/lib/delivery/routing";
 import { ERP_STATUS, FULFILMENT, PAYMENT_STATUS, statusLabel } from "./model";
@@ -43,7 +44,7 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
       customer: { select: { email: true, firstName: true, lastName: true, phone: true, erpTrdr: true, erpCode: true } },
       pickupStore: { select: { name: true, address: true, zip: true, city: true, phone: true } },
       payment: { select: { method: true, instalments: true, status: true, psp: true, pspRef: true } },
-      lines: { orderBy: { id: "asc" }, select: { title: true, qty: true, unitPrice: true, listPrice: true, discPrice: true, discCoupon: true, discPayment: true, lineTotal: true, erpCode: true, isGift: true, promotions: true, setParts: true, addons: { select: { price: true, service: { select: { title: true } } } } } },
+      lines: { orderBy: { id: "asc" }, select: { title: true, qty: true, unitPrice: true, listPrice: true, discPrice: true, discCoupon: true, discPayment: true, lineTotal: true, erpCode: true, isGift: true, promotions: true, setParts: true, addons: { select: { price: true, service: { select: { title: true, slug: true } } } } } },
       shipments: { orderBy: { createdAt: "asc" }, select: { id: true, carrier: true, env: true, voucher: true, subVouchers: true, pieces: true, weightKg: true, codAmount: true, status: true, liveUrl: true } },
       erpSync: { select: { status: true, erpDocId: true, lastError: true } },
       erpStages: { orderBy: { seenAt: "asc" }, select: { docNo: true, docDate: true, fprms: true } },
@@ -87,7 +88,7 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
     const parts = ((l.setParts ?? []) as { mtrl: number; qty: number; name: string }[]).map((p) => `Μέλος σετ: ${p.qty}× ${p.name} (είδος ${p.mtrl})`);
     return [
       { code: l.erpCode, title: l.title, qty: l.qty, list, discount: disc, total: n(l.lineTotal ?? n(l.unitPrice) * l.qty), notes: [l.isGift ? "ΔΩΡΟ προσφοράς (έκπτωση 100 %)" : null, n(l.discCoupon) ? `Κουπόνι: −${money(n(l.discCoupon))}` : null, n(l.discPayment) ? `Έκπτωση τρόπου πληρωμής: −${money(n(l.discPayment))}` : null, ...promos, ...parts].filter(Boolean) as string[] },
-      ...l.addons.map((a) => ({ code: null, title: a.service.title, qty: 1, list: n(a.price), discount: 0, total: n(a.price), notes: [`Υπηρεσία της γραμμής «${l.title}»`] })),
+      ...l.addons.map((a) => ({ code: S1_SERVICE_MTRL[a.service.slug] ?? null, title: a.service.title, qty: 1, list: n(a.price), discount: 0, total: n(a.price), notes: [`Υπηρεσία της γραμμής «${l.title}»`] })),
     ];
   });
 

@@ -3,7 +3,7 @@
  *
  * Ακολουθεί ό,τι στέλνει σήμερα το eshop της Euronics (getData σε 480 παραγγελίες της σειράς 7005, 16/10/2026· ξανά
  * 23/11/2026: 258 παραγγελίες από 1/9, όλες σειρά 7005 / τύπος 7005 «ΠΑΡΑΓΓΕΛΙΑ e-Shop», πελάτης 200, SHIPMENT κενό):
- * - SERIES 7005 «ΠΑΡΑΓΓΕΛΙΑ e-Shop» (προεπιλογή, αλλάζει από τις ρυθμίσεις), FINCODE = ο αριθμός της παραγγελίας στο site
+ * - SERIES 7005 «ΠΑΡΑΓΓΕΛΙΑ e-Shop» (προεπιλογή, αλλάζει από τις ρυθμίσεις), NUM01 = ο αριθμός της παραγγελίας στο site
  * - TRDR 200 «ΠΕΛΑΤΗΣ ΛΙΑΝΙΚΗΣ» για αποδείξεις· η καρτέλα του πελάτη μόνο όταν ζητήθηκε τιμολόγιο
  * - Τρόπος πληρωμής (PAYMENT) και μεταφορέας (MTRDOC.SOCARRIER) με τους κωδικούς που έδωσε η Euronics (23/11/2026)·
  *   όπου δεν υπάρχει κωδικός μένουν κενά. Όλες οι οδηγίες πληρωμής και αποστολής γράφονται ΚΑΙ αναλυτικά στις
@@ -27,6 +27,12 @@ export const DEFAULT_RETAIL_TRDR = "200";
  * Υπάρχουν και 1010 Microsoft Pay, 1011 Facebook Pay: το site δεν έχει τέτοιους τρόπους.
  */
 export const S1_PAYMENT: Record<string, number> = { cod: 1000, card: 1001, "no-card": 1004, bank: 1005, iris: 1006, paypal: 1007, apple: 1008, google: 1009 };
+/**
+ * Υπηρεσία του site → είδος του SoftOne. Η επέκταση εγγύησης είναι το είδος 103682 «Επέκταση εγγύησης» (κωδικός ΕΓΓΥΗΣΗ,
+ * ΦΠΑ 24 %, χωρίς τιμή καταλόγου: η τιμή μπαίνει στη γραμμή), όπως το έγραφε και το παλιό site. Οι υπόλοιπες υπηρεσίες
+ * (εγκατάσταση κ.λπ.) δεν έχουν είδος ακόμη: η παραγγελία τους μένει «λείπει κωδικός είδους».
+ */
+export const S1_SERVICE_MTRL: Record<string, string> = { "epektasi-eggyisis": "103682" };
 /** Courier του site → μεταφορέας (SOCARRIER) του SoftOne, όπως τους έστειλε η Euronics 23/11/2026. BOX NOW: δεν έχει κωδικό. */
 export const S1_CARRIER: Record<string, number> = { elta: 2001, geniki: 2002, speedex: 2003, acs: 2004, asap: 2006 };
 export const PAY_LABEL: Record<string, string> = { card: "Κάρτα", apple: "Apple Pay", google: "Google Pay", revolut: "Revolut Pay", paypal: "PayPal", klarna: "Klarna", tbi: "TBI Bank", iris: "IRIS", "no-card": "Δόσεις χωρίς κάρτα", bank: "Κατάθεση σε τράπεζα", cod: "Αντικαταβολή", store: "Στο κατάστημα" };
@@ -126,13 +132,23 @@ export function softoneTotals(lines: NetLine[], headerDisc = 0) {
 }
 
 /**
- * Φίλτρο GetTable για το παραστατικό μιας παραγγελίας (FINCODE = ο αριθμός μας, SOSOURCE 1351 = πωλήσεις). Το φίλτρο
- * είναι κείμενο SQL χωρίς παραμέτρους: αριθμός με οτιδήποτε άλλο εκτός από γράμματα, ψηφία, `-`, `_`, `/` και `.`
- * επιστρέφει null — τότε δεν ψάχνουμε καθόλου, αντί να στείλουμε φίλτρο που θα μπορούσε να αλλάξει νόημα.
+ * Ο αριθμός της παραγγελίας ως αριθμός, για το πεδίο NUM01 του παραστατικού: «EUR-20261123-9970» → 202611239970.
+ * Γιατί: το SoftOne ΔΕΝ κρατά το FINCODE που στέλνουμε (πραγματική δοκιμή 23/11/2026: το παραστατικό αποθηκεύτηκε με
+ * FINCODE «PES», τον κωδικό της σειράς). Το παλιό site έγραφε τον αριθμό της παραγγελίας του στο NUM01 (8697) και εκεί
+ * τον ψάχνει το προσωπικό. null όταν ο αριθμός δεν έχει ψηφία ή δεν χωρά ακέραια σε αριθμητικό πεδίο (πάνω από 15 ψηφία).
  */
-export function fincodeFilter(number: string): string | null {
-  const n = number.trim();
-  return n && n.length <= 40 && /^[A-Za-z0-9\-_/.]+$/.test(n) ? `SOSOURCE=1351 AND FINCODE='${n}'` : null;
+export function orderNum01(number: string): number | null {
+  const d = number.replace(/\D/g, "");
+  return d.length >= 1 && d.length <= 15 && Number(d) > 0 ? Number(d) : null;
+}
+
+/**
+ * Φίλτρο GetTable για το παραστατικό μιας παραγγελίας: σειρά + NUM01 (βλ. orderNum01), SOSOURCE 1351 = πωλήσεις. Μόνο
+ * αριθμοί μπαίνουν στο φίλτρο (είναι κείμενο SQL χωρίς παραμέτρους)· χωρίς αριθμό επιστρέφει null — τότε δεν ψάχνουμε.
+ */
+export function orderDocFilter(number: string, series: string | null | undefined): string | null {
+  const n = orderNum01(number), s = (series ?? "").trim() || DEFAULT_SERIES;
+  return n && /^\d+$/.test(s) ? `SOSOURCE=1351 AND SERIES=${s} AND NUM01=${n}` : null;
 }
 
 export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
@@ -172,10 +188,10 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
   }
 
   // στρογγύλεμα: η μικρότερη έκπτωση κεφαλίδας (χωρίς ΦΠΑ) που δίνει ακριβώς το σύνολο της παραγγελίας. Με δύο δεκαδικά
-  // κάποια σύνολα δεν «πετυχαίνονται» ακριβώς (ο ΦΠΑ στρογγυλεύει) — τότε το πλησιέστερο και προειδοποίηση.
+  // κάποια σύνολα δεν «πετυχαίνονται» ακριβώς (ο ΦΠΑ στρογγυλεύει) — τότε το πλησιέστερο, και το σύνολο δίνεται ρητά.
   const expected = r2(o.total);
   const warnings: string[] = [];
-  let rounding = 0, t = softoneTotals(nets);
+  let rounding = 0, forceTotal = false, t = softoneTotals(nets);
   if (t.gross !== expected) {
     const guess = Math.max(0, Math.round(((t.gross - expected) / 1.24) * 100));
     let best = { c: 0, t, d: Math.abs(t.gross - expected) };
@@ -185,7 +201,15 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
       if (dd === 0) break;
     }
     rounding = best.c / 100; t = best.t;
-    if (t.gross !== expected) (Math.abs(t.gross - expected) <= 0.011 ? warnings : needs).push(`Το σύνολο στο SoftOne βγαίνει ${t.gross.toFixed(2)} € αντί ${expected.toFixed(2)} € (στρογγύλεμα ΦΠΑ)`);
+    // 1 λεπτό που δεν κλείνει με καμία τιμή: το SoftOne βγάζει ΦΠΑ = στρογγυλεμένο 24 % πάνω σε καθαρή αξία δύο δεκαδικών,
+    // οπότε περίπου ένα στα πέντε ποσά (89,00 · 56,60 · 399,00…) δεν προκύπτει από κανένα καθαρό ποσό. Όταν του δώσουμε το
+    // σύνολο στην κεφαλίδα (SUMAMNT), κρατά την καθαρή αξία και βάζει ΦΠΑ = σύνολο − καθαρή (calculate 23/11/2026· έτσι
+    // είναι και τα παραστατικά του παλιού site, π.χ. 104,04 + 24,96 = 129,00). Μόνο για 1 λεπτό: μεγαλύτερη διαφορά είναι
+    // λάθος τιμής ή συντελεστή και πρέπει να φαίνεται, όχι να τη σκεπάσει ο ΦΠΑ.
+    if (t.gross !== expected) {
+      if (Math.abs(t.gross - expected) <= 0.011) { t = { net: t.net, vat: r2(expected - t.net), gross: expected }; forceTotal = true; }
+      else needs.push(`Το σύνολο στο SoftOne βγαίνει ${t.gross.toFixed(2)} € αντί ${expected.toFixed(2)} € (στρογγύλεμα ΦΠΑ)`);
+    }
   }
 
   const name = cut([o.contact.firstName, o.contact.lastName].filter(Boolean).join(" "), 255);
@@ -233,7 +257,8 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
     OBJECT: "SALDOC",
     data: {
       SALDOC: [{
-        SERIES: Number(series), TRDR: trdr ? Number(trdr) : null, FINCODE: o.number,
+        // το FINCODE το ξαναγράφει το SoftOne με τον κωδικό της σειράς· ο αριθμός μας μένει στο NUM01 και στο COMMENTS
+        SERIES: Number(series), TRDR: trdr ? Number(trdr) : null, FINCODE: o.number, ...(orderNum01(o.number) ? { NUM01: orderNum01(o.number) } : {}),
         // χωρίς κωδικό: ρητά κενό. Αν το πεδίο λείπει, το SoftOne βάζει μόνο του την προεπιλογή του πελάτη 200 («Μετρητά-
         // Πιστωτική κάρτα-Προκαταβολή»), που θα ήταν λάθος οδηγία (calculate 23/11/2026)
         PAYMENT: S1_PAYMENT[o.payment] ?? null,
@@ -241,6 +266,7 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
         COMMENTS1: name || null,
         REMARKS: remarks.slice(0, 2000),
         ...(rounding ? { DISC1VAL: rounding } : {}),
+        ...(forceTotal ? { SUMAMNT: expected } : {}),
       }],
       MTRDOC: [{
         SHIPPINGADDR: ship.addr || null, SHPZIP: ship.zip || null, SHPCITY: ship.city || null, SHPDISTRICT: ship.district || null,

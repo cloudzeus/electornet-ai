@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { composeSaldoc, fincodeFilter, softoneTotals, type SaldocOrder, type SaldocSettings } from "./order-doc-core";
+import { composeSaldoc, orderDocFilter, orderNum01, softoneTotals, type SaldocOrder, type SaldocSettings } from "./order-doc-core";
 
 const S: SaldocSettings = { series: "7005", retailTrdr: "200", shippingMtrl: "99001" };
 const base: SaldocOrder = {
@@ -20,7 +20,7 @@ test("τιμή χωρίς ΦΠΑ, όπως στο σημερινό eshop (249,90
 
 test("κεφαλίδα: σειρά, λιανική 200, αριθμός στο FINCODE, κωδικός πληρωμής, ονοματεπώνυμο, email στις παρατηρήσεις· χωρίς SHIPMENT", () => {
   const h = composeSaldoc(base, S).data.SALDOC[0];
-  assert.equal(h.SERIES, 7005); assert.equal(h.TRDR, 200); assert.equal(h.FINCODE, "EUR-20261016-0007");
+  assert.equal(h.SERIES, 7005); assert.equal(h.TRDR, 200); assert.equal(h.FINCODE, "EUR-20261016-0007"); assert.equal(h.NUM01, 202610160007);
   assert.equal(h.PAYMENT, 1001); assert.ok(!("SHIPMENT" in h), "ο πίνακας «Τρόποι αποστολής» του SoftOne δεν στέλνεται");
   assert.equal(h.COMMENTS1, "Μαρία Παπά");
   assert.match(String(h.COMMENTS), /e-shop EUR-20261016-0007 · Courier ACS · Κάρτα/);
@@ -127,6 +127,25 @@ test("ένας συντελεστής: σύνολα από πολλά είδη �
   }
 });
 
+test("1 λεπτό που δεν κλείνει με τιμές: το σύνολο δίνεται ρητά (SUMAMNT) και ο ΦΠΑ είναι σύνολο − καθαρή", () => {
+  // 89,00 € δεν προκύπτει από κανένα καθαρό ποσό δύο δεκαδικών στο 24 % (71,77 → 88,99 · 71,78 → 89,01)
+  const one = (price: number, extra: Partial<SaldocOrder> = {}) => composeSaldoc({ ...base, total: price, lines: [{ ...base.lines[0], listPrice: price }], ...extra }, S);
+  for (const price of [89, 399, 29.99, 17.9, 159]) {
+    const d = one(price);
+    assert.equal(d.data.SALDOC[0].SUMAMNT, price, String(price));
+    assert.equal(d.totals.gross, price); assert.equal(r(d.totals.net + d.totals.vat), price);
+    assert.deepEqual([d.needs, d.warnings], [[], []], String(price));
+  }
+  // ποσό που βγαίνει κανονικά: δεν στέλνεται σύνολο — ο υπολογισμός μένει του SoftOne
+  for (const price of [249.9, 129, 499]) assert.ok(!("SUMAMNT" in one(price).data.SALDOC[0]), String(price));
+  // δύο γραμμές (49,00 + 7,60 = 56,60)
+  const two = composeSaldoc({ ...base, total: 56.6, lines: [{ ...base.lines[0], listPrice: 49 }, { ...base.lines[0], erpCode: "103682", listPrice: 7.6 }] }, S);
+  assert.equal(two.data.SALDOC[0].SUMAMNT, 56.6); assert.equal(two.totals.gross, 56.6);
+  // μεγαλύτερη διαφορά δεν σκεπάζεται: λείπει / δεν στέλνεται
+  const bad = one(89, { total: 95 });
+  assert.ok(!("SUMAMNT" in bad.data.SALDOC[0])); assert.ok(bad.needs.some((n) => n.includes("95.00")), bad.needs.join(" | "));
+});
+
 test("σύνολα: ΦΠΑ ανά συντελεστή, έκπτωση κεφαλίδας στον μεγαλύτερο", () => {
   assert.deepEqual(softoneTotals([{ rate: 24, net: 643.56 }], 0.01), { net: 643.55, vat: 154.45, gross: 798 });
 });
@@ -160,10 +179,17 @@ test("γραμμή με μη αριθμητικό κωδικό είδους → 
   assert.ok(d.needs.some((n) => n.includes("Κωδικός είδους")), d.needs.join(" | "));
 });
 
-test("φίλτρο FINCODE: μόνο ασφαλείς αριθμοί παραγγελίας", () => {
-  assert.equal(fincodeFilter("EU-10042"), "SOSOURCE=1351 AND FINCODE='EU-10042'");
-  assert.equal(fincodeFilter(" 2026000123 "), "SOSOURCE=1351 AND FINCODE='2026000123'");
-  for (const bad of ["", "   ", "EU'10042", "EU-1 OR 1=1", "EU;10042", "α".repeat(41), "EU-100%"]) assert.equal(fincodeFilter(bad), null, bad);
+test("αριθμός παραγγελίας στο SoftOne: NUM01 από τα ψηφία, αναζήτηση με σειρά + NUM01 (το FINCODE δεν το κρατά το SoftOne)", () => {
+  assert.equal(orderNum01("EUR-20261123-9970"), 202611239970);
+  assert.equal(orderNum01(" 8697 "), 8697);
+  for (const bad of ["", "EUR-", "ΑΒΓ", "0000", "9".repeat(16)]) assert.equal(orderNum01(bad), null, bad);
+  assert.equal(orderDocFilter("EUR-20261123-9970", null), "SOSOURCE=1351 AND SERIES=7005 AND NUM01=202611239970");
+  assert.equal(orderDocFilter("EUR-20261123-9970", " 7049 "), "SOSOURCE=1351 AND SERIES=7049 AND NUM01=202611239970");
+  // στο φίλτρο μπαίνουν μόνο αριθμοί: ό,τι άλλο έχει ο αριθμός παραγγελίας ή η σειρά δεν φτάνει στο SQL
+  assert.equal(orderDocFilter("EU'1 OR 1=1", null), "SOSOURCE=1351 AND SERIES=7005 AND NUM01=111");
+  assert.equal(orderDocFilter("EUR-1", "7005 OR 1=1"), null);
+  assert.equal(orderDocFilter("χωρίς ψηφία", null), null);
+  assert.ok(!("NUM01" in composeSaldoc({ ...base, number: "ΧΩΡΙΣ-ΑΡΙΘΜΟ" }, S).data.SALDOC[0]));
 });
 
 test("τιμολόγιο: Επωνυμία/ΑΦΜ/ΔΟΥ στο MTRDOC, ΑΦΜ μόνο ψηφία", () => {

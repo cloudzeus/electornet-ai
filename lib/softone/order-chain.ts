@@ -2,6 +2,8 @@ import "server-only";
 import { db } from "@/lib/db";
 import { getTable } from "./lookups";
 import { docChain, docRoot } from "./doc-chain";
+import { orderDocFilter } from "./order-doc-core";
+import { saldocSettings } from "./order-doc";
 
 export interface OrderChainNode {
   findoc: number; parents: number[]; fincode: string; date: string; total: number | null; fullyTransf: number | null;
@@ -15,8 +17,9 @@ export async function orderChain(orderId: string): Promise<OrderChain> {
   if (!o) return { ok: false, reason: "not-sent" };
   try {
     let root = Number(o.erpSync?.erpDocId) || 0;
-    // το FINCODE της παραγγελίας στο SoftOne είναι ο αριθμός μας (order-doc-core)· μόνο ασφαλείς χαρακτήρες στο φίλτρο
-    if (!root && /^[\w-]+$/.test(o.number)) root = Number((await getTable("FINDOC", ["FINDOC"], `SOSOURCE=1351 AND FINCODE='${o.number}'`))[0]?.[0]) || 0;
+    // χωρίς αποθηκευμένο FINDOC: η παραγγελία βρίσκεται από τη σειρά και το NUM01 της (το SoftOne δεν κρατά τον αριθμό μας στο FINCODE)
+    const filter = root ? null : orderDocFilter(o.number, (await saldocSettings()).series);
+    if (filter) root = Number((await getTable("FINDOC", ["FINDOC"], filter))[0]?.[0]) || 0;
     if (!root) return { ok: false, reason: "not-sent" };
     return await chainFor(root);
   } catch (e) {

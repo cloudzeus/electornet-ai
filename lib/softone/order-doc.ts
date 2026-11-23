@@ -2,7 +2,7 @@ import "server-only";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings/store";
-import { composeSaldoc, fincodeFilter, type SaldocDoc, type SaldocLine, type SaldocSettings } from "./order-doc-core";
+import { composeSaldoc, orderDocFilter, S1_SERVICE_MTRL, type SaldocDoc, type SaldocLine, type SaldocSettings } from "./order-doc-core";
 
 /**
  * Το παραστατικό SoftOne μιας παραγγελίας, από τα στοιχεία της όπως αποθηκεύτηκαν (γραμμές, εκπτώσεις, ΦΠΑ είδους,
@@ -29,7 +29,7 @@ export async function saldocForOrder(orderId: string, client: Client = db): Prom
         select: {
           title: true, qty: true, listPrice: true, unitPrice: true, discPrice: true, discCoupon: true, discPayment: true, erpCode: true, isGift: true, promotions: true, setSpcs: true, setParts: true,
           variant: { select: { product: { select: { vatRate: true } } } },
-          addons: { select: { price: true, service: { select: { title: true } } } },
+          addons: { select: { price: true, service: { select: { title: true, slug: true } } } },
         },
       },
     },
@@ -56,7 +56,7 @@ export async function saldocForOrder(orderId: string, client: Client = db): Prom
       setSpcs: l.setSpcs, setParts: (l.setParts ?? null) as SaldocLine["setParts"],
     });
     // υπηρεσίες της γραμμής (εγκατάσταση, επέκταση εγγύησης κ.λπ.): δική τους γραμμή — ο κωδικός είδους ορίζεται ανά υπηρεσία
-    for (const a of l.addons) lines.push({ erpCode: null, title: a.service.title, qty: 1, listPrice: n(a.price), discPrice: 0, discCoupon: 0, discPayment: 0, vatRate: 24 });
+    for (const a of l.addons) lines.push({ erpCode: S1_SERVICE_MTRL[a.service.slug] ?? null, title: a.service.title, qty: 1, listPrice: n(a.price), discPrice: 0, discCoupon: 0, discPayment: 0, vatRate: 24 });
   }
 
   // τιμολόγιο: η καρτέλα του πελάτη στο SoftOne με αυτόν τον ΑΦΜ (του λογαριασμού ή άλλου πελάτη με τον ίδιο ΑΦΜ)
@@ -106,7 +106,7 @@ export const ORDER_WRITE_OFF = "Η αποστολή παραγγελιών στ�
 
 /** Το FINDOC της παραγγελίας στο SoftOne από τον αριθμό μας. 0 = δεν υπάρχει, null = δεν μπόρεσε να ελεγχθεί. */
 async function findocOf(number: string): Promise<number | null> {
-  const filter = fincodeFilter(number);
+  const filter = orderDocFilter(number, (await saldocSettings()).series);
   if (!filter) return null;
   const { getTable } = await import("./lookups");
   const rows = await getTable("FINDOC", ["FINDOC"], filter);
@@ -120,7 +120,7 @@ async function findocOf(number: string): Promise<number | null> {
  * 1. `S1_ORDER_WRITE=1` στο περιβάλλον ΚΑΙ ο διακόπτης των ρυθμίσεων σε «Αποστολή».
  * 2. Το παραστατικό είναι πλήρες (`needs` κενό) — αλλιώς τίποτα δεν φεύγει.
  * 3. Ατομική κατοχύρωση στο `ErpSync` (μόνο ένας αποστολέας ανά παραγγελία, χειροκίνητος ή αυτόματος).
- * 4. Έλεγχος διπλοεγγραφής: αν υπάρχει ήδη παραστατικό με FINCODE τον αριθμό μας, δεν ξαναστέλνεται.
+ * 4. Έλεγχος διπλοεγγραφής: αν υπάρχει ήδη παραστατικό της σειράς με NUM01 τον αριθμό μας, δεν ξαναστέλνεται.
  * Μετά την εγγραφή το παραστατικό διαβάζεται πίσω (`success:true` ≠ αποθηκεύτηκε) και συγκρίνεται το σύνολό του.
  */
 export async function sendSaldoc(orderId: string, staffId?: string | null): Promise<{ ok: boolean; message: string; findoc?: number }> {
