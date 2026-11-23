@@ -3,11 +3,12 @@ import Link from "next/link";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { PageIntro } from "@/components/site/PageIntro";
 import { Facets } from "@/components/catalog/FacetsServer";
-import { SortBar } from "@/components/catalog/SortBar";
+import { SortBar } from "@/components/catalog/SortBarServer";
 import { fitMattersFor } from "@/lib/data/dims";
 import { Pagination } from "@/components/catalog/Pagination";
 import { ProductGrid } from "@/components/catalog/ProductGrid";
 import { filterFromParams, getCategoryTree, listProducts } from "@/lib/data/repo";
+import { hideCounts } from "@/lib/catalog/hide-counts";
 
 export const metadata: Metadata = { title: "Ηλεκτρικές συσκευές & τεχνολογία: όλα τα προϊόντα", description: "Όλες οι ηλεκτρικές συσκευές και τα προϊόντα τεχνολογίας της Euronics, με φίλτρα ανά κατηγορία, μάρκα, τιμή και ενεργειακή κλάση. Σύγκριση έως 4 προϊόντων." };
 
@@ -20,7 +21,7 @@ type SP = Record<string, string | undefined>;
  */
 export default async function AllProducts({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
-  const [tree, result] = await Promise.all([getCategoryTree(), listProducts(filterFromParams(sp))]);
+  const [tree, result, noCounts] = await Promise.all([getCategoryTree(), listProducts(filterFromParams(sp)), hideCounts()]);
   const current = tree.find((c) => c.slug === sp.k);
   const params = Object.fromEntries(Object.entries(sp).filter(([, v]) => v != null)) as Record<string, string>;
 
@@ -30,7 +31,7 @@ export default async function AllProducts({ searchParams }: { searchParams: Prom
       <PageIntro
         kicker="Κατάλογος"
         title={current ? current.label : "Όλα τα προϊόντα"}
-        lead={`${result.total} προϊόντα · φίλτρα ανά μάρκα, τιμή, ενεργειακή κλάση και χαρακτηριστικά · σύγκριση έως 4 · δόσεις χωρίς κάρτα · παραλαβή σε 2 ώρες.`}
+        lead={`${noCounts ? "" : `${result.total} προϊόντα · `}φίλτρα ανά μάρκα, τιμή, ενεργειακή κλάση και χαρακτηριστικά · σύγκριση έως 4 · δόσεις χωρίς κάρτα · παραλαβή σε 2 ώρες.`}
       />
 
       <div className="eu-canvas eu-gutter pb-5">

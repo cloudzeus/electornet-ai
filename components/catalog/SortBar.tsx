@@ -17,7 +17,7 @@ const SORTS: { v: string; label: string }[] = [
 ];
 
 /** `fit`: η λίστα έχει προϊόντα όπου ο χώρος είναι κριτήριο (μεγάλες συσκευές, τηλεοράσεις) — μόνο τότε προσφέρεται ο έλεγχος. */
-export function SortBar({ total, page, pages, fit = false }: { total: number; page: number; pages: number; fit?: boolean }) {
+export function SortBar({ total, page, pages, fit = false, hideTotal = false }: { total: number; page: number; pages: number; fit?: boolean; hideTotal?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -33,7 +33,13 @@ export function SortBar({ total, page, pages, fit = false }: { total: number; pa
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
       <div className="text-eu-muted text-[length:var(--fs-15)]">
-        <strong className="text-eu-ink">{total}</strong> προϊόντα{pages > 1 ? ` · σελίδα ${page} από ${pages}` : ""}
+        {hideTotal ? (
+          pages > 1 ? `Σελίδα ${page} από ${pages}` : ""
+        ) : (
+          <>
+            <strong className="text-eu-ink">{total}</strong> προϊόντα{pages > 1 ? ` · σελίδα ${page} από ${pages}` : ""}
+          </>
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {space && fit && (

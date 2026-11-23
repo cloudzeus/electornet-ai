@@ -3,7 +3,7 @@ import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { PageIntro } from "@/components/site/PageIntro";
 import { Countdown } from "@/components/commerce/Countdown";
 import { ProductGrid } from "@/components/catalog/ProductGrid";
-import { SortBar } from "@/components/catalog/SortBar";
+import { SortBar } from "@/components/catalog/SortBarServer";
 import { AdSlot } from "@/components/promo/AdSlot";
 import Link from "next/link";
 import { offerProductsPage, pickAd } from "@/lib/promo/landing";

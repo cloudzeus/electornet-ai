@@ -4,6 +4,7 @@ import { cutoutFor } from "@/lib/data/cutouts";
 import { Spotlight } from "@/components/motion/Spotlight";
 import { StarLight } from "@/components/motion/StarLight";
 import { CountUp } from "@/components/motion/CountUp";
+import { hideCounts } from "@/lib/catalog/hide-counts";
 
 // θέση/μέγεθος/καθυστέρηση των τριών cutouts — σταθερές κλάσεις αντί για style (το «!» στην καθυστέρηση: να μην τη
 // μηδενίζει το shorthand `animation` της eu-float, όπως υπερίσχυε πριν το inline style)
@@ -20,8 +21,9 @@ const CUT_POS = [
  * questions this category gets most (from the Demand Radar). Adaptive: the
  * cutouts move under the text below @lg; nothing overlaps the title.
  */
-export function CategoryOpener({ title, no, count, lead, products }: { title: string; no?: string; count: number; lead?: string; products: Product[] }) {
+export async function CategoryOpener({ title, no, count, lead, products }: { title: string; no?: string; count: number; lead?: string; products: Product[] }) {
   const cuts = products.map((p) => ({ id: p.id, src: cutoutFor(p.image), alt: `${p.brand} ${p.title}` })).filter((c) => c.src).slice(0, 3);
+  const hideCount = await hideCounts();
   return (
     <header className="relative bg-eu-navy text-white eu-container overflow-hidden isolate">
       <span className="eu-ambient" aria-hidden />
@@ -35,10 +37,16 @@ export function CategoryOpener({ title, no, count, lead, products }: { title: st
         <div className="min-w-0">
           <h1 className="m-0 font-heading font-extrabold text-[length:var(--fs-32)] @lg:text-[length:var(--fs-40)] leading-[1.05] tracking-[-0.03em]">{title}</h1>
           <p className="m-0 mt-2 text-eu-on-dark text-[length:var(--fs-16)] leading-relaxed max-w-[40em]">
-            <span className="font-extrabold text-white tabular-nums">
-              <CountUp value={count} />
-            </span>{" "}
-            προϊόντα{lead ? ` · ${lead}` : ""}
+            {hideCount ? (
+              lead
+            ) : (
+              <>
+                <span className="font-extrabold text-white tabular-nums">
+                  <CountUp value={count} />
+                </span>{" "}
+                προϊόντα{lead ? ` · ${lead}` : ""}
+              </>
+            )}
           </p>
         </div>
         {cuts.length > 0 && (

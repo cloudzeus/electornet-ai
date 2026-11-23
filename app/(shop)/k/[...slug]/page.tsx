@@ -4,7 +4,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { CategoryOpener } from "@/components/catalog/CategoryOpener";
 import { Facets } from "@/components/catalog/FacetsServer";
-import { SortBar } from "@/components/catalog/SortBar";
+import { SortBar } from "@/components/catalog/SortBarServer";
+import { hideCounts } from "@/lib/catalog/hide-counts";
 import { AdSlot } from "@/components/promo/AdSlot";
 import { fitMattersFor } from "@/lib/data/dims";
 import { Pagination } from "@/components/catalog/Pagination";
@@ -17,8 +18,8 @@ import { Compass } from "lucide-react";
 import { AskAris } from "@/components/advisor/AskAris";
 import { isEnergyQuestion } from "@/lib/catalog/energy-types";
 import { isFitQuestion } from "@/lib/catalog/fit-types";
-
 import { categoryMeta } from "@/lib/seo/pages";
+
 const GUIDE_FOR: Record<string, { kind: string; t: string }> = { tileoraseis: { kind: "tileoraseis", t: "Ποια τηλεόραση σού ταιριάζει; 5 ερωτήσεις, αιτιολογημένη πρόταση." }, laptops: { kind: "ypologistes", t: "Ποιος υπολογιστής σού ταιριάζει; 5 ερωτήσεις, αιτιολογημένη πρόταση." }, tablets: { kind: "ypologistes", t: "Laptop ή tablet; Ο έξυπνος οδηγός αποφασίζει μαζί σου." }, "air-condition": { kind: "klimatistika", t: "Πόσα BTU χρειάζεσαι; Ο έξυπνος οδηγός τα υπολογίζει από τα τετραγωνικά." } };
 
 type Params = { slug: string[] };
@@ -56,7 +57,7 @@ export default async function CategoryPage({ params, searchParams }: { params: P
   const tiles = cat ? cat.children : l2 ? [] : l1.children.map((c) => ({ ...c, count: 0 }));
   const here = cat ? cat.path[cat.path.length - 1] : null;
 
-  const [result, cats, settings] = await Promise.all([listProducts(filterFromParams(sp, { l1: l1.slug, l2: l2?.slug, l3: l3?.slug, perPage: 24 })), getCategories(), getSettings()]);
+  const [result, cats, settings, noCounts] = await Promise.all([listProducts(filterFromParams(sp, { l1: l1.slug, l2: l2?.slug, l3: l3?.slug, perPage: 24 })), getCategories(), getSettings(), hideCounts()]);
   const catNo = cats.find((c) => c.slug === l1.slug)?.no;
   // «Πόσο ρεύμα καίει;» μόνο σε κατηγορίες με ενεργειακή ετικέτα· «χωράει;» μόνο όπου ο χώρος είναι κριτήριο
   const questions = (settings.advisor.suggestions.byCategory[l2?.slug ?? l1.slug] ?? CATEGORY_QUESTIONS).filter((q) => !cat || ((cat.energy || !isEnergyQuestion(q)) && (cat.fit || !isFitQuestion(q))));
@@ -83,7 +84,7 @@ export default async function CategoryPage({ params, searchParams }: { params: P
               <li key={ch.slug}>
                 <Link href={`${basePath}/${ch.slug}`} className="inline-flex items-center gap-2 rounded-full border border-eu-line bg-white px-4 py-2.5 min-h-11 font-semibold text-eu-ink text-[length:var(--fs-15)] hover:border-eu-blue hover:text-eu-blue">
                   {ch.name}
-                  {ch.count > 0 && <span className="text-eu-muted font-normal tabular-nums text-[length:var(--fs-14)]">{ch.count.toLocaleString("el-GR")}</span>}
+                  {!noCounts && ch.count > 0 && <span className="text-eu-muted font-normal tabular-nums text-[length:var(--fs-14)]">{ch.count.toLocaleString("el-GR")}</span>}
                 </Link>
               </li>
             ))}

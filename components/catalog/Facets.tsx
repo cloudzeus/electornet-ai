@@ -187,7 +187,7 @@ function FacetsBody({ result, showCategories = false, nav }: { result: ListResul
             <SheetTitle className="font-extrabold text-eu-ink text-[length:var(--fs-19)] mb-3">{c.filtra}</SheetTitle>
             {body}
             <div className="sticky bottom-0 bg-white pt-3 mt-3 border-t border-eu-line">
-              <div className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-16)] py-3.5 min-h-12 text-center">Δες {result.total} προϊόντα</div>
+              <div className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-16)] py-3.5 min-h-12 text-center">{hideCounts ? "Δες τα προϊόντα" : `Δες ${result.total} προϊόντα`}</div>
             </div>
           </SheetContent>
         </Sheet>

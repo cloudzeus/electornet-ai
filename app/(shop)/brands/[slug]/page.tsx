@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { PageIntro } from "@/components/site/PageIntro";
 import { Facets } from "@/components/catalog/FacetsServer";
-import { SortBar } from "@/components/catalog/SortBar";
+import { SortBar } from "@/components/catalog/SortBarServer";
 import { fitMattersFor } from "@/lib/data/dims";
 import { Pagination } from "@/components/catalog/Pagination";
 import { ProductGrid } from "@/components/catalog/ProductGrid";
