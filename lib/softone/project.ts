@@ -207,8 +207,9 @@ async function projectProducts(idOf: Map<string, string>, only?: number) {
       if (!categoryId) { noCategory++; continue; }
       seen.add(erpCode);
       const name = clean(it.name);
-      // Το όνομα του ERP άλλοτε ξεκινά με τη μάρκα κι άλλοτε όχι — ο τίτλος την έχει πάντα, μία φορά
-      const title = plain(name).includes(plain(brand.name)) ? name : `${brand.name} ${name}`;
+      // Τίτλος = «Περιγραφή για Web» (WEBNAME) αυτούσια, όπως το παλιό site. Χωρίς αυτήν μένει το NAME (εσωτερική περιγραφή
+      // αποθήκης), που άλλοτε ξεκινά με τη μάρκα κι άλλοτε όχι — εκεί η μάρκα μπαίνει μπροστά όταν λείπει
+      const title = clean(it.webName ?? "") || (plain(name).includes(plain(brand.name)) ? name : `${brand.name} ${name}`);
       const parsed = parseDescription(it.longDesc);
       const data = {
         title, ean: it.barcode?.trim() || null, brandId: brand.id, categoryId,
@@ -277,12 +278,17 @@ export async function projectFacetValues(onlyCategoryId?: string): Promise<Facet
   for (const c of cats) {
     if (!c.facets.length) continue;
     // και τα προϊόντα που μπήκαν μόνο στο eshop (εισαγωγή excel): τα χαρακτηριστικά τους είναι γραμμές «import»
-    const rows = await db.product.findMany({ where: { categoryId: c.id, source: { in: [SOURCE, "import"] } }, select: { id: true, title: true, summary: true, description: true, facetHash: true, specs: { where: { source: { in: FACET_SPEC_SOURCES } }, orderBy: { sortNo: "asc" }, select: { key: true, value: true, source: true } } } });
+    const rows = await db.product.findMany({ where: { categoryId: c.id, source: { in: [SOURCE, "import"] } }, select: { id: true, erpCode: true, title: true, summary: true, description: true, facetHash: true, specs: { where: { source: { in: FACET_SPEC_SOURCES } }, orderBy: { sortNo: "asc" }, select: { key: true, value: true, source: true } } } });
     if (!rows.length) continue;
     products += rows.length;
     // Η αλφαβητική σειρά της βάσης δεν είναι η προτεραιότητα που θέλουμε: ταξινομούμε με τη σειρά του FACET_SPEC_SOURCES.
     const rank = (src: string | null) => { const i = FACET_SPEC_SOURCES.indexOf(src ?? ""); return i < 0 ? FACET_SPEC_SOURCES.length : i; };
-    const resolved = new Map<string, FacetValue[]>(rows.map((p) => [p.id, resolveFacets(c.facets, { title: p.title, summary: p.summary, description: p.description, specs: [...p.specs].sort((a, b) => rank(a.source) - rank(b.source)), typeName: c.name })]));
+    // Ο τίτλος είναι η σύντομη «Περιγραφή για Web»· ίντσες, ανάλυση, Smart, χρώμα κ.ά. γράφονται συχνά μόνο στο όνομα του ERP.
+    // Τα φίλτρα διαβάζουν και τα δύο (μετρημένο 23/11: μόνο με τον τίτλο χάνονταν 1.573 τιμές, με τα δύο 2).
+    const mtrls = rows.map((p) => Number(p.erpCode)).filter((n) => Number.isInteger(n));
+    const erpName = new Map((mtrls.length ? await db.s1Item.findMany({ where: { mtrl: { in: mtrls } }, select: { mtrl: true, name: true } }) : []).map((i) => [String(i.mtrl), clean(i.name)]));
+    const facetTitle = (p: { erpCode: string | null; title: string }) => { const n = erpName.get(p.erpCode ?? ""); return n && !p.title.includes(n) ? `${p.title} ${n}` : p.title; };
+    const resolved = new Map<string, FacetValue[]>(rows.map((p) => [p.id, resolveFacets(c.facets, { title: facetTitle(p), summary: p.summary, description: p.description, specs: [...p.specs].sort((a, b) => rank(a.source) - rank(b.source)), typeName: c.name })]));
 
     // Εναρμόνιση ανά φίλτρο
     const perFacet = new Map<string, FacetValue[]>();

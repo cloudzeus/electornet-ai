@@ -79,11 +79,13 @@ export function productDoc(it: Item, ctx: DocContext, model: string): BuiltDoc {
   const path = [c1, c2, group?.name].filter(Boolean).join(" › ");
   const ep = it.factoryCode ? ctx.eprel.get(normalizeModel(it.factoryCode)) ?? null : null;
   const sh = ctx.shop.get(String(it.mtrl)) ?? null;
-  const title = [brand, it.name].filter(Boolean).join(" ");
+  // Ο τίτλος που βλέπει ο πελάτης στο site (WEBNAME)· χωρίς αυτόν, μάρκα + όνομα ERP όπως πριν
+  const title = it.webName?.trim() || [brand, it.name].filter(Boolean).join(" ");
   const lines = [
     title,
     path && `Κατηγορία: ${path}`,
     `Κωδικός: ${it.code}${it.factoryCode ? ` · μοντέλο κατασκευαστή ${it.factoryCode}` : ""}${it.barcode ? ` · barcode ${it.barcode}` : ""}`,
+    it.webName?.trim() ? it.name : null, // το όνομα ERP κρατά κωδικούς και λέξεις (ίντσες, Smart, χρώμα) που δεν έχει η Περιγραφή για Web
     it.name2 && it.name2 !== it.name ? it.name2 : null,
     it.shortDesc && cap(stripHtml(it.shortDesc), 600),
     it.longDesc && cap(stripHtml(it.longDesc), 1800),

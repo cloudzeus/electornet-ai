@@ -477,6 +477,8 @@ model S1Item {
   code             String
   name             String
   name2            String?
+  /// MTRL.WEBNAME «Περιγραφή για Web» (64 χαρ.): το όνομα που έδειχνε το παλιό euronics.gr — από εδώ βγαίνει ο τίτλος του προϊόντος
+  webName          String?
   barcode          String? // CODE1
   factoryCode      String? // CODE2
   active           Boolean      @default(true)

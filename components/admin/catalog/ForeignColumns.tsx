@@ -158,7 +158,7 @@ export function LivePreview({ rows, idx, onIdx, brandOf, settings, total, info, 
         <button type="button" className={iconBtn} disabled={idx >= rows.length - 1} aria-label="Επόμενη γραμμή" onClick={() => onIdx(idx + 1)}><ChevronRight className="size-4" aria-hidden /></button>
       </div>
       <div inert className="@container w-full max-w-[15rem] justify-self-center">
-        <SettingsProvider settings={settings}><CartProvider><ProductCard product={asProduct({ key: `live-${r.rowNo}`, title: title || "(χωρίς όνομα)", sku: r.fields.code, brand, images: r.media.image, price: live?.price?.price ?? null })} /></CartProvider></SettingsProvider>
+        <SettingsProvider settings={settings}><CartProvider><ProductCard product={asProduct({ key: `live-${r.rowNo}`, title: web || "(χωρίς όνομα)", sku: r.fields.code, brand, images: r.media.image, price: live?.price?.price ?? null })} /></CartProvider></SettingsProvider>
       </div>
       {r.media.image.length > 0 && (
         <div className="grid gap-1 min-w-0">
@@ -181,7 +181,7 @@ export function LivePreview({ rows, idx, onIdx, brandOf, settings, total, info, 
       </div>
 
       <dl className="m-0 grid gap-2.5 min-w-0">
-        <Field label="Περιγραφή για Web (WEBNAME, έως 64)" empty="κενή — χωρίς όνομα">{web ? <>{web}{web !== title.replace(/\s+/g, " ").trim() && <span className="block text-eu-ink-3 text-[length:var(--fs-12)]">κόπηκε σε ολόκληρη λέξη ({title.length} χαρακτήρες)</span>}</> : undefined}</Field>
+        <Field label="Τίτλος στο e-shop (Περιγραφή για Web, έως 64)" empty="κενός — χωρίς όνομα">{web ? <>{web}{web !== title.replace(/\s+/g, " ").trim() && <span className="block text-eu-ink-3 text-[length:var(--fs-12)]">κόπηκε σε ολόκληρη λέξη ({title.length} χαρακτήρες)</span>}</> : undefined}</Field>
         <Field label="Σύντομη περιγραφή">{r.fields.shortDesc ? <span className="line-clamp-4">{r.fields.shortDesc}</span> : undefined}</Field>
         <Field label="Αναλυτική περιγραφή">{r.fields.descText ? <details className="group"><summary className="cursor-pointer list-none"><span className="line-clamp-4 group-open:line-clamp-none whitespace-pre-line">{r.fields.descText}</span><span className="text-eu-blue text-[length:var(--fs-12)] group-open:hidden">Όλο το κείμενο</span></summary></details> : undefined}</Field>
         <Field label="Κατηγορία eshop" empty="καμία ακόμη — ορίζεται στο βήμα «Τιμή & κατηγορία»">{live?.category ?? undefined}</Field>

@@ -58,7 +58,7 @@ export async function quickFixAction(productId: string) {
     images, canWrite, canMedia: can(user.permissions, "cms.media.write"),
     editor: item ? {
       initial: {
-        name: item.name, barcode: item.barcode, factoryCode: item.factoryCode, active: item.active ? 1 : 0, shortDesc: item.shortDesc, longDesc: item.longDesc,
+        name: item.name, webName: item.webName, barcode: item.barcode, factoryCode: item.factoryCode, active: item.active ? 1 : 0, shortDesc: item.shortDesc, longDesc: item.longDesc,
         availText: item.availText, extWarranty: item.extWarranty ? 1 : 0, guaranteeMonths: item.guaranteeMonths, weightKg: item.weightKg, lengthCm: item.lengthCm, widthCm: item.widthCm, heightCm: item.heightCm,
       },
       readonlyReason,

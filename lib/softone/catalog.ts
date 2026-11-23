@@ -142,7 +142,7 @@ export function syncSpecGroups(trigger: Trigger = "manual") {
 
 // ---------- Είδη ----------
 
-const ITEM_FIELDS = ["MTRL", "CODE", "NAME", "NAME1", "CODE1", "CODE2", "ISACTIVE", "MTRMANFCTR", "MTRMARK", "MTRCATEGORY", "MTRGROUP", "VAT", "MTRUNIT1", "PRICER", "PRICEW", "CCCWEBCATEGORY1", "CCCWEBCATEGORY2", "CCCWEBGRSPECS", "CCCWREMARKS1", "CCCWREMARKS", "CCCAVAIL", "CCCWARRANTY", "GUARTIME", "MTRONORDER", "MTRRPLCODE", "CCCWEIGHT", "CCCLENGTH", "CCCWIDTH", "CCCHEIGHT", "UPDDATE"] as const;
+const ITEM_FIELDS = ["MTRL", "CODE", "NAME", "WEBNAME", "NAME1", "CODE1", "CODE2", "ISACTIVE", "MTRMANFCTR", "MTRMARK", "MTRCATEGORY", "MTRGROUP", "VAT", "MTRUNIT1", "PRICER", "PRICEW", "CCCWEBCATEGORY1", "CCCWEBCATEGORY2", "CCCWEBGRSPECS", "CCCWREMARKS1", "CCCWREMARKS", "CCCAVAIL", "CCCWARRANTY", "GUARTIME", "MTRONORDER", "MTRRPLCODE", "CCCWEIGHT", "CCCLENGTH", "CCCWIDTH", "CCCHEIGHT", "UPDDATE"] as const;
 /** Είδη αποθήκης που ανήκουν στο site. Το WEBVIEW είναι 0 παντού στην εγκατάσταση, οπότε δεν το χρησιμοποιούμε. */
 const WEB_FILTER = "SODTYPE=51 AND (CCCWEBGRSPECS>0 OR CCCWEBCATEGORY1>0)";
 
@@ -151,7 +151,7 @@ export function mapItem(r: string[]) {
   const mtrl = int(f.MTRL);
   if (mtrl == null || !f.CODE.trim()) return null;
   const data = {
-    mtrl, code: f.CODE.trim(), name: f.NAME.trim(), name2: txt(f.NAME1), barcode: txt(f.CODE1), factoryCode: txt(f.CODE2), active: yes(f.ISACTIVE),
+    mtrl, code: f.CODE.trim(), name: f.NAME.trim(), webName: txt(f.WEBNAME), name2: txt(f.NAME1), barcode: txt(f.CODE1), factoryCode: txt(f.CODE2), active: yes(f.ISACTIVE),
     manufacturerS1Id: posInt(f.MTRMANFCTR), markS1Id: posInt(f.MTRMARK), commCategory: posInt(f.MTRCATEGORY), itemGroup: posInt(f.MTRGROUP), vatS1Id: posInt(f.VAT), unitS1Id: posInt(f.MTRUNIT1),
     priceRetail: posNum(f.PRICER), priceWholesale: posNum(f.PRICEW),
     webCat1: posInt(f.CCCWEBCATEGORY1), webCat2: posInt(f.CCCWEBCATEGORY2), specGroupS1Id: posInt(f.CCCWEBGRSPECS),
@@ -161,7 +161,7 @@ export function mapItem(r: string[]) {
     s1UpdatedAt: date(f.UPDDATE),
   };
   // Ό,τι μπαίνει στο κείμενο αναζήτησης: όταν αλλάξει αυτό, το vector του προϊόντος θέλει ξανά υπολογισμό
-  const contentHash = createHash("sha1").update(JSON.stringify([data.code, data.name, data.name2, data.factoryCode, data.manufacturerS1Id, data.webCat1, data.webCat2, data.specGroupS1Id, data.shortDesc, data.longDesc, data.availText, data.extWarranty, data.guaranteeMonths, data.priceRetail, data.widthCm, data.heightCm, data.lengthCm, data.active])).digest("hex");
+  const contentHash = createHash("sha1").update(JSON.stringify([data.code, data.name, data.webName, data.name2, data.factoryCode, data.manufacturerS1Id, data.webCat1, data.webCat2, data.specGroupS1Id, data.shortDesc, data.longDesc, data.availText, data.extWarranty, data.guaranteeMonths, data.priceRetail, data.widthCm, data.heightCm, data.lengthCm, data.active])).digest("hex");
   return { ...data, contentHash };
 }
 

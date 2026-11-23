@@ -17,8 +17,8 @@ import { toCp1253, unsupportedCp1253 } from "@/lib/softone/cp1253";
  * 3. **Επαλήθευση:** νέα ανάγνωση μετά την εγγραφή. Το «success» του SoftOne δεν σημαίνει πάντα ότι η τιμή γράφτηκε.
  */
 export type ItemField = "name" | "barcode" | "factoryCode" | "active" | "shortDesc" | "longDesc" | "availText" | "extWarranty" | "guaranteeMonths" | "weightKg" | "lengthCm" | "widthCm" | "heightCm" | "webGroup" | "webCat1" | "webCat2" | "webName" | "mass" | "dim1" | "dim2" | "dim3";
-/** Τα πεδία της καρτέλας προϊόντος — η web ομάδα / κατηγορίες αλλάζουν μόνο από την εισαγωγή (με έγκριση στο σχέδιο) */
-export const WEB_FIELDS = ["webGroup", "webCat1", "webCat2", "webName"] as const;
+/** Εκτός καρτέλας προϊόντος: η web ομάδα / κατηγορίες αλλάζουν μόνο από την εισαγωγή (με έγκριση στο σχέδιο). Το `webName` είναι ο τίτλος στο site και αλλάζει και από την καρτέλα. */
+export const WEB_FIELDS = ["webGroup", "webCat1", "webCat2"] as const;
 /** Τα τυπικά πεδία του είδους (MTRL) για βάρος και διαστάσεις: γεμίζουν μαζί με τα CCC από τη μαζική συμπλήρωση. */
 export const STD_DIM_FIELDS = ["mass", "dim1", "dim2", "dim3"] as const;
 export type EditorField = Exclude<ItemField, (typeof WEB_FIELDS)[number] | (typeof STD_DIM_FIELDS)[number]>;

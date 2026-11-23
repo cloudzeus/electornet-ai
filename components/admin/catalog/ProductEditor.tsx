@@ -12,7 +12,7 @@ import type { EditorField as ItemField, ItemValue } from "@/lib/softone/item-wri
 export type EditorValues = Record<ItemField, ItemValue>;
 
 const LABEL: Record<ItemField, string> = {
-  name: "Όνομα", barcode: "Barcode", factoryCode: "Κωδικός κατασκευαστή", active: "Ενεργό", shortDesc: "Σύντομη περιγραφή", longDesc: "Αναλυτική περιγραφή",
+  name: "Όνομα", webName: "Τίτλος στο e-shop", barcode: "Barcode", factoryCode: "Κωδικός κατασκευαστή", active: "Ενεργό", shortDesc: "Σύντομη περιγραφή", longDesc: "Αναλυτική περιγραφή",
   availText: "Κείμενο διαθεσιμότητας", extWarranty: "Επέκταση εγγύησης", guaranteeMonths: "Εγγύηση (μήνες)", weightKg: "Βάρος", lengthCm: "Βάθος", widthCm: "Πλάτος", heightCm: "Ύψος",
 };
 const same = (a: ItemValue, b: ItemValue) => String(a ?? "").replace(/\r\n?/g, "\n").trim() === String(b ?? "").replace(/\r\n?/g, "\n").trim();
@@ -115,9 +115,17 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
       )}
 
       {show("basics") && (
-      <AccordionItem id="basics" title="Βασικά στοιχεία" icon={<Tag className="size-4" aria-hidden />} summary={`${String(v.name ?? "")} · κωδικός ${meta.code}`} badge={S1} defaultOpen>
+      <AccordionItem id="basics" title="Βασικά στοιχεία" icon={<Tag className="size-4" aria-hidden />} summary={`${String(v.webName || v.name || "")} · κωδικός ${meta.code}`} badge={S1} defaultOpen>
         <div className="grid gap-2 @2xl:grid-cols-2">
-          <Field label="Όνομα στο SoftOne" help="Ο τίτλος στο e-shop είναι η μάρκα + αυτό το όνομα (η μάρκα μπαίνει μόνη της αν λείπει)." wide>
+          <div className="@2xl:col-span-2 min-w-0" data-help="product.web-title">
+            <Field label="Τίτλος στο e-shop" help={String(v.webName ?? "").trim() ? "Αυτό βλέπει ο πελάτης ως όνομα του προϊόντος. Είναι η «Περιγραφή για Web» του SoftOne, έως 64 χαρακτήρες: μάρκα, μοντέλο, είδος." : "Κενό: ο πελάτης βλέπει τη μάρκα και το όνομα SoftOne από κάτω. Γράψε μάρκα, μοντέλο, είδος, π.χ. «TEFAL FV5718 Σίδερο Ατμού»."}>
+              <span className="relative block">
+                <input disabled={dis} value={String(v.webName ?? "")} maxLength={64} onChange={(e) => set("webName", e.target.value)} className={`${input} pr-14`} />
+                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-eu-muted tabular-nums text-[length:var(--fs-12)]" aria-hidden>{String(v.webName ?? "").length}/64</span>
+              </span>
+            </Field>
+          </div>
+          <Field label="Όνομα στο SoftOne" help="Η εσωτερική περιγραφή του είδους (αποθήκη, παραστατικά). Στο e-shop φαίνεται μόνο όταν ο τίτλος από πάνω είναι κενός." wide>
             <input disabled={dis} value={String(v.name ?? "")} maxLength={128} onChange={(e) => set("name", e.target.value)} className={input} />
           </Field>
           <Field label="Barcode (EAN)"><input disabled={dis} value={String(v.barcode ?? "")} inputMode="numeric" onChange={(e) => set("barcode", e.target.value)} className={input} /></Field>
