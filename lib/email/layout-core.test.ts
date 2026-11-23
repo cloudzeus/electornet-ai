@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bankAccountsBlock, emailImg, type EmailCtx } from "./layout-core";
+import { bankAccountsBlock, emailImg, renderEmail, type EmailCtx } from "./layout-core";
 import { relOfCdnUrl } from "../media/cdn-path";
 
 const ctx: EmailCtx = { baseUrl: "https://shop.example", assetUrl: "https://shop.example", logoUrl: "", advisorUrl: "https://cdn.example/ermis.email.jpg", siteName: "Euronics", phone: "", email: "", address: "", legalName: "", year: 2026 };
@@ -43,4 +43,10 @@ test("relOfCdnUrl: η μικρογραφία μπαίνει δίπλα στην 
   assert.equal(relOfCdnUrl("https://cdn.example/products/x/y-01.webp", "https://cdn.example", ""), "products/x/y-01.webp");
   assert.equal(relOfCdnUrl("https://cdn.example/products/%CE%B1-01.webp", "https://cdn.example", ""), "products/α-01.webp");
   assert.throws(() => relOfCdnUrl("https://evil.example/x.webp", "https://cdn.example", ""), /CDN/);
+});
+
+test("renderEmail: ΑΦΜ και ΔΟΥ της εταιρείας στο υποσέλιδο, σε HTML και απλό κείμενο", () => {
+  const r = renderEmail({ ...ctx, legalName: "MEGA ELECTRICS ΑΕΒΕ", fiscal: "ΑΦΜ 998182322 · ΔΟΥ ΚΕΦΟΔΕ ΑΤΤΙΚΗΣ" }, { subject: "x", blocks: [] });
+  assert.match(r.html, /MEGA ELECTRICS ΑΕΒΕ<\/b> · ΑΦΜ 998182322 · ΔΟΥ ΚΕΦΟΔΕ ΑΤΤΙΚΗΣ/);
+  assert.match(r.text, /MEGA ELECTRICS ΑΕΒΕ · ΑΦΜ 998182322 · ΔΟΥ ΚΕΦΟΔΕ ΑΤΤΙΚΗΣ/);
 });

@@ -134,6 +134,7 @@ export const SECTIONS: Section[] = [
       { key: "baseUrl", label: "Βασικό URL", type: "url", public: true, required: true, placeholder: "https://www.euronics.gr", width: "half", group: "site", rule: R.https, help: "Η διεύθυνση του καταστήματος, χωρίς / στο τέλος. Χρησιμοποιείται σε emails, sitemap και social login." },
       { key: "legalName", label: "Επωνυμία εταιρείας", type: "text", public: true, width: "half", group: "company", placeholder: "π.χ. ΑΦΟΙ … Α.Ε.", help: "Όπως στο ΓΕΜΗ." },
       { key: "vat", label: "ΑΦΜ", type: "text", public: true, width: "half", group: "company", placeholder: "123456789", rule: R.afm },
+      { key: "taxOffice", label: "ΔΟΥ", type: "text", public: true, width: "half", group: "company", placeholder: "ΚΕΦΟΔΕ ΑΤΤΙΚΗΣ", help: "Γράφεται δίπλα στον ΑΦΜ στα emails και στο δελτίο αποστολών. Κενό = ΚΕΦΟΔΕ ΑΤΤΙΚΗΣ." },
       { key: "address", label: "Διεύθυνση έδρας", type: "text", public: true, group: "company", placeholder: "Οδός αριθμός, ΤΚ Πόλη" },
       { key: "phone", label: "Τηλέφωνο εξυπηρέτησης", type: "text", public: true, width: "half", group: "contact", placeholder: "210 1234567", rule: R.phone },
       { key: "email", label: "Email εξυπηρέτησης", type: "email", public: true, width: "half", group: "contact", placeholder: "info@euronics.gr", rule: R.email },

@@ -1,6 +1,9 @@
 import "server-only";
 import { getSetting } from "@/lib/settings/store";
 import type { EmailCtx } from "./layout-core";
+import { defaultSettings } from "@/lib/cms/settings";
+
+const D = defaultSettings.site;
 
 // Η καθαρή λογική (BRAND, blocks, renderEmail) ζει στο layout-core.ts ώστε να δοκιμάζεται χωρίς server-only· εδώ μένει μόνο ό,τι διαβάζει ρυθμίσεις.
 export * from "./layout-core";
@@ -20,5 +23,5 @@ export async function emailCtx(extra: Partial<EmailCtx> = {}): Promise<EmailCtx>
   const logoUrl = String(data.emailLogoUrl || process.env.EMAIL_LOGO_URL || "https://euronics.b-cdn.net/brand/euronics-logo-white.png");
   // ίδιος κανόνας με το λογότυπο: αντίγραφο στο CDN, ώστε η εικόνα να μην εξαρτάται από το πού τρέχει η εφαρμογή
   const advisorUrl = String(data.emailAdvisorUrl || "https://euronics.b-cdn.net/brand/ermis-head.email.jpg");
-  return { baseUrl, assetUrl, logoUrl, advisorUrl, siteName: String(data.siteName || "Euronics"), phone: String(data.phone || "210 483 5143"), email: String(data.email || "info@euronics.gr"), address: String(data.address || "Δαμάσκου 2 Σταμάτη 12, 135 71 Αχαρνές"), legalName: String(data.legalName || "MEGA ELECTRICS ΑΕΒΕ"), year: new Date().getFullYear(), ...extra };
+  return { baseUrl, assetUrl, logoUrl, advisorUrl, siteName: String(data.siteName || "Euronics"), phone: String(data.phone || "210 483 5143"), email: String(data.email || "info@euronics.gr"), address: String(data.address || D.contact.address), legalName: String(data.legalName || D.brand.legalName), fiscal: `ΑΦΜ ${data.vat || D.brand.vat} · ΔΟΥ ${data.taxOffice || D.brand.taxOffice}`, year: new Date().getFullYear(), ...extra };
 }

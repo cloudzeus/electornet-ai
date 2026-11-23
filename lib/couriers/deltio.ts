@@ -6,6 +6,9 @@ import { paintDeltio, type DeltioSection } from "./deltio-paint";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings/store";
 import { COURIER_NAME, isVoucherCarrier, shipmentLabels } from "./shipments";
+import { defaultSettings } from "@/lib/cms/settings";
+
+const D = defaultSettings.site.brand;
 
 /**
  * Δελτίο παράδοσης αποστολών (A4, PDF): η λίστα των vouchers που παραδίδονται στον courier, με σύνολα τεμαχίων /
@@ -33,9 +36,9 @@ export async function drawDeltio(out: PDFDocument, ids: string[]): Promise<numbe
   if (!secs.length) return 0;
   const dir = join(process.cwd(), "lib/couriers/fonts");
   const [regular, bold] = await Promise.all([readFile(join(dir, "LiberationSans-Regular.ttf")), readFile(join(dir, "LiberationSans-Bold.ttf"))]);
-  const site = await getSetting("site").then((x) => x.data).catch(() => ({} as Record<string, unknown>));
+  const site = await getSetting("general").then((x) => x.data).catch(() => ({} as Record<string, unknown>));
   const str = (k: string) => String(site[k] ?? "").trim();
-  const company = [str("legalName") || str("siteName") || "Euronics", str("vat") && `ΑΦΜ ${str("vat")}`, str("address"), str("phone") && `τηλ. ${str("phone")}`].filter(Boolean).join(" · ");
+  const company = [str("legalName") || str("siteName") || "Euronics", `ΑΦΜ ${str("vat") || D.vat} · ΔΟΥ ${str("taxOffice") || D.taxOffice}`, str("address"), str("phone") && `τηλ. ${str("phone")}`].filter(Boolean).join(" · ");
   const when = new Date().toLocaleString("el-GR", { timeZone: "Europe/Athens", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   return paintDeltio(out, secs, { regular, bold }, company, when);
 }

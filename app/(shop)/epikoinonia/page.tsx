@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Phone, Mail, MapPin, Clock, MessageCircle } from "lucide-react";
+import { Phone, Mail, MapPin, Clock, MessageCircle, Landmark } from "lucide-react";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { PageIntro } from "@/components/site/PageIntro";
 import { ContactForm } from "@/components/site/ContactForm";
 import { PageZone, ZonesPreviewBar } from "@/components/site/PageZone";
+import { defaultSettings } from "@/lib/cms/settings";
+
+const { brand } = defaultSettings.site;
 
 export const metadata: Metadata = { title: "Επικοινωνία: τηλέφωνο, email, διεύθυνση", description: "Επικοινώνησε με τη Euronics: τηλέφωνο 210 483 5143, email info@euronics.gr. MEGA ELECTRICS ΑΕΒΕ, Δαμάσκου Σταμάτη 12, Αχαρνές." };
 
@@ -30,6 +33,9 @@ export default async function ContactPage({ searchParams }: { searchParams: Prom
             </a>
             <div className="flex items-start gap-2 text-eu-on-dark">
               <MapPin className="size-4 shrink-0 mt-0.5" aria-hidden /> Δαμάσκου Σταμάτη 12, 136 71 Αχαρνές
+            </div>
+            <div className="flex items-start gap-2 text-eu-on-dark">
+              <Landmark className="size-4 shrink-0 mt-0.5" aria-hidden /> ΑΦΜ {brand.vat} · ΔΟΥ {brand.taxOffice}
             </div>
             <div className="flex items-center gap-2 text-eu-on-dark">
               <Clock className="size-4" aria-hidden /> Δευ–Παρ 09:00–17:00

@@ -178,7 +178,7 @@ export const generatedCopy = {
   "footer": {
     "epikoinonia": "Επικοινωνία",
     "damaskoy_stamati_12_136": "Δαμάσκου Σταμάτη 12, 136 71 Αχαρνές",
-    "euronics_2026_mega_electrics": "© euronics 2026 · MEGA ELECTRICS ΑΕΒΕ · ΑΦΜ 998182322 · ΔΟΥ ΦΑΕ Αθηνών · Αρ. μητρώου ΑΗΗΕ —",
+    "euronics_2026_mega_electrics": "© euronics 2026 · MEGA ELECTRICS ΑΕΒΕ · ΑΦΜ 998182322 · ΔΟΥ ΚΕΦΟΔΕ ΑΤΤΙΚΗΣ · Αρ. μητρώου ΑΗΗΕ —",
     "oi_times_perilamvanoyn_fpa": "Οι τιμές περιλαμβάνουν ΦΠΑ 24%. Τα μεταφορικά υπολογίζονται πριν την οριστικοποίηση της παραγγελίας.",
     "tropoi_pliromis": "Τρόποι πληρωμής"
   },
