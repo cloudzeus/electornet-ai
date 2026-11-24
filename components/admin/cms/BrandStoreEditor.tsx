@@ -17,6 +17,8 @@ import { brandHealthAction, publishAction, revertAction, saveDraftAction, unpubl
 import { clearReviewAction, plansAction, saveScenarioAction, submitReviewAction, type PlanRef } from "@/app/admin/(shell)/cms/plans-actions";
 import { ResultBanner, StatusPill } from "@/components/admin/settings/ui";
 import { HistoryDialog, KeysDialog, PlansDialog, PublishDialog, ShareDialog, type Noun } from "./EditorDialogs";
+import { LookDeviceContext } from "./LookPanel";
+import type { LookDevice } from "@/lib/cms/look";
 import { AddDialog, BLOCK_ICON, ico, LivePreview, useEditorMode, useFocusText, visSummary, VisibilityForm, type Vis } from "./EditorKit";
 import { BLOCK_INFO, BlockFields, newBlock } from "./brand/BlockEditors";
 import { ProductList } from "./brand/ProductPicker";
@@ -70,7 +72,7 @@ export function BrandStoreEditor({ initial, published: pub, savedAt: initSavedAt
   const { mode, setRoot } = useEditorMode();
   const [adding, setAdding] = useState<{ after: string | null } | null>(null);
   const [view, setView] = useState<"page" | "preview">("page");
-  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [device, setDevice] = useState<LookDevice>("desktop");
   const [pv, setPv] = useState(0);
   const [result, setResult] = useState<{ ok: boolean; message: string; errors?: Issue[] } | null>(null);
   const [drag, setDrag] = useState<{ from: string; over: number | null } | null>(null);
@@ -268,7 +270,7 @@ export function BrandStoreEditor({ initial, published: pub, savedAt: initSavedAt
   };
 
   return (
-    <PickerBrand.Provider value={{ brandId: brand.id, brandName: s.name }}>
+    <LookDeviceContext value={[device, setDevice]}><PickerBrand.Provider value={{ brandId: brand.id, brandName: s.name }}>
       <div ref={setRoot} className="grid gap-3 min-w-0">
         {/* ---- πάνω μπάρα: κατάσταση, αναίρεση, δημοσίευση ---- */}
         <div className="sticky top-0 z-30 -mx-4 @md:-mx-6 -mt-4 @md:-mt-6 px-4 @md:px-6 py-2.5 bg-white/95 backdrop-blur border-b border-eu-line flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -379,7 +381,7 @@ export function BrandStoreEditor({ initial, published: pub, savedAt: initSavedAt
       {dialog === "history" && <HistoryDialog planRef={PLAN} noun={NOUN} diffCount={(a, b) => diffBrand(a, b).length} doc={s} canWrite onLoad={loadDoc} onClose={() => setDialog(null)} />}
       {dialog === "share" && <ShareDialog planRef={PLAN} noun={NOUN} onClose={() => setDialog(null)} />}
       {dialog === "keys" && <KeysDialog onClose={() => setDialog(null)} />}
-    </PickerBrand.Provider>
+    </PickerBrand.Provider></LookDeviceContext>
   );
 }
 

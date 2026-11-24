@@ -2,6 +2,8 @@
  * Τα blocks των landing pages προσφορών — κοινά για τον editor (browser) και τη βιτρίνα. Κάθε block έχει
  * σταθερό σχήμα props· ο editor δείχνει φόρμα ανά τύπο, η βιτρίνα έναν renderer ανά τύπο.
  */
+import type { Look } from "@/lib/cms/look";
+
 export type BlockType = "hero" | "countdown" | "products" | "categories" | "coupon" | "text" | "banner" | "terms" | "faq";
 
 export interface HeroProps { kicker?: string; title: string; subtitle?: string; image?: string; ctaLabel?: string; ctaHref?: string; tone?: "navy" | "yellow" | "red" }
@@ -14,7 +16,8 @@ export interface BannerProps { image: string; alt?: string; href?: string }
 export interface TermsProps { title?: string }
 export interface FaqProps { title?: string; items: { q: string; a: string }[] }
 
-export type Block =
+/** Κάθε block έχει και «Εμφάνιση» (φόντο, χρώματα κειμένων, περιθώρια ανά συσκευή) — ίδια πεδία με τις υπόλοιπες ζώνες (lib/cms/look.ts). */
+export type Block = { look?: Look } & (
   | { id: string; type: "hero"; props: HeroProps }
   | { id: string; type: "countdown"; props: CountdownProps }
   | { id: string; type: "products"; props: ProductsProps }
@@ -23,7 +26,7 @@ export type Block =
   | { id: string; type: "text"; props: TextProps }
   | { id: string; type: "banner"; props: BannerProps }
   | { id: string; type: "terms"; props: TermsProps }
-  | { id: string; type: "faq"; props: FaqProps };
+  | { id: string; type: "faq"; props: FaqProps });
 
 export const BLOCKS: { type: BlockType; label: string; help: string; make: () => Block["props"] }[] = [
   { type: "hero", label: "Hero", help: "Μεγάλος τίτλος με εικόνα και κουμπί", make: () => ({ title: "Τίτλος προσφοράς", subtitle: "", tone: "navy", ctaLabel: "Δες τις προσφορές", ctaHref: "#proionta" }) },

@@ -9,12 +9,14 @@ import {
 } from "lucide-react";
 import type { BrandBlock } from "@/lib/cms/brand-store";
 import { checkBlocks, type Issue } from "@/lib/cms/brand-store-check";
-import { normalizeHomeDoc, sectionDef, type HomeDoc, type HomeSectionId } from "@/lib/cms/home-sections";
+import { normalizeHomeDoc, sectionDef, sectionLookGroups, type HomeDoc, type HomeSectionId } from "@/lib/cms/home-sections";
 import { blkKey, diffHome, flatten, rebuild, revertChange, stable, type HomeChange, type HomeItem } from "@/lib/cms/home-diff";
 import type { HomeHealth } from "@/lib/cms/home-health";
 import type { HomeReview } from "@/lib/cms/home-plans";
 import { homeHealthAction, publishHomeAction, revertHomeAction, saveHomeAction } from "@/app/admin/(shell)/cms/home/actions";
 import { HistoryDialog, KeysDialog, PlansDialog, PublishDialog, ShareDialog, type Noun } from "./EditorDialogs";
+import { LookDeviceContext, LookPanel } from "./LookPanel";
+import type { LookDevice } from "@/lib/cms/look";
 import { AddDialog, BLOCK_ICON, ico, LivePreview, useEditorMode, useFocusText, visSummary, VisibilityForm, type Vis } from "./EditorKit";
 import { clearReviewAction, plansAction, saveScenarioAction, submitReviewAction, type PlanRef } from "@/app/admin/(shell)/cms/plans-actions";
 import type { PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
@@ -62,7 +64,7 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
   const { mode, setRoot } = useEditorMode();
   const [adding, setAdding] = useState<{ after: string | null } | null>(null);
   const [view, setView] = useState<"page" | "preview">("page");
-  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [device, setDevice] = useState<LookDevice>("desktop");
   const [pv, setPv] = useState(0);
   const [result, setResult] = useState<{ ok: boolean; message: string; errors?: Issue[] } | null>(null);
   const [drag, setDrag] = useState<{ from: string; over: number | null } | null>(null);
@@ -215,7 +217,7 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
   ];
 
   return (
-    <HomeCatalog.Provider value={categories}>
+    <LookDeviceContext value={[device, setDevice]}><HomeCatalog.Provider value={categories}>
     <HomeLiveInfo.Provider value={live}>
     <HomeRefresh.Provider value={refreshServer}>
     <HomeServices.Provider value={services}>
@@ -374,7 +376,7 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
     </HomeServices.Provider>
     </HomeRefresh.Provider>
     </HomeLiveInfo.Provider>
-    </HomeCatalog.Provider>
+    </HomeCatalog.Provider></LookDeviceContext>
   );
 }
 
@@ -442,6 +444,7 @@ function Inspector({ it, index, count, prev, canWrite, errors, empty, issues, fo
         {it.kind === "section"
           ? <SectionFields s={it.s} set={(props) => onChange({ ...it, s: { ...it.s, props: Object.keys(props).length ? props : undefined } }, `p:${it.key}`)} />
           : <BlockFields b={it.b} set={(nb) => onChange({ ...it, b: nb }, `b:${it.key}`)} ctx={blockCtx} />}
+        {it.kind === "section" && sectionLookGroups(it.s.id).length > 0 && <LookPanel value={it.s.look ?? {}} groups={sectionLookGroups(it.s.id)} what="της ενότητας" onChange={(l) => onChange({ ...it, s: { ...it.s, look: Object.keys(l).length ? l : undefined } }, `l:${it.key}`)} />}
       </div>
     </section>
   );

@@ -1,3 +1,4 @@
+import type { Look } from "./look";
 /**
  * @dynamic Brand Store — a manufacturer's own page inside the shop, fully
  * described by data so the CMS can create/edit one without code.
@@ -46,25 +47,13 @@ export type TechIcon = "cpu" | "eye" | "zap" | "wifi" | "shield" | "sparkles" | 
 export type Cta = { label: string; href: string };
 export type AutoSource = "newest" | "offers" | "top" | "value" | "in-stock";
 
-interface BlockBase {
+/** Τα πεδία εμφάνισης (φόντο, χρώματα κειμένων, αποστάσεις, περιθώρια) είναι κοινά με τις υπόλοιπες ζώνες — βλ. look.ts. */
+interface BlockBase extends Look {
   id: string;
   enabled?: boolean;
   schedule?: Schedule;
   /** σε ποια ζώνη της σελίδας (σελίδα μάρκας: top | main | bottom · πληροφοριακή σελίδα: top | aside | bottom) */
   zone?: string;
-  /** χρώμα φόντου πίσω από το component, σε όλο το πλάτος της ζώνης (#rrggbb)· κενό = το φόντο της σελίδας */
-  bg?: string;
-  /** χρώμα γραμμάτων του component (#rrggbb)· κενό = αυτόματα από το φόντο (λευκά σε σκούρο, σκούρα σε ανοιχτό) */
-  ink?: string;
-  /** χρώματα ανά στοιχείο (#rrggbb)· κενό = ακολουθεί το θέμα: υπέρτιτλος, τίτλος (επικεφαλίδα), σύνδεσμοι κειμένου */
-  /** απόσταση τίτλου από το περιεχόμενο του component και κενό πάνω-κάτω από το component: 0 = κολλητά … 3 = μεγάλη· κενό = η κανονική του */
-  headGap?: number;
-  padY?: number;
-  kickerColor?: string;
-  titleColor?: string;
-  linkColor?: string;
-  /** εικόνα φόντου πίσω από το component (καλύπτει όλο το πλάτος)· χωρίς χρώμα μπαίνει σκούρο πέπλο και ανοιχτά κείμενα */
-  bgImage?: string;
   /** σε ποιες συσκευές ΔΕΝ εμφανίζεται (κινητό < 768px · tablet 768–1023px · υπολογιστής ≥ 1024px) */
   hideOn?: Device[];
   /** σε ποιους εμφανίζεται (αρχική): όλους · μόνο επισκέπτες χωρίς σύνδεση · μόνο συνδεδεμένους πελάτες */

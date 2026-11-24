@@ -599,7 +599,15 @@ html:not([data-zones="1"]) .eu-zone-badge {
 .eu-slider-fill { animation: eu-slider-fill 4.5s linear both; }
 @media (prefers-reduced-motion: reduce) { .eu-slider-fill { animation: none; } }
 /* χρώμα τίτλου ενός component ζώνης (ρύθμιση «Χρώμα τίτλου»): πιάνει και όσους τίτλους h2 δεν περνούν από το BlockHead */
-.eu-bs-title h2 { color: var(--bs-title); }
+.eu-bs-title h2 { color: var(--bs-title, revert-layer); }
+/* «Εμφάνιση» σε ενότητες με δικά τους χρώματα (αρχική, σελίδες προσφορών): το περιτύλιγμα .eu-look δίνει φόντο και
+   μεταβλητές (lib/cms/look.ts) και η ενότητα τα ακολουθεί. revert-layer = όπως ήταν — ό,τι δεν όρισε ο διαχειριστής
+   (ή δεν ισχύει σε αυτή τη συσκευή) μένει στο σχέδιο. */
+.eu-look section { background: var(--look-surface, revert-layer); color: var(--bs-ink, revert-layer); }
+.eu-look [data-look="title"] { color: var(--bs-title, var(--bs-ink, revert-layer)); }
+.eu-look [data-look="kicker"] { color: var(--bs-kicker, var(--look-accent, revert-layer)); }
+.eu-look [data-look="sub"] { color: var(--bs-muted, revert-layer); }
+.eu-look [data-look="link"] { color: var(--bs-link, var(--bs-ink, revert-layer)); }
 /* πέπλο πάνω από τη φωτογραφία του slide, στο χρώμα του θέματος (πιο πυκνό στην πλευρά του κειμένου) */
 @utility eu-hero-veil {
   background: linear-gradient(100deg, color-mix(in srgb, var(--eu-navy) 98%, transparent) 0%, color-mix(in srgb, var(--eu-navy) 90%, transparent) 40%, color-mix(in srgb, var(--eu-navy) 55%, transparent) 100%);

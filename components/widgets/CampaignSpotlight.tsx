@@ -119,11 +119,11 @@ export function CampaignSpotlight({ campaigns, zoneNo, title = "Καμπάνιε
       <div className="relative eu-canvas eu-gutter py-8 @lg:py-10">
         <div className="flex items-end justify-between gap-4 mb-5">
           <div>
-            <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide mb-2">{kicker} · {n} καμπάνιες</div>
-            <h2 className="m-0 font-heading font-bold text-[length:var(--fs-30)] leading-[1.1] tracking-[-0.02em] text-eu-ink">{title}</h2>
+            <div data-look="kicker" className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide mb-2">{kicker} · {n} καμπάνιες</div>
+            <h2 data-look="title" className="m-0 font-heading font-bold text-[length:var(--fs-30)] leading-[1.1] tracking-[-0.02em] text-eu-ink">{title}</h2>
           </div>
           {link && (
-            <Link href={link.href} className="hidden @sm:block shrink-0 font-extrabold text-[length:var(--fs-14)] text-eu-ink border-b-[3px] border-eu-yellow pb-1 hover:text-eu-blue">
+            <Link href={link.href} data-look="link" className="hidden @sm:block shrink-0 font-extrabold text-[length:var(--fs-14)] text-eu-ink border-b-[3px] border-eu-yellow pb-1 hover:text-eu-blue">
               {link.label}
             </Link>
           )}

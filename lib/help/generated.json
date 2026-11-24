@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-24T14:01:12.193Z",
+ "generatedAt": "2026-11-24T17:59:15.720Z",
  "routes": [
   {
    "route": "/admin",
@@ -2080,7 +2080,13 @@
     "editor.inspector",
     "editor.map",
     "editor.add",
-    "editor.preview"
+    "editor.preview",
+    "look.panel",
+    "look.devices",
+    "look.bg",
+    "look.text",
+    "look.margins",
+    "zones.spacing"
    ],
    "changes": [
     {
@@ -2219,7 +2225,13 @@
     "editor.map",
     "editor.add",
     "editor.preview",
-    "home-facts"
+    "home-facts",
+    "look.panel",
+    "look.devices",
+    "look.bg",
+    "look.text",
+    "look.margins",
+    "zones.spacing"
    ],
    "changes": [
     {
@@ -4095,7 +4107,14 @@
    "perm": "catalog.promos.write",
    "nav": null,
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "look.panel",
+    "look.devices",
+    "look.bg",
+    "look.text",
+    "look.margins",
+    "zones.spacing"
+   ],
    "changes": [
     {
      "hash": "39e2740",
@@ -4121,11 +4140,6 @@
      "hash": "78ba51b",
      "date": "2026-10-03T07:05:06+03:00",
      "text": "Προσφορές"
-    },
-    {
-     "hash": "5196db3",
-     "date": "2026-10-02T22:03:52+03:00",
-     "text": "Φάση 1"
     }
    ],
    "updatedAt": "2026-11-18T15:07:41+02:00",
@@ -4149,11 +4163,6 @@
      "hash": "39e2740",
      "date": "2026-11-18T15:07:41+02:00",
      "text": "Ζώνες: μία φόρμα (banner προσφοράς / εικόνα / μόνο κείμενα), λίστα προϊόντων ανά ζώνη, banner στη λωρίδα με παράθυρο"
-    },
-    {
-     "hash": "5196db3",
-     "date": "2026-10-02T22:03:52+03:00",
-     "text": "Φάση 1"
     }
    ],
    "updatedAt": "2026-11-18T15:07:41+02:00",
@@ -4895,6 +4904,11 @@
    ],
    "changes": [
     {
+     "hash": "ad00004",
+     "date": "2026-11-24T16:01:43+02:00",
+     "text": "Scheduler: μια αργή ή κολλημένη εργασία δεν σταματά πια τις υπόλοιπες"
+    },
+    {
      "hash": "53349d0",
      "date": "2026-11-24T15:31:46+02:00",
      "text": "Υπενθύμιση καλαθιού: τρέχει από τον εσωτερικό scheduler (ανά 15′)"
@@ -4938,14 +4952,9 @@
      "hash": "c94d321",
      "date": "2026-10-30T16:56:30+02:00",
      "text": "Backup βάσης: καθημερινά 02:30 από τον scheduler της εφαρμογής"
-    },
-    {
-     "hash": "97e50a4",
-     "date": "2026-10-30T16:42:53+02:00",
-     "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
     }
    ],
-   "updatedAt": "2026-11-24T15:31:46+02:00",
+   "updatedAt": "2026-11-24T16:01:43+02:00",
    "shots": {
     "desktop": "/api/help-shot/softone.sync-d.jpg",
     "mobile": "/api/help-shot/softone.sync-m.jpg"
@@ -5412,6 +5421,18 @@
  ],
  "recent": [
   {
+   "hash": "0c53edd",
+   "date": "2026-11-24T16:51:55+02:00",
+   "text": "Παραστατικό SoftOne: αρίθμηση γραμμών, ώστε το σετ που ανοίγει μόνο του να μη μηδενίζει το σύνολο",
+   "routes": []
+  },
+  {
+   "hash": "ad00004",
+   "date": "2026-11-24T16:01:43+02:00",
+   "text": "Scheduler: μια αργή ή κολλημένη εργασία δεν σταματά πια τις υπόλοιπες",
+   "routes": []
+  },
+  {
    "hash": "1bdea99",
    "date": "2026-11-24T15:58:33+02:00",
    "text": "Email προσωπικού: βήματα με τη σειρά, έκδοση voucher, δελτίο παράδοσης, εξηγήσεις",
@@ -5674,26 +5695,6 @@
    "date": "2026-11-21T17:09:01+02:00",
    "text": "Επικοινωνία & footer: το Google Maps δείχνει τη σωστή διεύθυνση της εταιρείας",
    "routes": []
-  },
-  {
-   "hash": "25ee372",
-   "date": "2026-11-21T14:47:05+02:00",
-   "text": "Σελίδες μαρκών: 404 στα ελληνικά slug και τρεμόπαιγμα της διάταξης",
-   "routes": [
-    "/admin",
-    "/admin/cms/brand-stores",
-    "/admin/cms/brand-stores/[slug]"
-   ]
-  },
-  {
-   "hash": "b134fef",
-   "date": "2026-11-21T14:46:50+02:00",
-   "text": "Ταμείο: παράδοση από συνεργαζόμενο κατάστημα, ώρες επικοινωνίας, μερικό σύνολο",
-   "routes": [
-    "/admin",
-    "/admin/orders",
-    "/admin/orders/[number]"
-   ]
   }
  ],
  "helpKeys": {
@@ -6908,6 +6909,24 @@
   "home.deals-look": [
    "components/admin/cms/HomeInfoFields.tsx"
   ],
+  "look.panel": [
+   "components/admin/cms/LookPanel.tsx"
+  ],
+  "look.devices": [
+   "components/admin/cms/LookPanel.tsx"
+  ],
+  "look.bg": [
+   "components/admin/cms/LookPanel.tsx"
+  ],
+  "look.text": [
+   "components/admin/cms/LookPanel.tsx"
+  ],
+  "look.margins": [
+   "components/admin/cms/LookPanel.tsx"
+  ],
+  "zones.spacing": [
+   "components/admin/cms/LookPanel.tsx"
+  ],
   "home.strip-banner": [
    "components/admin/cms/StripBanner.tsx"
   ],
@@ -6922,9 +6941,6 @@
   ],
   "zones.preview": [
    "components/admin/cms/ZonePageEditor.tsx"
-  ],
-  "zones.spacing": [
-   "components/admin/cms/brand/BlockEditors.tsx"
   ],
   "bulk-filters": [
    "components/admin/competitors/BulkPrices.tsx"

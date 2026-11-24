@@ -20,14 +20,14 @@ export function SmartGuidesBand({ zoneNo, kinds }: { zoneNo?: number; kinds?: Gu
       <div className="eu-canvas eu-gutter py-8 @lg:py-10">
         <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
           <div>
-            <div className="font-extrabold text-eu-yellow text-[length:var(--fs-14)] tracking-wide mb-1.5 flex items-center gap-1.5">
+            <div data-look="kicker" className="font-extrabold text-eu-yellow text-[length:var(--fs-14)] tracking-wide mb-1.5 flex items-center gap-1.5">
               <Sparkles className="size-4" aria-hidden /> {c.exypnos_odigos_agoras}
             </div>
-            <h2 id="smart-guides-title" className="m-0 font-heading font-bold text-[length:var(--fs-26)] leading-tight tracking-[-0.01em]">
+            <h2 id="smart-guides-title" data-look="title" className="m-0 font-heading font-bold text-[length:var(--fs-26)] leading-tight tracking-[-0.01em]">
               {c.pes_mas_pos_tha}
             </h2>
           </div>
-          <Link href="/odigos-agoras" className="font-extrabold text-eu-yellow text-[length:var(--fs-15)] hover:underline">
+          <Link href="/odigos-agoras" data-look="link" className="font-extrabold text-eu-yellow text-[length:var(--fs-15)] hover:underline">
             {c.pos_doyleyei}
           </Link>
         </div>

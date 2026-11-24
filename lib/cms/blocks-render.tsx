@@ -1,7 +1,7 @@
-import { sx } from "@/components/ui/sx";
 import "server-only";
 import type { ReactNode } from "react";
 import type { BrandBlock } from "./brand-store";
+import { lookClass } from "@/components/site/LookStyle";
 import { autoProductIds, categoryTiles, couponBlockData, landingBlockData, liveLandings, promoBlockData, type CategoryTile, type CouponData, type LandingData, type PromoData } from "./brand-auto";
 import type { Guide, Service } from "@/lib/data/types";
 import { getGuidesFull, getProductsByIds, getServicesFull, getStores } from "@/lib/data/repo";
@@ -91,36 +91,11 @@ const HIDE = { mobile: "max-md:hidden", tablet: "md:max-lg:hidden", desktop: "lg
 export function renderBlock(b: BrandBlock, d: BlockData, ctx: { brandName: string; countImpressions?: boolean; sample?: boolean }): ReactNode {
   const el = renderInner(b, d, ctx);
   const hide = b.hideOn?.length ? b.hideOn.map((x) => HIDE[x]).join(" ") : "";
-  const bg = b.bg && /^#[0-9a-f]{6}$/i.test(b.bg) ? b.bg : null;
-  // εικόνα φόντου: μόνο δική μας διαδρομή ή https, χωρίς χαρακτήρες που σπάνε το url()
-  const img = b.bgImage && /^(\/(?!\/)|https:\/\/)[^"'()\s\\]+$/.test(b.bgImage) ? b.bgImage : null;
-  const hex = (v?: string) => (v && /^#[0-9a-f]{6}$/i.test(v) ? v : null);
-  const ink = hex(b.ink), kicker = hex(b.kickerColor), title = hex(b.titleColor), link = hex(b.linkColor);
-  // χρώματα ανά στοιχείο: υπέρτιτλος / τίτλος / σύνδεσμοι — όσα δεν οριστούν ακολουθούν το θέμα
-  // αποστάσεις που ορίζει ο διαχειριστής: τίτλος → περιεχόμενο (--bs-head-gap, το διαβάζουν οι κεφαλίδες των components και των banners) και πάνω/κάτω από το component
-  const step = (v: unknown, map: string[]) => (typeof v === "number" && map[v] != null ? map[v] : null);
-  const headGap = step(b.headGap, ["0.25rem", "0.75rem", "1.5rem", "2.5rem"]), padY = step(b.padY, ["0rem", "1rem", "2.5rem", "4.5rem"]);
-  const parts = { ...(kicker ? { "--bs-kicker": kicker } : {}), ...(title ? { "--bs-title": title } : {}), ...(link ? { "--bs-link": link } : {}), ...(headGap ? { "--bs-head-gap": headGap } : {}), ...(padY ? { paddingBlock: padY } : {}) };
-  const anyText = ink || kicker || title || link || headGap || padY;
-  // τίτλοι που δεν περνούν από το BlockHead (δικό τους h2): κανόνας στο globals.css, μόνο όταν έχει οριστεί χρώμα τίτλου
-  const tc = title ? "eu-bs-title" : "";
-  if (!el || (!hide && !bg && !img && !anyText)) return el;
-  if (!bg && !img && !anyText) return <div key={b.id} className={hide}>{el}</div>;
-  // μόνο χρώματα γραμμάτων, χωρίς φόντο: αλλάζουν τα κείμενα και τίποτα άλλο
-  if (!bg && !img) { const t = sx({ ...(ink ? { "--bs-ink": ink, "--bs-muted": `color-mix(in srgb, ${ink} 72%, transparent)` } : {}), ...parts }); return <div key={b.id} className={`${ink ? "text-[var(--bs-ink)]" : ""} ${tc} ${t.className} ${hide}`}>{t.node}{el}</div>; }
-  // φόντο του component: τα χρώματα κειμένου του θέματος ακολουθούν (ανοιχτά πάνω σε σκούρο), ώστε να διαβάζεται πάντα.
-  // Εικόνα χωρίς χρώμα → σκούρο πέπλο και ανοιχτά κείμενα· εικόνα με χρώμα → ο τόνος των κειμένων βγαίνει από το χρώμα.
-  const base = bg ?? "#05060f";
-  const [r, g, bl] = [1, 3, 5].map((i) => parseInt(base.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-  const dark = 0.2126 * r + 0.7152 * g + 0.0722 * bl < 0.4;
-  const veil = img && !bg ? "linear-gradient(rgba(5,6,15,.55),rgba(5,6,15,.55)), " : "";
-  const v = sx({
-    "--bs-bg": img ? "transparent" : base, "--bs-bg2": img ? (dark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.06)") : `color-mix(in srgb, ${base} 88%, ${dark ? "white" : "black"})`,
-    // ρητό χρώμα γραμμάτων κερδίζει το αυτόματο· τα δευτερεύοντα κείμενα είναι το ίδιο χρώμα, πιο αχνό
-    "--bs-ink": ink ?? (dark ? "#ffffff" : "#1a1a1a"), "--bs-muted": ink ? `color-mix(in srgb, ${ink} 72%, transparent)` : dark ? "rgba(255,255,255,.78)" : "#595959", ...(dark ? { "--bs-accent": "#f1c400", "--bs-accent-ink": "#122a58" } : {}),
-    ...parts, backgroundColor: base, ...(img ? { backgroundImage: `${veil}url("${img}")`, backgroundSize: "cover", backgroundPosition: "center" } : {}),
-  });
-  return <div key={b.id} className={`text-[var(--bs-ink)] ${tc} ${v.className} ${hide}`}>{v.node}{el}</div>;
+  // εμφάνιση που όρισε ο διαχειριστής (φόντο, εικόνα/μοτίβο, χρώματα κειμένων, αποστάσεις, περιθώρια) — κοινή λογική με τις υπόλοιπες ζώνες
+  const look = lookClass(b);
+  if (!el || (!hide && !look)) return el;
+  if (!look) return <div key={b.id} className={hide}>{el}</div>;
+  return <div key={b.id} className={`${look.className} ${hide}`}>{look.node}{el}</div>;
 }
 
 function renderInner(b: BrandBlock, d: BlockData, ctx: { brandName: string; countImpressions?: boolean; sample?: boolean }): ReactNode {

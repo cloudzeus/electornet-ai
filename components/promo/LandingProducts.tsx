@@ -35,7 +35,7 @@ export function LandingProducts({ title, products, cats }: { title?: string; pro
     <section id="proionta" className="eu-canvas eu-gutter grid gap-4 scroll-mt-24">
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
         <div className="grid gap-0.5">
-          {title && <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)]">{title}</h2>}
+          {title && <h2 data-look="title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)]">{title}</h2>}
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-15)]" aria-live="polite">
             <b className="text-eu-ink">{shown.length}</b> {shown.length === 1 ? "προϊόν" : "προϊόντα"}
             {saved > 0 && <> · κερδίζεις έως <b className="text-eu-green">{Math.round(saved).toLocaleString("el-GR")}{" "}€</b> συνολικά</>}

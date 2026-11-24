@@ -22,8 +22,8 @@ export function DealsRail({ products, endsAt, label, title, zoneNo }: { products
       <div className="relative eu-canvas eu-gutter py-8 @lg:py-[40px]">
         <div className="flex items-end justify-between gap-4 mb-6" data-reveal>
           <div className="pl-10 @lg:pl-14">
-            <div className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide mb-2">{label}</div>
-            <h2 id="deals-title" className="m-0 font-heading font-extrabold text-white text-[length:var(--fs-36)] @lg:text-[length:var(--fs-44)] leading-[1.02] tracking-[-0.03em]">
+            <div data-look="kicker" className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide mb-2">{label}</div>
+            <h2 id="deals-title" data-look="title" className="m-0 font-heading font-extrabold text-white text-[length:var(--fs-36)] @lg:text-[length:var(--fs-44)] leading-[1.02] tracking-[-0.03em]">
               {title}
             </h2>
           </div>

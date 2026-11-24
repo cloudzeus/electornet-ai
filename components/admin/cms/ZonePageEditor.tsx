@@ -11,6 +11,8 @@ import { publishZonesAction, revertZonesAction, saveZonesAction } from "@/app/ad
 import type { PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
 import { StatusPill, ResultBanner } from "@/components/admin/settings/ui";
 import { BLOCK_INFO, BlockFields, newBlock } from "./brand/BlockEditors";
+import { LookDeviceContext } from "./LookPanel";
+import type { LookDevice } from "@/lib/cms/look";
 import { AddDialog, BLOCK_ICON, ico, LivePreview, useFocusText, visSummary, VisibilityForm, type Vis } from "./EditorKit";
 import { PickerBrand } from "./brand/ImagePicker";
 
@@ -43,7 +45,7 @@ export function ZonePageEditor({ page, initial, published: pub, savedAt: initSav
   const [pinned, setPinned] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ id: string; zone: InfoZone; over: number } | null>(null);
   const [focusText, setFocusText] = useState<{ text: string; n: number } | null>(null);
-  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [device, setDevice] = useState<LookDevice>("desktop");
   const [pv, setPv] = useState(0);
   const [result, setResult] = useState<{ ok: boolean; message: string; errors?: Issue[] } | null>(null);
   const [showIssues, setShowIssues] = useState(false);
@@ -236,7 +238,7 @@ export function ZonePageEditor({ page, initial, published: pub, savedAt: initSav
   })();
 
   return (
-    <PickerBrand.Provider value={{ brandId: null, brandName: "Euronics" }}>
+    <LookDeviceContext value={[device, setDevice]}><PickerBrand.Provider value={{ brandId: null, brandName: "Euronics" }}>
       <div className="@container grid gap-3 min-w-0">
         {/* λεπτή σταθερή κεφαλίδα: πού είσαι, κατάσταση, έλεγχος, δημοσίευση */}
         <div className="sticky top-0 z-30 -mx-4 @md:-mx-6 -mt-4 @md:-mt-6 px-4 @md:px-6 py-2 bg-eu-surface/95 backdrop-blur border-b border-eu-line grid gap-2">
@@ -275,6 +277,6 @@ export function ZonePageEditor({ page, initial, published: pub, savedAt: initSav
         </div>
         {adding && <AddDialog after={adding} top={null} positions={page.zones.map((z) => ({ key: z, label: `Ζώνη: ${INFO_ZONES[z].label}` }))} onAdd={addBlock} onClose={() => setAdding(null)} />}
       </div>
-    </PickerBrand.Provider>
+    </PickerBrand.Provider></LookDeviceContext>
   );
 }

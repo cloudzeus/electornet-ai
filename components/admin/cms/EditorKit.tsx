@@ -1,5 +1,6 @@
 "use client";
 
+import type { LookDevice } from "@/lib/cms/look";
 import { createElement, useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import {
   Bell, BookOpen, Check, FileText, GalleryHorizontal, HelpCircle, Image as ImageIcon, Laptop, ListOrdered, Loader2, Mail, Megaphone, MessageSquare, Monitor, Package, Percent,
@@ -217,7 +218,7 @@ const nonceOf = (d: Document) => d.querySelector<HTMLElement>("script[nonce], st
  * Το πρόχειρο σε iframe (ίδιο origin): κυλά και τονίζει το επιλεγμένο στοιχείο· κλικ μέσα στην προεπισκόπηση επιλέγει
  * το στοιχείο αντί να ανοίγει συνδέσμους. Ανανεώνεται μετά από κάθε αποθήκευση.
  */
-export function LivePreview({ src, attr = "data-home-item", v, device, setDevice, saving, focus, notice, onPick, peek = null }: { src: string; attr?: string; v: number; device: "desktop" | "mobile"; setDevice: (d: "desktop" | "mobile") => void; saving: boolean; focus: string | null; notice: string | null; onPick: (key: string, text: string | null) => void; /** προσωρινός κίτρινος τονισμός (hover στη λίστα) */ peek?: string | null }) {
+export function LivePreview({ src, attr = "data-home-item", v, device, setDevice, saving, focus, notice, onPick, peek = null }: { src: string; attr?: string; v: number; device: LookDevice; setDevice: (d: LookDevice) => void; saving: boolean; focus: string | null; notice: string | null; onPick: (key: string, text: string | null) => void; /** προσωρινός κίτρινος τονισμός (hover στη λίστα) */ peek?: string | null }) {
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
   // Η προεπισκόπηση δεν «χορεύει» όσο δουλεύεις μια ζώνη: θυμόμαστε πού ήταν η κύλισή της και ποια ζώνη ήταν επιλεγμένη.
@@ -289,7 +290,7 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
     }
     setLoaded((n) => n + 1); setLoadedV(v);
   };
-  const target = device === "desktop" ? 1280 : 390;
+  const target = device === "desktop" ? 1280 : device === "tablet" ? 820 : 390;
   const scale = w ? Math.min(1, w / target) : 1;
   const inner = (bh || 760) / scale;
   // το πλάτος (από τη συσκευή) μπαίνει με κλάση· ύψος / κλίμακα / κεντράρισμα αλλάζουν με το μέγεθος του πλαισίου και
@@ -301,7 +302,7 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
     if (!el) return;
     el.style.height = `${inner}px`;
     el.style.transform = `scale(${scale})`;
-    el.style.margin = device === "mobile" && w > target ? "0 auto" : "";
+    el.style.margin = device !== "desktop" && w > target ? "0 auto" : "";
   }, [inner, scale, device, w, target]);
   const msg = focus && (notice || missing) ? notice ?? "Το επιλεγμένο δεν φαίνεται σε αυτή την προβολή — π.χ. είναι κρυφό σε αυτή τη συσκευή ή δεν έχει περιεχόμενο τώρα." : null;
   return (
@@ -309,7 +310,7 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)] inline-flex items-center gap-2">Προεπισκόπηση{saving && <Loader2 className="size-3.5 animate-spin" aria-hidden />}<span className="font-normal text-eu-muted">· πάτα ένα κείμενο για να το αλλάξεις</span></span>
         <div className="flex gap-1 rounded-full bg-white border border-eu-line p-1" role="radiogroup" aria-label="Συσκευή προεπισκόπησης">
-          {(["desktop", "mobile"] as const).map((d) => <button key={d} type="button" role="radio" aria-checked={device === d} onClick={() => setDevice(d)} className={`inline-flex items-center gap-1.5 rounded-full px-3 min-h-10 font-bold text-[length:var(--fs-13)] ${device === d ? "bg-eu-navy text-white" : "text-eu-ink-2"}`}>{d === "desktop" ? <Monitor className="size-4" aria-hidden /> : <Smartphone className="size-4" aria-hidden />}{d === "desktop" ? "Υπολογιστής" : "Κινητό"}</button>)}
+          {(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} type="button" role="radio" aria-checked={device === d} onClick={() => setDevice(d)} className={`inline-flex items-center gap-1.5 rounded-full px-3 min-h-10 font-bold text-[length:var(--fs-13)] ${device === d ? "bg-eu-navy text-white" : "text-eu-ink-2"}`}>{d === "desktop" ? <Monitor className="size-4" aria-hidden /> : d === "tablet" ? <Tablet className="size-4" aria-hidden /> : <Smartphone className="size-4" aria-hidden />}<span className={d === device ? "" : "max-[420px]:sr-only"}>{d === "desktop" ? "Υπολογιστής" : d === "tablet" ? "Tablet" : "Κινητό"}</span></button>)}
         </div>
       </div>
       <div ref={box} className="relative rounded-2xl border border-eu-line bg-eu-line-2 overflow-hidden h-[calc(100dvh-10.5rem)] min-h-[26rem]">

@@ -1,7 +1,6 @@
 "use client";
 
 import { BANNER_TEMPLATES } from "@/lib/promo/banner-design";
-import { ImageUrlField } from "@/components/admin/promos/ImageUrlField";
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Camera, Cpu, Eye, Leaf, Plus, Shield, Sparkles, Wifi, X, Zap } from "lucide-react";
 import type { BrandBlock, Cta } from "@/lib/cms/brand-store";
@@ -11,6 +10,8 @@ export { BLOCK_GROUPS, BLOCK_INFO, newBlock };
 import { ProductList } from "./ProductPicker";
 import { Area, DateTime, LinkField, MediaUrl, StringList, Txt } from "./fields";
 import { CategoryPicker } from "./CategoryPicker";
+import { LookPanel } from "../LookPanel";
+import { lookOf, withLook } from "@/lib/cms/look";
 
 type Ctx = { brandId: string | null; brandName: string; info: Record<string, PickProduct>; onInfo: (p: PickProduct[]) => void };
 type B<T extends BrandBlock["type"]> = Extract<BrandBlock, { type: T }>;
@@ -89,59 +90,12 @@ function BrandChoice({ value, onChange }: { value?: { slug: string; name: string
   return <Pick label="Μάρκα (προαιρετικό)" help="Κενό = όλος ο κατάλογος." value={value?.slug ?? ""} onChange={(v, l) => onChange(v ? { slug: v, name: l } : undefined)} options={o ? o.brands.map((b) => ({ value: b.slug, label: b.name })) : null} empty="Καμία μάρκα." />;
 }
 
-/** Η φόρμα ενός component: τα πεδία του τύπου του και, κοινό για όλα, το χρώμα φόντου του. */
+/** Η φόρμα ενός component: τα πεδία του τύπου του και, κοινός για όλα, ο πίνακας «Εμφάνιση». */
 export function BlockFields({ b, set, ctx }: { b: BrandBlock; set: (b: BrandBlock) => void; ctx: Ctx }): ReactNode {
-  const cur = b.bg && /^#[0-9a-f]{6}$/i.test(b.bg) ? b.bg : "";
   return (
     <div className="grid gap-4">
       <TypeFields b={b} set={set} ctx={ctx} />
-      <div className="grid gap-1 min-w-0">
-        <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Χρώμα φόντου</span>
-        <div className="flex flex-wrap items-center gap-2">
-          <input type="color" aria-label="Χρώμα φόντου" value={cur || "#ffffff"} onChange={(e) => set({ ...b, bg: e.target.value })} className="size-11 rounded-lg border-2 border-eu-line bg-white p-0.5 cursor-pointer" />
-          {[["#05060f", "Μαύρο καμπάνιας"], ["#122a58", "Μπλε Euronics"], ["#f1c400", "Κίτρινο"], ["#f3f5f9", "Ανοιχτό γκρι"]].map(([c, t]) => <button key={c} type="button" aria-pressed={cur === c} onClick={() => set({ ...b, bg: c })} className={`rounded-full border-2 px-3 min-h-11 font-bold text-[length:var(--fs-13)] ${cur === c ? "border-eu-navy bg-eu-chip text-eu-navy" : "border-eu-line text-eu-ink-2 hover:border-eu-navy/50"}`}>{t}</button>)}
-          {cur && <button type="button" onClick={() => set({ ...b, bg: undefined })} className="rounded-full border border-eu-line px-3 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:bg-eu-surface">Χωρίς χρώμα</button>}
-        </div>
-        <span className="text-eu-muted text-[length:var(--fs-13)]">Πίσω από το component, σε όλο το πλάτος της ζώνης. Σε σκούρο χρώμα τα κείμενα γίνονται μόνα τους ανοιχτά. Κενό = το φόντο της σελίδας.</span>
-      </div>
-      <div className="grid gap-1 min-w-0">
-        <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Χρώμα γραμμάτων</span>
-        <div className="flex flex-wrap items-center gap-2">
-          <input type="color" aria-label="Χρώμα γραμμάτων" value={b.ink && /^#[0-9a-f]{6}$/i.test(b.ink) ? b.ink : "#1a1a1a"} onChange={(e) => set({ ...b, ink: e.target.value })} className="size-11 rounded-lg border-2 border-eu-line bg-white p-0.5 cursor-pointer" />
-          {[["#ffffff", "Λευκά"], ["#1a1a1a", "Σκούρα"], ["#122a58", "Μπλε Euronics"], ["#f1c400", "Κίτρινα"], ["#22e06b", "Πράσινα"]].map(([c, t]) => <button key={c} type="button" aria-pressed={b.ink === c} onClick={() => set({ ...b, ink: c })} className={`rounded-full border-2 px-3 min-h-11 font-bold text-[length:var(--fs-13)] ${b.ink === c ? "border-eu-navy bg-eu-chip text-eu-navy" : "border-eu-line text-eu-ink-2 hover:border-eu-navy/50"}`}>{t}</button>)}
-          {b.ink && <button type="button" onClick={() => set({ ...b, ink: undefined })} className="rounded-full border border-eu-line px-3 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:bg-eu-surface">Αυτόματο</button>}
-        </div>
-        <span className="text-eu-muted text-[length:var(--fs-13)]">Τίτλοι και κείμενα του component. «Αυτόματο» = λευκά σε σκούρο φόντο, σκούρα σε ανοιχτό. Διάλεξε χρώμα που ξεχωρίζει καθαρά από το φόντο.</span>
-      </div>
-      <fieldset data-help="zones.spacing" className="m-0 p-0 border-0 grid gap-2 min-w-0">
-        <legend className="font-bold text-eu-ink text-[length:var(--fs-14)] mb-1">Αποστάσεις</legend>
-        {([["headGap", "Τίτλος → περιεχόμενο", "Το κενό ανάμεσα στον τίτλο του component και σε ό,τι ακολουθεί (π.χ. τα τετράγωνα ενός banner)."], ["padY", "Πάνω και κάτω από το component", "Το κενό πριν και μετά το component μέσα στη ζώνη."]] as const).map(([k, label, help]) => (
-          <div key={k} className="grid gap-1">
-            <span className="font-bold text-eu-ink-2 text-[length:var(--fs-13)]">{label}</span>
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label={label}>
-              {([[undefined, "Κανονική"], [0, "Κολλητά"], [1, "Μικρή"], [2, "Μεσαία"], [3, "Μεγάλη"]] as const).map(([v, t]) => (
-                <button key={t} type="button" aria-pressed={b[k] === v} onClick={() => set({ ...b, [k]: v })} className={`rounded-xl border-2 px-3 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] ${b[k] === v ? "border-eu-navy bg-eu-chip text-eu-navy" : "border-eu-line text-eu-ink-2 hover:border-eu-navy/50"}`}>{t}</button>
-              ))}
-            </div>
-            <span className="text-eu-muted text-[length:var(--fs-13)]">{help}</span>
-          </div>
-        ))}
-      </fieldset>
-      <fieldset className="m-0 p-0 border-0 grid gap-2 min-w-0">
-        <legend className="font-bold text-eu-ink text-[length:var(--fs-14)] mb-1">Χρώματα ανά στοιχείο</legend>
-        {([["kickerColor", "Υπέρτιτλος", "Η μικρή γραμμή πάνω από τον τίτλο."], ["titleColor", "Τίτλος", "Η επικεφαλίδα του component."], ["linkColor", "Σύνδεσμοι", "Οι σύνδεσμοι κειμένου, π.χ. «Όλες οι προσφορές»."]] as const).map(([k, l, h]) => {
-          const val = b[k] && /^#[0-9a-f]{6}$/i.test(b[k]!) ? b[k]! : "";
-          return (
-            <div key={k} className="flex flex-wrap items-center gap-2">
-              <input type="color" aria-label={`Χρώμα: ${l}`} value={val || "#122a58"} onChange={(e) => set({ ...b, [k]: e.target.value })} className="size-11 rounded-lg border-2 border-eu-line bg-white p-0.5 cursor-pointer" />
-              <span className="grid min-w-0 flex-1"><span className="font-bold text-eu-ink text-[length:var(--fs-14)]">{l} <span className="font-mono font-normal text-eu-muted text-[length:var(--fs-12)]">{val || "αυτόματο"}</span></span><span className="text-eu-muted text-[length:var(--fs-13)]">{h}</span></span>
-              {val && <button type="button" onClick={() => set({ ...b, [k]: undefined })} className="rounded-full border border-eu-line px-3 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:bg-eu-surface">Αυτόματο</button>}
-            </div>
-          );
-        })}
-        <span className="text-eu-muted text-[length:var(--fs-13)]">Όσα μείνουν «αυτόματο» ακολουθούν τα χρώματα της σελίδας. Το «Χρώμα γραμμάτων» από πάνω αφορά το υπόλοιπο κείμενο.</span>
-      </fieldset>
-      <ImageUrlField label="Εικόνα φόντου (προαιρετικό)" value={b.bgImage ?? ""} onChange={(v) => set({ ...b, bgImage: v || undefined })} help="Καλύπτει όλο το πλάτος πίσω από το component και κόβεται στις άκρες. Χωρίς χρώμα από πάνω: μπαίνει σκούρο πέπλο και τα κείμενα γίνονται λευκά. Με χρώμα: τα κείμενα ακολουθούν το χρώμα (σκούρο χρώμα → λευκά κείμενα), για ανοιχτές εικόνες διάλεξε ανοιχτό χρώμα." />
+      <LookPanel value={lookOf(b)} onChange={(l) => set(withLook(b, l))} inner what="του component" />
     </div>
   );
 }

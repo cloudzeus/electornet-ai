@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { ArrowUp, ArrowDown, Trash2, Plus, ExternalLink, ChevronLeft } from "lucide-react";
 import { BLOCKS, newBlockId, type Block, type BlockType } from "@/lib/promo/landing-blocks";
 import { ImageUrlField } from "./ImageUrlField";
+import { LookPanel } from "@/components/admin/cms/LookPanel";
 import { Hint } from "./Help";
 import { ProductBrowser } from "./ProductBrowser";
 import { createLandingAction, saveLandingAction, type LandingInput } from "@/app/admin/(shell)/prosfores/actions";
@@ -85,6 +86,7 @@ export function LandingEditor({ initial, promos, categories }: { initial: Landin
               <button type="button" aria-label="Αφαίρεση block" onClick={() => setD((x) => ({ ...x, blocks: x.blocks.filter((_, j) => j !== i) }))} className="size-11 grid place-items-center rounded-full hover:bg-eu-red/10 text-eu-red"><Trash2 className="size-4" aria-hidden /></button>
             </div>
             <BlockForm b={b} set={(p) => setBlock(i, p)} categories={categories} />
+            <LookPanel value={b.look ?? {}} what="του block" onChange={(l) => setD((x) => ({ ...x, blocks: x.blocks.map((y, j) => (j === i ? { ...y, look: Object.keys(l).length ? l : undefined } : y)) }))} />
           </li>
         ))}
       </ol>
@@ -103,7 +105,7 @@ function BlockForm({ b, set, categories }: { b: Block; set: (p: Record<string, u
         <label className={lbl}><span>Μικρός τίτλος πάνω</span><input className={input} value={p.kicker ?? ""} onChange={(e) => set({ kicker: e.target.value })} /></label>
         <label className={`${lbl} @xl:col-span-2`}><span>Υπότιτλος</span><input className={input} value={p.subtitle ?? ""} onChange={(e) => set({ subtitle: e.target.value })} /></label>
         <ImageUrlField label="Εικόνα" value={p.image ?? ""} onChange={(v) => set({ image: v })} />
-        <label className={lbl}><span>Χρώμα</span><select className={input} value={p.tone ?? "navy"} onChange={(e) => set({ tone: e.target.value })}><option value="navy">Μπλε</option><option value="yellow">Κίτρινο</option><option value="red">Κόκκινο</option></select></label>
+        <label className={lbl}><span>Βασικό χρώμα</span><select className={input} value={p.tone ?? "navy"} onChange={(e) => set({ tone: e.target.value })}><option value="navy">Μπλε</option><option value="yellow">Κίτρινο</option><option value="red">Κόκκινο</option></select></label>
         <label className={lbl}><span>Κουμπί</span><input className={input} value={p.ctaLabel ?? ""} onChange={(e) => set({ ctaLabel: e.target.value })} /></label>
         <label className={lbl}><span>Σύνδεσμος κουμπιού</span><input className={input} value={p.ctaHref ?? ""} onChange={(e) => set({ ctaHref: e.target.value })} placeholder="#proionta" /></label>
       </div>

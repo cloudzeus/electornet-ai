@@ -20,13 +20,13 @@ export async function StoreFinder({ store, image, zoneNo, geoCity, geoSource = "
       <ZoneBadge no={zoneNo} />
       <div className="eu-canvas grid grid-cols-1 @lg:grid-cols-[1fr_40%]">
         <div className="eu-gutter py-8 @lg:py-9">
-          <div className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide mb-3">{c.to_diktyo}</div>
-          <h2 id="stores-title" className="m-0 font-heading font-bold text-[length:var(--fs-32)] leading-[1.08] tracking-[-0.022em] mb-3">
+          <div data-look="kicker" className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide mb-3">{c.to_diktyo}</div>
+          <h2 id="stores-title" data-look="title" className="m-0 font-heading font-bold text-[length:var(--fs-32)] leading-[1.08] tracking-[-0.022em] mb-3">
             Καταστήματα σε όλη την Ελλάδα.
             <br />
             {c.ena_einai_dipla_soy}
           </h2>
-          <p className="m-0 text-eu-on-dark text-[length:var(--fs-16)] leading-[1.6] mb-5 max-w-[34em]">
+          <p data-look="sub" className="m-0 text-eu-on-dark text-[length:var(--fs-16)] leading-[1.6] mb-5 max-w-[34em]">
             {c.apothema_se_pragmatiko_chrono}
           </p>
           <form action="/katastimata" className="flex gap-2 max-w-[430px] mb-3.5">

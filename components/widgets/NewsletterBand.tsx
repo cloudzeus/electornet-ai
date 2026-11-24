@@ -13,10 +13,10 @@ export async function NewsletterBand({ zoneNo }: { zoneNo?: number }) {
       <ZoneBadge no={zoneNo} />
       <div className="eu-canvas eu-gutter py-6 grid grid-cols-1 @lg:grid-cols-2 gap-5 @lg:gap-[30px] items-center">
         <div>
-          <h2 id="nl-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-21)] leading-[1.2] mb-1.5">
+          <h2 id="nl-title" data-look="title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-21)] leading-[1.2] mb-1.5">
             {c.mathe_protos_tis_pragmatikes}
           </h2>
-          <p className="m-0 text-eu-muted text-[length:var(--fs-15)] leading-[1.55]">{c.ena_email_tin_evdomada}</p>
+          <p data-look="sub" className="m-0 text-eu-muted text-[length:var(--fs-15)] leading-[1.55]">{c.ena_email_tin_evdomada}</p>
         </div>
         <NewsletterForm consentText={consentText} labels={{ email: c.to_email_soy, submit: c.eggrafi, privacy: c.politiki_aporritoy }} />
       </div>

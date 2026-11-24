@@ -16,6 +16,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { blockProducts, getLanding } from "@/lib/promo/landing";
 import type { Block } from "@/lib/promo/landing-blocks";
+import { lookClass } from "@/components/site/LookStyle";
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ preview?: string }> };
 
@@ -46,7 +47,7 @@ export default async function LandingPage(props: Props) {
   const cuts = top.length ? await bannerCutouts(top.map((p) => p.id)).catch(() => new Map<string, string>()) : new Map<string, string>();
   const showcase = top.map((p) => { const cut = cuts.get(p.id) ?? cutoutFor(p.image); return { p, image: cut ?? p.image!, cutout: !!cut }; });
   const cats = Object.fromEntries((await db.category.findMany({ where: { slug: { in: [...new Set(products.map((p) => p.subcategory))] } }, select: { slug: true, name: true } })).map((c) => [c.slug, c.name]));
-  const rendered = await Promise.all(blocks.map((b) => renderBlock(b, { promotionId: promo?.id ?? null, terms: promo?.termsText ?? null, endsAt: endsAt?.toISOString() ?? null, ended, products, productsId: pBlock?.id ?? null, showcase, cats })));
+  const rendered = await Promise.all(blocks.map((b) => renderWithLook(b, { promotionId: promo?.id ?? null, terms: promo?.termsText ?? null, endsAt: endsAt?.toISOString() ?? null, ended, products, productsId: pBlock?.id ?? null, showcase, cats })));
   return (
     <div className="eu-container">
       {preview && page.status !== "published" && <div className="bg-eu-yellow text-eu-navy text-center font-bold py-2 text-[length:var(--fs-14)]">Προεπισκόπηση — η σελίδα δεν είναι δημοσιευμένη</div>}
@@ -59,6 +60,13 @@ export default async function LandingPage(props: Props) {
       <div className="grid gap-10 pb-14">{rendered}</div>
     </div>
   );
+}
+
+/** Το block με την «Εμφάνιση» που όρισε ο διαχειριστής· block που δεν βγάζει τίποτα δεν αφήνει άδεια λωρίδα. */
+async function renderWithLook(b: Block, ctx: Ctx) {
+  const el = await renderBlock(b, ctx);
+  const look = el && b.look ? lookClass(b.look) : null;
+  return look ? <div key={b.id} className={`eu-look ${look.className}`}>{look.node}{el}</div> : el;
 }
 
 type Ctx = { promotionId: string | null; terms: string | null; endsAt: string | null; ended: boolean; products: Product[]; productsId: string | null; showcase: { p: Product; image: string; cutout: boolean }[]; cats: Record<string, string> };
@@ -76,9 +84,9 @@ async function renderBlock(b: Block, ctx: Ctx) {
           <div aria-hidden className="eu-rays -z-10 w-[80%] @3xl:w-[55%] right-[-15%] top-1/2 -translate-y-1/2" />
           <div className="eu-canvas eu-gutter py-10 @lg:py-16 grid @3xl:grid-cols-[1.05fr_1fr] gap-8 items-center">
             <div className="eu-hero-in grid gap-4">
-              {p.kicker && <div className={`justify-self-start rounded-full px-3.5 py-1.5 font-extrabold text-[length:var(--fs-14)] ${p.tone === "yellow" ? "bg-eu-navy text-white" : "bg-eu-yellow text-eu-navy"}`}>{p.kicker}</div>}
-              <h1 className="m-0 font-heading font-extrabold text-balance text-[length:var(--fs-42)] @3xl:text-[length:var(--fs-58)] leading-[1.02] tracking-[-0.02em]">{p.title}</h1>
-              {p.subtitle && <p className="m-0 max-w-[52ch] text-[length:var(--fs-18)] leading-relaxed opacity-95">{p.subtitle}</p>}
+              {p.kicker && <div data-look="kicker" className={`justify-self-start rounded-full px-3.5 py-1.5 font-extrabold text-[length:var(--fs-14)] ${p.tone === "yellow" ? "bg-eu-navy text-white" : "bg-eu-yellow text-eu-navy"}`}>{p.kicker}</div>}
+              <h1 data-look="title" className="m-0 font-heading font-extrabold text-balance text-[length:var(--fs-42)] @3xl:text-[length:var(--fs-58)] leading-[1.02] tracking-[-0.02em]">{p.title}</h1>
+              {p.subtitle && <p data-look="sub" className="m-0 max-w-[52ch] text-[length:var(--fs-18)] leading-relaxed opacity-95">{p.subtitle}</p>}
               {facts.length > 0 && <ul className="m-0 p-0 list-none flex flex-wrap gap-2">{facts.map((f) => <li key={f} className={`rounded-full px-3.5 py-1.5 font-bold text-[length:var(--fs-14)] ${p.tone === "yellow" ? "bg-eu-navy/10" : "bg-white/12 ring-1 ring-white/20"}`}>{f}</li>)}</ul>}
               {p.ctaLabel && p.ctaHref && !ctx.ended && <Link href={p.ctaHref} className={`eu-cta-shine justify-self-start rounded-full px-8 min-h-14 inline-flex items-center gap-2 font-extrabold text-[length:var(--fs-18)] shadow-[0_12px_28px_-10px_rgba(0,0,0,.55)] hover:scale-[1.03] transition-transform motion-reduce:transition-none ${p.tone === "yellow" ? "bg-eu-navy text-white" : "bg-eu-yellow text-eu-navy"}`}>{p.ctaLabel}<ArrowRight className="size-5" aria-hidden /></Link>}
             </div>
@@ -116,7 +124,7 @@ async function renderBlock(b: Block, ctx: Ctx) {
     case "countdown":
       return ctx.endsAt && !ctx.ended ? (
         <section key={b.id} className="eu-canvas eu-gutter flex flex-wrap items-center justify-center gap-4">
-          <span className="font-extrabold text-eu-navy text-[length:var(--fs-18)]">{b.props.label ?? "Λήγει σε"}</span>
+          <span data-look="title" className="font-extrabold text-eu-navy text-[length:var(--fs-18)]">{b.props.label ?? "Λήγει σε"}</span>
           <Countdown endsAt={ctx.endsAt} variant="blocks" />
         </section>
       ) : null;
@@ -131,7 +139,7 @@ async function renderBlock(b: Block, ctx: Ctx) {
       const href = (c: (typeof cats)[number]) => `/k/${[c.parent?.parent?.slug, c.parent?.slug, c.slug].filter(Boolean).join("/")}`;
       return (
         <section key={b.id} className="eu-canvas eu-gutter grid gap-4">
-          {b.props.title && <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)]">{b.props.title}</h2>}
+          {b.props.title && <h2 data-look="title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)]">{b.props.title}</h2>}
           <ul className="m-0 p-0 list-none grid grid-cols-2 @lg:grid-cols-3 @4xl:grid-cols-6 gap-3">
             {cats.map((c) => <li key={c.id}><Link href={href(c)} className="flex items-center justify-center text-center rounded-2xl bg-eu-chip text-eu-navy font-extrabold text-[length:var(--fs-16)] min-h-24 p-4 hover:bg-eu-navy hover:text-white transition-colors">{c.name}</Link></li>)}
           </ul>
@@ -150,8 +158,8 @@ async function renderBlock(b: Block, ctx: Ctx) {
     case "text":
       return (
         <section key={b.id} className="eu-canvas eu-gutter max-w-[72ch] grid gap-2">
-          {b.props.title && <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)]">{b.props.title}</h2>}
-          {b.props.body.split(/\n{2,}/).map((para, i) => <p key={i} className="m-0 text-eu-ink-2 text-[length:var(--fs-17)] leading-relaxed">{para}</p>)}
+          {b.props.title && <h2 data-look="title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)]">{b.props.title}</h2>}
+          {b.props.body.split(/\n{2,}/).map((para, i) => <p key={i} data-look="sub" className="m-0 text-eu-ink-2 text-[length:var(--fs-17)] leading-relaxed">{para}</p>)}
         </section>
       );
     case "banner":
@@ -170,7 +178,7 @@ async function renderBlock(b: Block, ctx: Ctx) {
     case "faq":
       return b.props.items.some((x) => x.q && x.a) ? (
         <section key={b.id} className="eu-canvas eu-gutter max-w-[80ch] grid gap-3">
-          {b.props.title && <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)]">{b.props.title}</h2>}
+          {b.props.title && <h2 data-look="title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)]">{b.props.title}</h2>}
           {b.props.items.filter((x) => x.q && x.a).map((x, i) => <details key={i} className="rounded-2xl border border-eu-line bg-white p-5"><summary className="cursor-pointer font-bold text-eu-ink text-[length:var(--fs-16)] min-h-8">{x.q}</summary><p className="m-0 mt-2 text-eu-ink-3 text-[length:var(--fs-15)] leading-relaxed">{x.a}</p></details>)}
         </section>
       ) : null;

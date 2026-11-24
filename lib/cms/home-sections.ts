@@ -1,5 +1,6 @@
 import type { BrandBlock, Device, Schedule } from "./brand-store";
 import type { WidgetInstance } from "./zones";
+import type { Look } from "./look";
 
 /**
  * Η αρχική σελίδα στη διαχείριση (Περιεχόμενο → Ζώνες αρχικής): οι ΕΝΟΤΗΤΕΣ του σχεδίου (slides, ticker, κατηγορίες,
@@ -18,7 +19,11 @@ export interface HomeSection {
   schedule?: Schedule;
   /** αλλαγές του διαχειριστή πάνω στις προεπιλογές της ενότητας (κείμενα, πλήθος, καμπάνιες) */
   props?: Record<string, unknown>;
+  /** εμφάνιση της ενότητας (φόντο, χρώματα κειμένων, περιθώρια — ανά συσκευή), ίδια πεδία με τα components */
+  look?: Look;
 }
+/** Ποιες ομάδες του πίνακα «Εμφάνιση» ισχύουν σε μια ενότητα: hero και ticker έχουν δικά τους χρώματα (πεδία της ενότητας)· η διαφημιστική λωρίδα καμία. */
+export const sectionLookGroups = (id: HomeSectionId): ("bg" | "text" | "space")[] => (id === "ad-strip" ? [] : id === "hero" || id === "ticker" ? ["space"] : ["bg", "text", "space"]);
 export interface HomeDoc { sections: HomeSection[]; blocks: BrandBlock[] }
 
 export type SectionField =

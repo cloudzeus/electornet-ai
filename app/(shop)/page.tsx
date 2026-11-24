@@ -1,5 +1,5 @@
 import { sx } from "@/components/ui/sx";
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import { renderZone } from "@/lib/cms/render";
 import { getDevice } from "@/lib/device";
 import type { RenderContext } from "@/lib/cms/zones";
@@ -14,7 +14,8 @@ import { EURONICS_THEME } from "@/lib/cms/info-pages";
 import { BrandFrame } from "@/components/brand/BrandFrame";
 import { getHomeDoc, getPublishedHome } from "@/lib/cms/home-store";
 import { previewTokenOk, runDueScenarios } from "@/lib/cms/home-plans";
-import { afterZone, audienceOk, hideClass, sectionActive, sectionDef, sectionExtras, sectionWidget, TOP_ZONE } from "@/lib/cms/home-sections";
+import { afterZone, audienceOk, hideClass, sectionActive, sectionDef, sectionExtras, sectionLookGroups, sectionWidget, TOP_ZONE, type HomeSection } from "@/lib/cms/home-sections";
+import { lookClass } from "@/components/site/LookStyle";
 import { jsonLd } from "@/lib/security/json-ld";
 import { homeJsonLd } from "@/lib/seo/pages";
 
@@ -74,10 +75,22 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       {sections.map(({ s, el }) => (
         <Fragment key={s.id}>
           {/* προεπισκόπηση: κάθε ενότητα σημαδεμένη, ώστε ο editor να κυλά / τονίζει / επιλέγει με κλικ */}
-          {el && (preview ? <div data-home-item={`sec:${s.id}`} className={hideClass(s.hideOn)}>{el}</div> : s.hideOn?.length ? <div className={hideClass(s.hideOn)}>{el}</div> : el)}
+          {el && <HomeSectionBox s={s} preview={preview}>{el}</HomeSectionBox>}
           {zone(afterZone(s.id))}
         </Fragment>
       ))}
     </>
   );
+}
+
+/**
+ * Το περιτύλιγμα μιας ενότητας: συσκευές που κρύβεται και η «Εμφάνισή» της (φόντο, χρώματα κειμένων, περιθώρια ανά συσκευή).
+ * Ενότητα που δεν έβγαλε τίποτα (π.χ. καμία προσφορά) δεν αφήνει άδεια χρωματιστή λωρίδα. Χωρίς ρυθμίσεις: όπως ήταν.
+ */
+function HomeSectionBox({ s, preview, children }: { s: HomeSection; preview: boolean; children: ReactNode }) {
+  const has = Array.isArray(children) ? children.some(Boolean) : !!children;
+  const look = has && s.look && sectionLookGroups(s.id).length ? lookClass(s.look) : null;
+  const cls = `${look ? `eu-look ${look.className}` : ""} ${hideClass(s.hideOn)}`.trim();
+  if (!preview && !cls) return children;
+  return <div data-home-item={preview ? `sec:${s.id}` : undefined} className={cls || undefined}>{look?.node}{children}</div>;
 }
