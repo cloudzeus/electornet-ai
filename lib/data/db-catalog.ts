@@ -173,8 +173,8 @@ function offerFields(r: Row): Partial<Product> {
   if (price < list) {
     out.price = price;
     const st = strikePrice(price, list, o.lowest30 != null ? Number(o.lowest30) : null);
-    // Omnibus: η 30ήμερη χαμηλότερη φαίνεται σε ΚΑΘΕ διαγραμμένη τιμή, όχι μόνο όταν είναι αυτή η διαγραμμένη
-    if (st) { out.wasPrice = st.was; if (o.lowest30 != null) out.lowest30 = Number(o.lowest30); out.badge = { kind: "discount" }; }
+    // η βιτρίνα δείχνει μόνο τη διαγραμμένη τιμή· η γραμμή «Χαμηλότερη τιμή 30 ημερών» αφαιρέθηκε με εντολή του πελάτη (24/11/26)
+    if (st) { out.wasPrice = st.was; out.badge = { kind: "discount" }; }
   }
   if (o.memberPrice != null) out.memberPrice = Number(o.memberPrice);
   const extraTags: string[] = [];

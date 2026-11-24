@@ -13,7 +13,7 @@ import { getWeeklyDeals } from "@/lib/data/catalog";
 
 export const metadata: Metadata = { title: "Προσφορές σε ηλεκτρικές συσκευές & τεχνολογία", description: "Οι τρέχουσες προσφορές της Euronics σε τηλεοράσεις, λευκές συσκευές, κλιματιστικά, υπολογιστές και μικροσυσκευές, με ημερομηνία λήξης σε καθεμία. Άτοκες δόσεις με κάρτα." };
 
-/** Permanent offers page — the current euronics.gr has none. Real expiry, Omnibus 30-day price on every card. */
+/** Permanent offers page — the current euronics.gr has none. Real expiry on every card. */
 export default async function OffersPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const deals = await getWeeklyDeals();

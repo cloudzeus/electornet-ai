@@ -64,7 +64,7 @@ export function answersFor(p: Product, w?: WarrantyInfo): QA[] {
     {
       q: `Πόσο κοστίζει το ${p.title} και με ποιες δόσεις;`,
       label: "Πόσο κοστίζει και με ποιες δόσεις;",
-      a: p.noPrice ? `Η τιμή του ${p.title} δίνεται από το κατάστημα Euronics της περιοχής σου, όπου θα βρεις και τις τρέχουσες προσφορές. Πληρώνεται και σε άτοκες δόσεις με κάρτα.` : `Κοστίζει ${priceLong(p.price)} με ΦΠΑ 24%${p.wasPrice ? ` (προηγούμενη τιμή ${priceLong(p.wasPrice)})` : ""}${p.lowest30 ? `, χαμηλότερη τιμή 30 ημερών ${priceLong(p.lowest30)}` : ""}.${instalmentLine(p.price) ? ` Πληρώνεται και σε έως ${instalmentLine(p.price)} τον μήνα, με πιστωτική κάρτα.` : ""}`,
+      a: p.noPrice ? `Η τιμή του ${p.title} δίνεται από το κατάστημα Euronics της περιοχής σου, όπου θα βρεις και τις τρέχουσες προσφορές. Πληρώνεται και σε άτοκες δόσεις με κάρτα.` : `Κοστίζει ${priceLong(p.price)} με ΦΠΑ 24%${p.wasPrice ? ` (προηγούμενη τιμή ${priceLong(p.wasPrice)})` : ""}.${instalmentLine(p.price) ? ` Πληρώνεται και σε έως ${instalmentLine(p.price)} τον μήνα, με πιστωτική κάρτα.` : ""}`,
     },
     {
       q: `Πότε και πώς παραδίδεται το ${p.title};`,
@@ -136,8 +136,8 @@ export function productJsonLd(p: Product, crumbs: Crumb[], w?: WarrantyInfo) {
           availability: a.kind === "order" ? "https://schema.org/PreOrder" : "https://schema.org/InStock",
           itemCondition: p.isRenew ? "https://schema.org/RefurbishedCondition" : "https://schema.org/NewCondition",
           seller: { "@id": `${SITE}/#org` },
-          // StrikethroughPrice μόνο όταν η 30ήμερη είναι όντως πάνω από την τιμή πώλησης· αλλιώς δεν υπάρχει διαγραφή να δηλώσουμε
-          ...(p.lowest30 && p.lowest30 > p.price ? { priceSpecification: { "@type": "UnitPriceSpecification", price: p.lowest30, priceCurrency: "EUR", priceType: "https://schema.org/StrikethroughPrice", name: "Χαμηλότερη τιμή 30 ημερών (Omnibus)" } } : {}),
+          // StrikethroughPrice = η διαγραμμένη τιμή που βλέπει και ο πελάτης στη σελίδα
+          ...(p.wasPrice && p.wasPrice > p.price ? { priceSpecification: { "@type": "UnitPriceSpecification", price: p.wasPrice, priceCurrency: "EUR", priceType: "https://schema.org/StrikethroughPrice" } } : {}),
           shippingDetails: {
             "@type": "OfferShippingDetails",
             shippingRate: { "@type": "MonetaryAmount", value: ADVERTISED_COURIER_FEE / 100, currency: "EUR" },
@@ -184,7 +184,6 @@ export function seoAudit(p: Product, crumbs: Crumb[]) {
     properties: attributesOf(p).length,
     answers: answersFor(p).length,
     speakable: ["#geo-summary", "#qa"],
-    omnibus: !!p.lowest30,
     energy: p.energy?.cls ?? null,
   };
 }

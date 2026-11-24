@@ -18,7 +18,7 @@ import { Price } from "@/components/commerce/Price";
 const c = copyOf("buybox");
 
 /**
- * Sticky buy box. Price + Omnibus 30-day price, interest-free card
+ * Sticky buy box. Price, interest-free card
  * instalments (the customer picks how many), variants with price per option, availability with date,
  * store selector with real-time stock, delivery choice, and the
  * «Ολοκληρωμένη λύση» bundle: warranty extension, e-support and an
@@ -78,7 +78,7 @@ export function BuyBox({ product: p, addons, accessory, warranty }: { product: P
           )}
         </div>
         <div className="text-eu-muted text-[length:var(--fs-14)] mt-1.5">
-          {p.lowest30 ? `Χαμηλότερη τιμή 30 ημερών: ${priceLong(p.lowest30)} · ` : ""}με ΦΠΑ 24%
+          με ΦΠΑ 24%
         </div>
         {p.gift && <div className="text-eu-blue font-bold text-[length:var(--fs-15)] mt-1">{p.gift}</div>}
         {(p.promoTags?.length || p.infoTags?.length || p.promo?.kind === "bogo" || p.promo?.kind === "bundle" || p.memberPrice || p.dealEndsAt) && (

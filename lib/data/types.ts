@@ -62,8 +62,6 @@ export interface Product {
   typeSlug?: string;
   path?: { slug: string; name: string }[];
   wasPrice?: number;
-  /** Omnibus: lowest price of the previous 30 days, required with any discount. */
-  lowest30?: number;
   /** λήξη της προσφοράς (countdown, «λήγει σε…») — από τις έτοιμες τιμές της μηχανής προσφορών */
   dealEndsAt?: string;
   /** tags προσφορών χωρίς δικό τους σήμα: «2ο −50 %», «Δωρεάν επέκταση εγγύησης», «Δωρεάν μεταφορικά», «Τιμή μέλους…» */

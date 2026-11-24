@@ -7,7 +7,7 @@ import { ViewTransition } from "react";
 import { useRef } from "react";
 import { Heart, Plus, Scale, Eye, MapPin } from "lucide-react";
 import type { Product } from "@/lib/data/types";
-import { instalmentLine, priceLong, priceShort, weekday } from "@/lib/format";
+import { instalmentLine, priceShort, weekday } from "@/lib/format";
 import { useCart } from "./CartProvider";
 import { EnergyChip } from "./EnergyChip";
 import { FluidContent } from "@/components/fluid/Fluid";
@@ -25,11 +25,11 @@ import { Price } from "@/components/commerce/Price";
 const c = copyOf("productCard");
 
 /**
- * The product card: nine facts at one glance.
+ * The product card: eight facts at one glance.
  *  1 discount (with euro saving)  2 brand apart from title  3 energy class +
- *  fiche (EU 2017/1369)  4 price / was-price  5 lowest 30-day price
- *  (Omnibus)  6 interest-free card instalments  7 availability with colour AND
- *  date  8 Quick buy as the primary button  9 wishlist + compare & store stock.
+ *  fiche (EU 2017/1369)  4 price / was-price  5 interest-free card
+ *  instalments  6 availability with colour AND date  7 Quick buy as the
+ *  primary button  8 wishlist + compare & store stock.
  *
  * v4: the photo is a transparent cutout floating on a soft light field
  * (falls back to the framed photo when no cutout exists), the card tilts
@@ -147,7 +147,7 @@ export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "
                   <span className={`font-extrabold text-eu-ink leading-none tracking-[-0.02em] ${p.noPrice ? "text-[length:var(--fs-19)]" : "text-[length:var(--fs-27)]"}`}><Price value={p.price} short /></span>
                   {p.wasPrice && <s className="font-medium text-eu-muted-2 text-[length:var(--fs-15)]">{priceShort(p.wasPrice)}</s>}
                 </div>
-                <div className="text-eu-muted text-[length:var(--fs-14)] leading-snug mt-1 min-h-[1.4em]">{p.lowest30 ? `Χαμηλότερη 30 ημερών: ${priceLong(p.lowest30)}` : p.promo?.kind === "bundle" ? `Δώρο μαζί: ${p.promo.with}` : p.gift ?? ""}</div>
+                <div className="text-eu-muted text-[length:var(--fs-14)] leading-snug mt-1 min-h-[1.4em]">{p.promo?.kind === "bundle" ? `Δώρο μαζί: ${p.promo.with}` : p.gift ?? ""}</div>
                 <div className="font-bold text-eu-blue text-[length:var(--fs-15)] my-2">{p.noPrice ? "Άτοκες δόσεις · ρώτησε στο κατάστημα" : monthly && <>ή {monthly}</>}</div>
                 <div className={`flex items-center flex-wrap gap-x-2 gap-y-1.5 font-bold text-[length:var(--fs-14)] mb-3 ${avail.color}`}>
                   <span className="inline-flex items-center gap-1.5">

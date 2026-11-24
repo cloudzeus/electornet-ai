@@ -26,7 +26,7 @@ const c = copyOf("quickView");
 /**
  * Quick view — the product summary in a modal, so a customer can check
  * facts, price and delivery and add to cart without leaving the list.
- * Same hierarchy as the PDP buy box: photos, key facts, price + Omnibus,
+ * Same hierarchy as the PDP buy box: photos, key facts, price,
  * instalments, availability, quantity, the two actions, wishlist and
  * compare. «Όλες οι λεπτομέρειες» goes to the full page.
  */
@@ -184,9 +184,6 @@ function Body({ p }: { p: Product }) {
               )}
             </div>
             <div className="text-eu-muted text-[length:var(--fs-14)] mt-1">
-              {p.lowest30
-                ? `Χαμηλότερη τιμή 30 ημερών: ${priceLong(p.lowest30)} · `
-                : ""}
               με ΦΠΑ 24%
             </div>
             {instalmentLine(p.price) && (
