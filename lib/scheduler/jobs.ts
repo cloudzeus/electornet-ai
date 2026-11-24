@@ -60,6 +60,14 @@ export const JOBS: JobDef[] = [
     },
   },
   {
+    // shortcut: γενέθλια, προσωπικές προσφορές και newsletters τρέχουν ακόμη μόνο από το /api/cron/promos· αν το εξωτερικό cron δεν καλείται, θέλουν κι αυτά εργασία εδώ
+    key: "cart-reminders", label: "Υπενθύμιση καλαθιού με email (Προσφορές → Κανόνες: πελάτες με λογαριασμό και συγκατάθεση)", schedule: { everyMin: 15 }, group: "cart-reminders", maxMin: 10,
+    run: async () => {
+      const r = await (await import("@/lib/promo/jobs")).runCartReminders({ force: true });
+      return "skipped" in r ? { ok: true, message: "Κλειστή στους Κανόνες προσφορών", idle: true } : { ok: true, message: `${r.sent} υπενθυμίσεις από ${r.carts} καλάθια`, idle: !r.sent };
+    },
+  },
+  {
     key: "category-ops", label: "Μετακινήσεις κατηγοριών προς SoftOne (συνέχεια μετά από διακοπή)", schedule: { everyMin: 1 }, group: "category-ops", maxMin: 6,
     run: async () => (await import("@/lib/catalog/category-ops")).runPendingOps(),
   },
