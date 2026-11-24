@@ -13,7 +13,7 @@ const c = copyOf("storeTile");
 
 /**
  * @dynamic Bento tile του δικτύου (v5). Μέχρι να δώσει ο πελάτης ΤΚ / πόλη ή GPS δεν δείχνουμε κανένα κατάστημα
- * (η εκτίμηση από το IP έβγαζε συχνά λάθος περιοχή): μόνο «350 καταστήματα… Ένα είναι δίπλα σου» και το πεδίο.
+ * (η εκτίμηση από το IP έβγαζε συχνά λάθος περιοχή): μόνο «Καταστήματα σε όλη την Ελλάδα · Ένα είναι δίπλα σου» και το πεδίο.
  * Το πεδίο γίνεται σημείο στον χάρτη (/api/geo/geocode) και το πλακίδιο δείχνει επιτόπου το πιο κοντινό κατάστημα·
  * η θέση μένει σε cookie, οπότε την επόμενη φορά το κατάστημα φαίνεται από την αρχή. Χωρίς JS: /katastimata?q=.
  */
@@ -60,7 +60,7 @@ export function StoreTile({ initial, geoCity, geoSource }: { initial: NearStore;
         </div>
       ) : (
         <div className="relative pr-16">
-          <div className="font-heading font-bold text-[length:var(--fs-17)] leading-[1.25]">{site.brand.storesCount} {c.katastimata_se_oli_tin}</div>
+          <div className="font-heading font-bold text-[length:var(--fs-17)] leading-[1.25]">{c.katastimata_se_oli_tin}</div>
           <div className="font-extrabold text-eu-yellow text-[length:var(--fs-15)] mt-0.5">{c.ena_einai_dipla_soy}</div>
         </div>
       )}

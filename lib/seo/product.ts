@@ -46,7 +46,7 @@ const lc = (k: string) => k.charAt(0).toLowerCase() + k.slice(1);
 /** GEO: one citable sentence with the entities a generative engine needs. */
 export function geoSummary(p: Product, w?: WarrantyInfo) {
   const attrs = topAttrs(p, 3).map((a) => `${lc(a.key)} ${a.value}`);
-  if (p.noPrice) return `${name(p)}${attrs.length ? ` με ${attrs.join(", ")}` : ""}. Τιμή και διαθεσιμότητα στο κατάστημα Euronics της περιοχής σου, με επίσημη εγγύηση και εξυπηρέτηση από 350 καταστήματα.`;
+  if (p.noPrice) return `${name(p)}${attrs.length ? ` με ${attrs.join(", ")}` : ""}. Τιμή και διαθεσιμότητα στο κατάστημα Euronics της περιοχής σου, με επίσημη εγγύηση και εξυπηρέτηση από το δίκτυο καταστημάτων μας.`;
   return `${name(p)}${attrs.length ? ` με ${attrs.join(", ")}` : ""}, ${priceLong(p.price)}${p.wasPrice ? ` (από ${priceLong(p.wasPrice)})` : ""}, ${availText(p)} από τη Euronics, ${warrantyLabel(w).toLocaleLowerCase("el-GR")}.`;
 }
 
@@ -74,7 +74,7 @@ export function answersFor(p: Product, w?: WarrantyInfo): QA[] {
     {
       q: `Ποια εγγύηση και ποια πολιτική επιστροφής έχει;`,
       label: "Ποια εγγύηση και επιστροφή έχει;",
-      a: `${warrantyLabel(w)}: ${warrantyDetail(w)}. Μπορείς να το επιστρέψεις μέσα σε 14 ημέρες χωρίς αιτιολογία, δωρεάν, σε οποιοδήποτε από τα 350 καταστήματα Euronics. Service με γνήσια ανταλλακτικά${p.isRenew ? ". Ως προϊόν Renew, είναι ελεγμένο και ανακατασκευασμένο με εγγύηση Euronics" : ""}.`,
+      a: `${warrantyLabel(w)}: ${warrantyDetail(w)}. Μπορείς να το επιστρέψεις μέσα σε 14 ημέρες χωρίς αιτιολογία, δωρεάν, σε οποιοδήποτε κατάστημα Euronics. Service με γνήσια ανταλλακτικά${p.isRenew ? ". Ως προϊόν Renew, είναι ελεγμένο και ανακατασκευασμένο με εγγύηση Euronics" : ""}.`,
     },
     {
       q: `Ποια είναι τα βασικά τεχνικά χαρακτηριστικά;`,

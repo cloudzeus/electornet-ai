@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return s ? { title: `Euronics ${s.city} — ${s.name}`, description: `${s.address}, ${s.zip} ${s.city}. Ωράριο, τηλέφωνο, υπηρεσίες, παραλαβή σε 2 ώρες.` } : {};
 }
 
-/** One of the 350 static store pages with LocalBusiness JSON-LD — the biggest untapped local-SEO asset. */
+/** One of the static store pages with LocalBusiness JSON-LD — the biggest untapped local-SEO asset. */
 export default async function StorePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const s = await getStoreBySlug(slug);

@@ -54,7 +54,7 @@ export default async function ContactPage({ searchParams }: { searchParams: Prom
           <div className="bg-eu-surface rounded-xl p-4 text-[length:var(--fs-15)] text-eu-ink-2">
             Ψάχνεις κατάστημα;{" "}
             <Link href="/katastimata" className="text-eu-blue underline font-bold">
-              350 καταστήματα με τηλέφωνο και ωράριο
+              Όλα τα καταστήματα με τηλέφωνο και ωράριο
             </Link>
             .
           </div>

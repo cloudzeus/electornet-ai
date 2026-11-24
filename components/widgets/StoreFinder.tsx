@@ -10,7 +10,7 @@ const c = copyOf("storeFinder");
 /**
  * @dynamic Zone 10 — the network. The nearest store is picked on the server
  * from the request IP (city level, no prompt); GPS refinement only after the
- * user asks (GDPR). Real distance, «open now», 350 store pages behind it.
+ * user asks (GDPR). Real distance, «open now», a page per store behind it.
  */
 export async function StoreFinder({ store, image, zoneNo, geoCity, geoSource = "fallback" }: { store: Store; image: string; zoneNo?: number; geoCity?: string; geoSource?: "ip" | "fallback" | "gps" | "manual" }) {
   const { site } = await getSettings();
@@ -22,7 +22,7 @@ export async function StoreFinder({ store, image, zoneNo, geoCity, geoSource = "
         <div className="eu-gutter py-8 @lg:py-9">
           <div className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide mb-3">{c.to_diktyo}</div>
           <h2 id="stores-title" className="m-0 font-heading font-bold text-[length:var(--fs-32)] leading-[1.08] tracking-[-0.022em] mb-3">
-            {site.brand.storesCount} καταστήματα.
+            Καταστήματα σε όλη την Ελλάδα.
             <br />
             {c.ena_einai_dipla_soy}
           </h2>

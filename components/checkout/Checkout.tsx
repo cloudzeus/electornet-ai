@@ -744,7 +744,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
             <ul className="m-0 p-0 list-none grid gap-2 text-[length:var(--fs-14)] text-eu-muted">
               {[
                 [Lock, "Ασφαλής πληρωμή με 3D Secure"],
-                [RotateCcw, "Επιστροφή μέσα σε 14 ημέρες · δωρεάν σε 350 καταστήματα"],
+                [RotateCcw, "Επιστροφή μέσα σε 14 ημέρες · δωρεάν σε κάθε κατάστημα"],
                 [ShieldCheck, "Εγγύηση 2 ετών σε κάθε προϊόν"],
               ].map(([Icon, t]) => {
                 const I = Icon as typeof Lock;

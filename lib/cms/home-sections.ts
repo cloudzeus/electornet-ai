@@ -58,7 +58,7 @@ export interface SectionDef {
 export type FactCount = "services" | "home";
 export type HomeFact = { value: number; suffix: string; label: string; count?: FactCount };
 export const DEFAULT_FACTS: HomeFact[] = [
-  { value: 350, suffix: "", label: "καταστήματα σε όλη την Ελλάδα" },
+  { value: 14, suffix: " ημέρες", label: "για επιστροφή, δωρεάν στο κατάστημα" },
   { value: 13, suffix: "", label: "υπηρεσίες με τιμή, πριν και μετά", count: "services" },
   { value: 2, suffix: " ώρες", label: "παραλαβή από το κοντινό κατάστημα" },
   { value: 24, suffix: " δόσεις", label: "άτοκες, με πιστωτική κάρτα" },

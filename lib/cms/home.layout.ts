@@ -24,7 +24,7 @@ export async function getHomeLayout(): Promise<PageLayout> {
             type: "announcement-bar",
             zoneNo: 1,
             props: {
-              left: ["350 καταστήματα", "Δωρεάν μεταφορικά όπου έχουμε κατάστημα", "Άτοκες δόσεις με κάρτα"],
+              left: ["Καταστήματα σε όλη την Ελλάδα", "Δωρεάν μεταφορικά όπου έχουμε κατάστημα", "Άτοκες δόσεις με κάρτα"],
               right: ["14 ημέρες υπαναχώρηση"],
               accent: { label: "Παρακολούθηση παραγγελίας", href: "/entopismos" },
             },

@@ -50,7 +50,7 @@ test("οδηγοί: σειρά και ορατότητα, προεπιλογές
 
 test("αριθμοί υπηρεσιών: μετρούν μόνοι τους, χωρίς κείμενο δεν φαίνονται, έως 4", () => {
   const c = { services: 12, home: 6 };
-  assert.deepEqual(resolveFacts(undefined, c).map((f) => f.value), [350, 12, 2, 24]);
+  assert.deepEqual(resolveFacts(undefined, c).map((f) => f.value), [14, 12, 2, 24]);
   assert.deepEqual(resolveFacts([{ value: 9, suffix: "", label: "x", count: "home" }, { value: 5, suffix: "", label: " " }, { value: -3, suffix: "+", label: "y" }], c).map((f) => [f.value, f.suffix]), [[6, ""], [0, "+"]]);
   assert.equal(resolveFacts(Array.from({ length: 6 }, () => ({ value: 1, suffix: "", label: "z" })), c).length, 4);
   assert.deepEqual(resolveFacts([], c), []);

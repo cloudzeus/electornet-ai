@@ -76,7 +76,7 @@ export const generatedCopy = {
     "eos_24_atokes_me": "· έως 24 άτοκες με κάρτα",
     "oloklirosi_agoras": "Ολοκλήρωση αγοράς",
     "asfalis_pliromi_me_3d": "Ασφαλής πληρωμή με 3D Secure",
-    "epistrofi_se_350_katastimata": "Επιστροφή σε 350 καταστήματα",
+    "epistrofi_se_kathe_katastima": "Επιστροφή σε κάθε κατάστημα",
     "mia_apostoli_ena_kostos": "Μία αποστολή, ένα κόστος μεταφορικών",
     "tairiazoyn_me_to_kalathi": "Ταιριάζουν με το καλάθι σου",
     "dimofili": "Δημοφιλή",
@@ -297,7 +297,7 @@ export const generatedCopy = {
     "onoma_paralipti": "Όνομα παραλήπτη",
     "schedio": "Σχέδιο",
     "karta_doroy": "Κάρτα δώρου",
-    "exargyrosi_online_kai_se": "Εξαργύρωση online και σε 350 καταστήματα · ισχύς 2 έτη"
+    "exargyrosi_online_kai_se": "Εξαργύρωση online και στα καταστήματα · ισχύς 2 έτη"
   },
   "answers": {
     "grigores_apantiseis": "Γρήγορες απαντήσεις",
@@ -394,7 +394,7 @@ export const generatedCopy = {
     "ergostasiaki_eggyisi": "Εργοστασιακή εγγύηση",
     "service_antiprosopeias": "Service αντιπροσωπείας",
     "doseis_choris_karta": "Άτοκες δόσεις με κάρτα",
-    "paralavi_se_2_ores": "Παραλαβή σε 2 ώρες από 350 καταστήματα"
+    "paralavi_se_2_ores": "Παραλαβή σε 2 ώρες από το κατάστημα"
   },
   "wallet": {
     "egine": "Έγινε",
@@ -414,7 +414,7 @@ export const generatedCopy = {
     "vres": "Βρες",
     "chrisi_tis_topothesias_moy": "Χρήση της τοποθεσίας μου",
     "tk_i_poli": "ΤΚ ή πόλη",
-    "katastimata_se_oli_tin": "καταστήματα σε όλη την Ελλάδα!",
+    "katastimata_se_oli_tin": "Καταστήματα σε όλη την Ελλάδα",
     "ena_einai_dipla_soy": "Ένα είναι δίπλα σου.",
     "allos_tk_i_poli": "Άλλος ΤΚ ή πόλη",
     "anazitisi": "Αναζήτηση…"

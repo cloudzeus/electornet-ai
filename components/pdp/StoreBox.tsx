@@ -29,7 +29,7 @@ export function StoreBox({ product: p, stores }: { product: Product; stores: Sto
         <button type="button" aria-pressed={compared} onClick={() => toggleCompare(p.id, compareScope(p))} className={`${pill} ${compared ? "border-eu-blue text-eu-blue" : "border-eu-line text-eu-ink hover:border-eu-navy"}`}><Scale className="size-5" aria-hidden /> Σύγκριση</button>
       </div>
       <ul className="m-0 p-0 list-none grid gap-2.5 text-[length:var(--fs-15)] text-eu-ink-2">
-        <li className="flex gap-2.5"><StoreIcon className="size-5 text-eu-blue shrink-0 mt-0.5" aria-hidden /> {stores.length ? `${stores.length}+ καταστήματα σε όλη την Ελλάδα — δες το από κοντά πριν αποφασίσεις` : "Δες το από κοντά στο κατάστημα της περιοχής σου"}</li>
+        <li className="flex gap-2.5"><StoreIcon className="size-5 text-eu-blue shrink-0 mt-0.5" aria-hidden /> {stores.length ? "Καταστήματα σε όλη την Ελλάδα — δες το από κοντά πριν αποφασίσεις" : "Δες το από κοντά στο κατάστημα της περιοχής σου"}</li>
         <li className="flex gap-2.5"><Truck className="size-5 text-eu-blue shrink-0 mt-0.5" aria-hidden /> Παράδοση, εγκατάσταση και παραλαβή της παλιάς συσκευής από το κατάστημα</li>
         <li className="flex gap-2.5"><ShieldCheck className="size-5 text-eu-blue shrink-0 mt-0.5" aria-hidden /> Επίσημη εγγύηση αντιπροσωπείας</li>
       </ul>

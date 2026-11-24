@@ -2,7 +2,7 @@ import type { NewsItem } from "../types";
 
 /**
  * @dynamic Νέα & ανακοινώσεις — demo records in the shape the CMS will
- * deliver. Titles reflect real Euronics Greece themes (δίκτυο 350
+ * deliver. Titles reflect real Euronics Greece themes (δίκτυο
  * καταστημάτων, Renew, ενεργειακή ετικέτα, εκδηλώσεις); dates are demo.
  */
 export const news: NewsItem[] = [

@@ -10,7 +10,7 @@ import { LocateBar } from "@/components/stores/LocateBar";
 import { NearestStoreCard } from "@/components/stores/NearestStoreCard";
 import { geocodePlace } from "@/lib/stores/geocode";
 
-export const metadata: Metadata = { title: "Καταστήματα Euronics: διευθύνσεις & ωράρια", description: "Βρες το κοντινότερο κατάστημα Euronics: 350 καταστήματα-μέλη σε όλη την Ελλάδα με διεύθυνση, ωράριο, τηλέφωνο, υπηρεσίες και παραλαβή σε 2 ώρες." };
+export const metadata: Metadata = { title: "Καταστήματα Euronics: διευθύνσεις & ωράρια", description: "Βρες το κοντινότερο κατάστημα Euronics: καταστήματα-μέλη σε όλη την Ελλάδα με διεύθυνση, ωράριο, τηλέφωνο, υπηρεσίες και παραλαβή σε 2 ώρες." };
 
 const SERVICE_LABEL: Record<string, string> = { "click-collect": "Παραλαβή σε 2 ώρες", installation: "Εγκατάσταση", "service-point": "Service point", recycling: "Ανακύκλωση", parking: "Parking" };
 
@@ -26,7 +26,7 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
   return (
     <div className="eu-container">
       <Breadcrumbs items={[{ label: "Καταστήματα" }]} />
-      <PageIntro tone="blue" kicker="Το δίκτυο" title="350 καταστήματα. Ένα είναι δίπλα σου." lead="Καταστήματα-μέλη με απόθεμα, εγκατάσταση από τεχνικό της γειτονιάς και παραλαβή σε 2 ώρες." />
+      <PageIntro tone="blue" kicker="Το δίκτυο" title="Πανελλαδική κάλυψη από πλήθος καταστημάτων" lead="Καταστήματα-μέλη με απόθεμα, εγκατάσταση από τεχνικό της γειτονιάς και παραλαβή σε 2 ώρες." />
       <div className="eu-canvas eu-gutter py-6">
         {near.length > 0 && !sp.q && !sp.region && !sp.service && (
           <section className="mb-6 grid gap-3" aria-labelledby="near-title">

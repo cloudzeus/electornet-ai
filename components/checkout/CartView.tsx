@@ -293,7 +293,7 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
                 <ShieldCheck className="size-4 text-eu-green shrink-0" aria-hidden /> {c.asfalis_pliromi_me_3d}
               </li>
               <li className="flex items-center gap-2">
-                <StoreIcon className="size-4 text-eu-green shrink-0" aria-hidden /> {c.epistrofi_se_350_katastimata}
+                <StoreIcon className="size-4 text-eu-green shrink-0" aria-hidden /> {c.epistrofi_se_kathe_katastima}
               </li>
             </ul>
           </div>
