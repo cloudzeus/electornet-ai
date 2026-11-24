@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { composeSaldoc, orderDocFilter, orderNum01, softoneTotals, type SaldocOrder, type SaldocSettings } from "./order-doc-core";
 
-const S: SaldocSettings = { series: "7005", retailTrdr: "200", shippingMtrl: "99001" };
+const S: SaldocSettings = { series: "7005", retailTrdr: "200" };
 const base: SaldocOrder = {
   number: "EUR-20261016-0007", fulfilment: "courier", payment: "card", email: "a@b.gr",
   contact: { firstName: "Μαρία", lastName: "Παπά", phone: "6900000000" },
@@ -91,8 +91,8 @@ test("εκπτώσεις χωρίς ΦΠΑ και κλείσιμο στρογγ�
   const d = composeSaldoc(o, S);
   assert.ok(Math.abs(d.totals.gross - o.total) <= 0.011, `${d.totals.gross} vs ${o.total}`);
   assert.deepEqual(d.needs, []);
-  assert.equal(d.data.ITELINES.length, 3);
-  assert.equal(d.data.ITELINES[2].MTRL, 99001);
+  assert.equal(d.data.ITELINES.length, 2);
+  assert.equal(d.data.EXPANAL?.length, 1);
   assert.equal(d.data.ITELINES[0].COMMENTS, "CMP-1 v2");
 });
 
@@ -112,9 +112,14 @@ test("παραλαβή από κατάστημα και θυρίδα", () => {
   assert.match(String(lk.data.MTRDOC[0].CCCSHPADDRESS), /^Θυρίδα BOX NOW: Σκλαβενίτης/);
 });
 
-test("μεταφορικά χωρίς είδος στη ρύθμιση → λείπει", () => {
-  const d = composeSaldoc({ ...base, shippingFee: 3.9, total: 253.8 }, { ...S, shippingMtrl: null });
-  assert.ok(d.needs.some((n) => n.includes("μεταφορικά")));
+test("μεταφορικά: επιβάρυνση «2 Μεταφορικά» (EXPANAL), όχι γραμμή είδους, και το σύνολο κλείνει", () => {
+  const d = composeSaldoc({ ...base, shippingFee: 3.9, total: 253.8 }, S);
+  assert.deepEqual(d.needs, []);
+  assert.deepEqual(d.data.EXPANAL, [{ EXPN: 2, EXPVAL: 3.15 }]);
+  assert.ok(d.data.ITELINES.every((l) => l.MTRL != null));
+  assert.equal(d.totals.gross, 253.8);
+  // χωρίς μεταφορικά ο πίνακας δεν στέλνεται καθόλου
+  assert.equal(composeSaldoc(base, S).data.EXPANAL, undefined);
 });
 
 test("ένας συντελεστής: σύνολα από πολλά είδη κλείνουν ακριβώς", () => {

@@ -14,7 +14,7 @@ type Client = PrismaClient | Prisma.TransactionClient;
 export async function saldocSettings(): Promise<SaldocSettings> {
   const { data } = await getSetting("softone").catch(() => ({ data: {} as Record<string, unknown> }));
   const s = (k: string) => String(data[k] ?? "").trim() || null;
-  return { series: s("orderSeries"), retailTrdr: s("orderRetailTrdr"), shippingMtrl: s("orderShippingMtrl") };
+  return { series: s("orderSeries"), retailTrdr: s("orderRetailTrdr") };
 }
 
 export async function saldocForOrder(orderId: string, client: Client = db): Promise<SaldocDoc | null> {
@@ -103,6 +103,11 @@ export async function orderPushMode(): Promise<"off" | "preview" | "send"> {
  */
 export const orderWriteEnabled = () => process.env.S1_ORDER_WRITE === "1";
 export const ORDER_WRITE_OFF = "Η αποστολή παραγγελιών στο SoftOne δεν έχει ενεργοποιηθεί σε αυτόν τον διακομιστή (S1_ORDER_WRITE=1).";
+/** Γιατί δεν γίνεται αποστολή από εδώ (null = γίνεται): κλειστός διακομιστής ή διακόπτης ρυθμίσεων όχι σε «Αποστολή». Η καρτέλα το δείχνει δίπλα στο κουμπί. */
+export async function orderSendBlock(): Promise<string | null> {
+  if (!orderWriteEnabled()) return ORDER_WRITE_OFF;
+  return (await orderPushMode()) === "send" ? null : "Οι παραγγελίες προς SoftOne είναι σε «μόνο προεπισκόπηση» (Ρυθμίσεις → SoftOne).";
+}
 
 /** Το FINDOC της παραγγελίας στο SoftOne από τον αριθμό μας. 0 = δεν υπάρχει, null = δεν μπόρεσε να ελεγχθεί. */
 async function findocOf(number: string): Promise<number | null> {
@@ -121,11 +126,12 @@ async function findocOf(number: string): Promise<number | null> {
  * 2. Το παραστατικό είναι πλήρες (`needs` κενό) — αλλιώς τίποτα δεν φεύγει.
  * 3. Ατομική κατοχύρωση στο `ErpSync` (μόνο ένας αποστολέας ανά παραγγελία, χειροκίνητος ή αυτόματος).
  * 4. Έλεγχος διπλοεγγραφής: αν υπάρχει ήδη παραστατικό της σειράς με NUM01 τον αριθμό μας, δεν ξαναστέλνεται.
+ * 5. Υπολογισμός στο SoftOne χωρίς αποθήκευση (`calculate`): το σύνολό του πρέπει να είναι το σύνολο της παραγγελίας.
  * Μετά την εγγραφή το παραστατικό διαβάζεται πίσω (`success:true` ≠ αποθηκεύτηκε) και συγκρίνεται το σύνολό του.
  */
 export async function sendSaldoc(orderId: string, staffId?: string | null): Promise<{ ok: boolean; message: string; findoc?: number }> {
-  if (!orderWriteEnabled()) return { ok: false, message: ORDER_WRITE_OFF };
-  if ((await orderPushMode()) !== "send") return { ok: false, message: "Οι παραγγελίες προς SoftOne είναι σε «μόνο προεπισκόπηση» (Ρυθμίσεις → SoftOne)." };
+  const block = await orderSendBlock();
+  if (block) return { ok: false, message: block };
 
   const o = await db.order.findUnique({ where: { id: orderId }, select: { number: true, erpSync: { select: { status: true, erpDocId: true } } } });
   if (!o) return { ok: false, message: "Η παραγγελία δεν βρέθηκε." };
@@ -161,6 +167,10 @@ export async function sendSaldoc(orderId: string, staffId?: string | null): Prom
   if (existing == null) return fail("Δεν ήταν δυνατός ο έλεγχος αν η παραγγελία υπάρχει ήδη στο SoftOne — δεν στάλθηκε. Δοκιμάστε ξανά.");
   if (existing) return succeed(existing, `Υπήρχε ήδη στο SoftOne ως παραστατικό ${existing} — δεν στάλθηκε δεύτερη φορά.`);
 
+  // πρώτα υπολογισμός χωρίς αποθήκευση: παραστατικό που το SoftOne το βγάζει με άλλο σύνολο (π.χ. 0 €) δεν γράφεται ποτέ στο ERP
+  const pre = await checkDoc(doc).catch((e: Error) => ({ ok: false, message: `Δεν ήταν δυνατός ο έλεγχος του συνόλου στο SoftOne (${e.message}).` }));
+  if (!pre.ok) return fail(`Δεν στάλθηκε. ${pre.message}`);
+
   const r = await s1Call("setData", { OBJECT: "SALDOC", KEY: "", data: doc.data }).catch((e: Error) => ({ success: false, error: e.message }));
   if (!r?.success) return fail(`Το SoftOne αρνήθηκε το παραστατικό: ${r?.error ?? r?.errorcode ?? "άγνωστο σφάλμα"}`);
 
@@ -177,7 +187,7 @@ export async function sendSaldoc(orderId: string, staffId?: string | null): Prom
 
 /** Αυτόματη αποστολή μόλις η παραγγελία είναι πληρωμένη/καταχωρημένη, όταν ο διακόπτης είναι σε «Αποστολή». Σιωπηλή: η αποτυχία μένει στο ErpSync. */
 export async function maybeSendSaldoc(orderId: string) {
-  if (!orderWriteEnabled() || (await orderPushMode()) !== "send") return;
+  if (await orderSendBlock()) return;
   const r = await sendSaldoc(orderId).catch((e: Error) => ({ ok: false, message: e.message }));
   if (!r.ok) console.error("[erp-send]", orderId, r.message);
 }
@@ -190,6 +200,10 @@ export async function checkSaldocInSoftone(orderId: string): Promise<{ ok: boole
   const doc = await saldocForOrder(orderId);
   if (!doc) return { ok: false, message: "Η παραγγελία δεν βρέθηκε." };
   if (doc.needs.length) return { ok: false, message: `Πρώτα συμπληρώστε: ${doc.needs.join(" · ")}` };
+  return checkDoc(doc);
+}
+
+async function checkDoc(doc: SaldocDoc): Promise<{ ok: boolean; message: string }> {
   const { s1 } = await import("@/lib/softone");
   const r = await s1("calculate", { OBJECT: "SALDOC", KEY: "", LOCATEINFO: "SALDOC:SUMAMNT,NETAMNT,VATAMNT;ITELINES:MTRL,QTY1,PRICE,LINEVAL,VATAMNT", data: doc.data });
   if (!r?.success) return { ok: false, message: `Το SoftOne απέρριψε το παραστατικό: ${r?.error ?? r?.errorcode ?? "άγνωστο σφάλμα"}` };

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, Loader2, Mail, MoreHorizontal, Pin, PinOff, Printer, Send, Trash2, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, Loader2, Mail, MoreHorizontal, Pin, PinOff, Printer, Send, Trash2, X } from "lucide-react";
 import { NOTIFY_ON, ORDER_STATUS, RETURN_ACTION, RETURN_NEXT, type OrderStatus } from "@/lib/orders/model";
 import { addNoteAction, changeStatusAction, deleteNoteAction, erpCheckAction, erpSendAction, pinNoteAction, refundAction, resendConfirmationAction, returnStatusAction } from "../actions";
 
@@ -54,7 +54,7 @@ function StatusDialog({ to, onClose, orderId, number }: { to: OrderStatus; onClo
 }
 
 /** Κύρια ενέργεια + «Αλλαγή κατάστασης» + μενού (email, εκτύπωση, ακύρωση). */
-export function OrderHeaderActions({ orderId, number, primary, next, canWrite }: { orderId: string; number: string; primary: { to?: OrderStatus; label: string; voucher?: boolean; hint: string } | null; next: OrderStatus[]; canWrite: boolean }) {
+export function OrderHeaderActions({ orderId, number, primary, next, canWrite, erpSend }: { orderId: string; number: string; /** το παραστατικό δεν έχει σταλεί ακόμη στο SoftOne: σύνδεσμος στην κάρτα SoftOne, όπου γίνεται η αποστολή */ erpSend?: boolean; primary: { to?: OrderStatus; label: string; voucher?: boolean; hint: string } | null; next: OrderStatus[]; canWrite: boolean }) {
   const router = useRouter();
   const [dialog, setDialog] = useState<OrderStatus | null>(null);
   const [menu, setMenu] = useState(false);
@@ -72,6 +72,7 @@ export function OrderHeaderActions({ orderId, number, primary, next, canWrite }:
             <div role="menu" className="absolute right-0 top-full mt-1 z-40 w-64 rounded-xl border border-eu-line bg-white shadow-lg p-1 grid">
               {others.map((s) => <button key={s} role="menuitem" type="button" onClick={() => { setMenu(false); setDialog(s); }} className="text-left rounded-lg px-3 min-h-11 md:min-h-9 text-[length:var(--fs-13)] hover:bg-eu-surface">→ {ORDER_STATUS[s].label}</button>)}
               <button role="menuitem" type="button" disabled={pending} onClick={() => { setMenu(false); start(async () => { const r = await resendConfirmationAction(orderId, number); setMsg(r.ok ? { ok: true, text: r.message } : { ok: false, text: r.error }); router.refresh(); }); }} className="text-left rounded-lg px-3 min-h-11 md:min-h-9 text-[length:var(--fs-13)] hover:bg-eu-surface inline-flex items-center gap-2"><Mail className="size-4 text-eu-blue" aria-hidden /> Ξανά email επιβεβαίωσης</button>
+              {erpSend && <a role="menuitem" href="#softone" onClick={() => setMenu(false)} className="text-left rounded-lg px-3 min-h-11 md:min-h-9 text-[length:var(--fs-13)] hover:bg-eu-surface inline-flex items-center gap-2"><Send className="size-4" aria-hidden /> Αποστολή στο SoftOne</a>}
               {next.includes("cancelled") && <><hr className="my-1 border-eu-line-2" /><button role="menuitem" type="button" onClick={() => { setMenu(false); setDialog("cancelled"); }} className="text-left rounded-lg px-3 min-h-11 md:min-h-9 text-[length:var(--fs-13)] text-eu-red hover:bg-eu-red/5 inline-flex items-center gap-2"><X className="size-4" aria-hidden /> Ακύρωση παραγγελίας</button></>}
             </div>
           )}
@@ -186,8 +187,9 @@ export function ErpCheck({ orderId }: { orderId: string }) {
 /**
  * «Αποστολή στο SoftOne»: καταχωρεί το παραστατικό στο ERP. Γράφει σε παραγωγικό σύστημα, άρα ζητά επιβεβαίωση με το
  * σύνολο της παραγγελίας· μετά την αποστολή η κατάσταση γίνεται «στάλθηκε» και το κουμπί δεν εμφανίζεται πια.
+ * Με `blocked` το κουμπί μένει ορατό αλλά ανενεργό και ο λόγος γράφεται από κάτω — ποτέ δεν κρύβεται σιωπηλά.
  */
-export function ErpSend({ orderId, number, total }: { orderId: string; number: string; total: string }) {
+export function ErpSend({ orderId, number, total, blocked }: { orderId: string; number: string; total: string; blocked?: string | null }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<Msg>(null);
@@ -205,10 +207,11 @@ export function ErpSend({ orderId, number, total }: { orderId: string; number: s
           </div>
         </div>
       ) : (
-        <button type="button" onClick={() => setAsk(true)} className={`${btn} justify-self-start px-4 text-white bg-eu-navy hover:bg-eu-blue`} title="Καταχώρηση του παραστατικού στο SoftOne">
+        <button type="button" disabled={!!blocked} aria-describedby={blocked ? "erp-send-why" : undefined} onClick={() => setAsk(true)} className={`${btn} justify-self-start px-4 text-white bg-eu-navy hover:bg-eu-blue disabled:cursor-not-allowed`} title="Καταχώρηση του παραστατικού στο SoftOne">
           <Send className="size-4" aria-hidden /> Αποστολή στο SoftOne
         </button>
       )}
+      {blocked && <p id="erp-send-why" className="m-0 flex items-start gap-1.5 text-eu-ink-2 text-[length:var(--fs-12)]"><AlertTriangle className="size-3.5 mt-0.5 shrink-0 text-eu-amber" aria-hidden />{blocked}</p>}
       <Note m={msg} />
     </div>
   );

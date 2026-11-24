@@ -26,7 +26,7 @@ export const PAYMENT_STATUS: Record<string, { label: string; tone: Tone }> = {
   refunded: { label: "Επιστράφηκαν", tone: "neutral" }, "partially-refunded": { label: "Μερική επιστροφή", tone: "warn" },
 };
 export const ERP_STATUS: Record<string, { label: string; tone: Tone; help: string }> = {
-  preview: { label: "Προσχέδιο", tone: "neutral", help: "Το παραστατικό είναι έτοιμο· η αποστολή στο SoftOne δεν είναι ενεργή ακόμη." },
+  preview: { label: "Προσχέδιο", tone: "neutral", help: "Το παραστατικό έχει ετοιμαστεί αλλά δεν έχει σταλεί ακόμη στο SoftOne." },
   "awaiting-payment": { label: "Αναμονή πληρωμής", tone: "warn", help: "Θα ετοιμαστεί μόλις ολοκληρωθεί η πληρωμή." },
   queued: { label: "Σε ουρά", tone: "info", help: "Θα σταλεί στο SoftOne." },
   sent: { label: "Στάλθηκε", tone: "good", help: "Καταχωρήθηκε στο SoftOne." },
@@ -126,3 +126,6 @@ export const payable = (o: { status: string; payment?: { psp: string | null; sta
   o.status === "pending" && !!o.payment && ["viva", "klarna"].includes(o.payment.psp ?? "") && !["paid", "processing", "review"].includes(o.payment.status);
 /** Μέχρι πότε περιμένει μια απλήρωτη παραγγελία πριν ακυρωθεί (24 ώρες από την καταχώρηση), σε ώρα Ελλάδας. */
 export const payUntil = (createdAt: Date) => new Date(createdAt.getTime() + 24 * 3600_000).toLocaleString("el-GR", { weekday: "long", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/Athens" });
+
+/** Ο όροφος όπως τον έγραψε ο πελάτης (ελεύθερο κείμενο) σε φράση: «3» → «3ος όροφος», «1ος» → «1ος όροφος», «Ισόγειο» όπως είναι. */
+export const floorLabel = (floor: string | null | undefined) => { const f = (floor ?? "").trim(); return /^\d+$/.test(f) ? `${f}ος όροφος` : /^\d+ος$/i.test(f) ? `${f} όροφος` : f; };

@@ -40,7 +40,7 @@ const Row = ({ k, children }: { k: string; children: React.ReactNode }) => <div 
  */
 export type Draft = Awaited<ReturnType<typeof shipmentDraft>>;
 /** Η παρουσίαση της καρτέλας (χωριστά από τη φόρτωση — δοκιμάζεται και με ψεύτικα δεδομένα). */
-export function OrderView({ o, draft, erp, canWrite, canRefund, pay }: { o: OrderDetail; /** απλήρωτη online παραγγελία: ο σύνδεσμος πληρωμής του πελάτη και μέχρι πότε ισχύει */ pay?: { url: string; until: string } | null; draft: Draft; erp: { needs: string[]; warnings: string[]; gross: number; expected: number; canSend?: boolean } | null; canWrite: boolean; canRefund: boolean }) {
+export function OrderView({ o, draft, erp, canWrite, canRefund, pay }: { o: OrderDetail; /** απλήρωτη online παραγγελία: ο σύνδεσμος πληρωμής του πελάτη και μέχρι πότε ισχύει */ pay?: { url: string; until: string } | null; draft: Draft; erp: { needs: string[]; warnings: string[]; gross: number; expected: number; /** γιατί δεν στέλνεται από αυτόν τον διακομιστή (null = στέλνεται) */ sendBlock?: string | null } | null; canWrite: boolean; canRefund: boolean }) {
   const s = (o.shipping ?? {}) as ShipTo;
   // πού βρίσκεται η παραγγελία στο SoftOne, σε απλά ελληνικά (τα παραστατικά τα καταγράφει η αυτόματη εργασία)
   const stage = currentStage(o.erpStages.map((x) => ({ fprms: x.fprms, at: x.docDate || x.seenAt.toISOString().slice(0, 10), notified: !!x.notifiedAt })));
@@ -57,6 +57,9 @@ export function OrderView({ o, draft, erp, canWrite, canRefund, pay }: { o: Orde
   const discPrice = lines.reduce((a, l) => a + n(l.discPrice), 0), discCoupon = lines.reduce((a, l) => a + n(l.discCoupon), 0), discPay = lines.reduce((a, l) => a + n(l.discPayment), 0);
   const addonsTotal = lines.reduce((a, l) => a + l.addons.reduce((x, ad) => x + n(ad.price), 0), 0);
   const paid = o.payment?.status === "paid" || o.payment?.status === "partially-refunded";
+  // χειροκίνητη αποστολή στο SoftOne: προσφέρεται όσο το παραστατικό δεν έχει φύγει· αν κάτι την εμποδίζει, το κουμπί μένει και λέει τι
+  const erpUnsent = !!erp && canWrite && !!o.erpSync && ["preview", "awaiting-payment", "failed"].includes(o.erpSync.status);
+  const erpBlock = !erp ? null : erp.needs.length ? `Δεν στέλνεται ακόμη: ${erp.needs.length === 1 ? "λείπει ένα στοιχείο" : `λείπουν ${erp.needs.length} στοιχεία`}, δες τη λίστα από πάνω` : o.erpSync?.status === "awaiting-payment" ? "Δεν στέλνεται ακόμη: η παραγγελία δεν έχει πληρωθεί" : erp.sendBlock ?? null;
   // ιστορικό πληρωμής: κάθε προσπάθεια με την αιτία της, και τα email με τον σύνδεσμο πληρωμής ανάμεσά τους
   const payEvents = o.payEvents ?? [];
   const payRows: (Omit<TimelineRow, "icon"> & { icon: TimelineRow["icon"] | "mail" })[] = payEvents.length
@@ -83,7 +86,7 @@ export function OrderView({ o, draft, erp, canWrite, canRefund, pay }: { o: Orde
           <h2 className="m-0 font-mono font-bold text-eu-ink text-[length:var(--fs-20)]">{o.number}</h2>
           <OrderStatusBadge status={o.status} />
           <span className="text-eu-ink-3 text-[length:var(--fs-13)]">{dateTime(o.createdAt)} · {FULFILMENT[o.fulfilment as Fulfilment] ?? o.fulfilment} · {payLabel(o.paymentMethod)}</span>
-          <div className="ml-auto"><OrderHeaderActions orderId={o.id} number={o.number} canWrite={canWrite} next={nextStatuses(o.status, o.fulfilment)} primary={na.kind === "status" ? { to: na.to, label: na.label, hint: na.hint } : na.kind === "voucher" ? { voucher: true, label: na.label, hint: na.hint } : null} /></div>
+          <div className="ml-auto"><OrderHeaderActions orderId={o.id} number={o.number} canWrite={canWrite} next={nextStatuses(o.status, o.fulfilment)} erpSend={erpUnsent} primary={na.kind === "status" ? { to: na.to, label: na.label, hint: na.hint } : na.kind === "voucher" ? { voucher: true, label: na.label, hint: na.hint } : null} /></div>
         </div>
       </div>
 
@@ -270,7 +273,7 @@ export function OrderView({ o, draft, erp, canWrite, canRefund, pay }: { o: Orde
             </Card>
           )}
 
-          <Card title="SoftOne" icon={FileText} data-help="order.erp" right={<ErpBadge status={o.erpSync?.status ?? null} />}>
+          <Card id="softone" title="SoftOne" icon={FileText} data-help="order.erp" right={<ErpBadge status={o.erpSync?.status ?? null} />}>
             <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)]">{o.erpSync ? ERP_STATUS[o.erpSync.status]?.help ?? "" : "Δεν δημιουργήθηκε παραστατικό για αυτή την παραγγελία."}</p>
             {stage && (
               <div className="rounded-lg bg-eu-chip/60 border border-eu-blue/15 px-3 py-2 grid gap-1">
@@ -289,10 +292,10 @@ export function OrderView({ o, draft, erp, canWrite, canRefund, pay }: { o: Orde
               {erp && erp.needs.length > 0 && <div className="grid gap-1 rounded-lg bg-eu-amber/10 border border-eu-amber/30 px-3 py-2 text-[length:var(--fs-12)]"><span className="font-bold text-eu-ink">Λείπουν για να σταλεί ({erp.needs.length})</span><ul className="m-0 pl-4 grid gap-0.5 text-eu-ink-2">{erp.needs.map((x) => <li key={x}>{x}</li>)}</ul></div>}
               {erp && erp.needs.length === 0 && <p className="m-0 inline-flex items-center gap-1 text-eu-green font-bold text-[length:var(--fs-12)]"><Check className="size-3.5" aria-hidden /> Το παραστατικό είναι πλήρες</p>}
               {erp?.warnings.map((x) => <p key={x} className="m-0 text-eu-ink-3 text-[length:var(--fs-12)]">{x}</p>)}
-              {erp && erp.needs.length === 0 && canWrite && ["preview", "awaiting-payment", "failed"].includes(o.erpSync.status) && (
-                <div className="grid gap-1.5">
-                  <ErpCheck orderId={o.id} />
-                  {erp.canSend && o.erpSync.status !== "awaiting-payment" && <ErpSend orderId={o.id} number={o.number} total={eur(Number(o.total))} />}
+              {erpUnsent && (
+                <div data-help="order.erp.send" className="grid gap-1.5">
+                  {erp.needs.length === 0 && <ErpCheck orderId={o.id} />}
+                  <ErpSend orderId={o.id} number={o.number} total={eur(Number(o.total))} blocked={erpBlock} />
                 </div>
               )}
               {o.erpSync.payload ? <Link href={`/admin/prosfores/anafores/paraggelia/${o.id}`} className="text-eu-blue font-bold text-[length:var(--fs-12)] hover:underline print:hidden">Προσχέδιο παραστατικού →</Link> : null}

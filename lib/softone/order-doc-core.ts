@@ -12,6 +12,7 @@
  * - ITELINES.PRICE ΧΩΡΙΣ ΦΠΑ (το SoftOne προσθέτει τον ΦΠΑ του είδους)· το στρογγύλεμα κλείνει με DISC1VAL κεφαλίδας
  * Εκπτώσεις γραμμής (επίσης χωρίς ΦΠΑ): DISC1VAL προσφορά τιμής / δώρο, DISC2VAL κουπόνι, DISC3VAL τρόπος πληρωμής.
  */
+import { floorLabel } from "@/lib/orders/model";
 
 /** Η σειρά όπου πέφτουν οι παραγγελίες του σημερινού eshop. Ισχύει όταν η ρύθμιση είναι κενή. */
 export const DEFAULT_SERIES = "7005";
@@ -42,9 +43,15 @@ const PAY_STATE: Record<string, string> = { paid: "ΕΞΟΦΛΗΜΕΝΗ", pendin
 export interface SaldocSettings {
   series: string | null;
   retailTrdr: string | null;
-  /** είδος (MTRL) για τα μεταφορικά / έξοδα αντικαταβολής */
-  shippingMtrl: string | null;
 }
+
+/**
+ * Μεταφορικά και χρέωση αντικαταβολής: η επιβάρυνση παραστατικού «2 Μεταφορικά» του SoftOne (πίνακας EXPN: ΦΠΑ 24 %,
+ * λογαριασμός εσόδων 75.00.99.0024), όπως στα τιμολόγια πώλησης (σειρές 7291 / 7301). Δεν είναι είδος: πάει στο EXPANAL,
+ * όχι στις γραμμές. Ελεγμένο με calculate 24/11/2026: ο ΦΠΑ βγαίνει στη βάση του 24 % μαζί με τις γραμμές, η έκπτωση
+ * κεφαλίδας δεν την αγγίζει, και η παραγγελία EUR-20261124-5199 (49,00 + 3,90) έδωσε ακριβώς 52,90 €.
+ */
+export const S1_SHIPPING_EXPN = 2;
 
 export interface SaldocLine {
   erpCode: string | null; title: string; qty: number;
@@ -102,7 +109,7 @@ export interface SaldocOrder {
 
 export interface SaldocDoc {
   OBJECT: "SALDOC";
-  data: { SALDOC: Record<string, unknown>[]; MTRDOC: Record<string, unknown>[]; ITELINES: Record<string, unknown>[] };
+  data: { SALDOC: Record<string, unknown>[]; MTRDOC: Record<string, unknown>[]; ITELINES: Record<string, unknown>[]; /** επιβαρύνσεις (μεταφορικά) — λείπει όταν δεν υπάρχουν */ EXPANAL?: Record<string, unknown>[] };
   /** τι λείπει για να σταλεί (κενό = έτοιμο) */
   needs: string[];
   /** δεν εμποδίζουν την αποστολή (π.χ. διαφορά 1 λεπτού από στρογγύλεμα ΦΠΑ) */
@@ -120,12 +127,16 @@ const floor2 = (n: number) => Math.floor(r2(n * 100) + 1e-9) / 100;
 
 interface NetLine { rate: number; net: number }
 
-/** Σύνολα όπως τα βγάζει το SoftOne: καθαρή αξία ανά συντελεστή ΦΠΑ, ΦΠΑ στο σύνολο του συντελεστή. Η έκπτωση κεφαλίδας στον μεγαλύτερο. */
-export function softoneTotals(lines: NetLine[], headerDisc = 0) {
+/**
+ * Σύνολα όπως τα βγάζει το SoftOne: καθαρή αξία ανά συντελεστή ΦΠΑ, ΦΠΑ στο σύνολο του συντελεστή. Η έκπτωση κεφαλίδας στον
+ * μεγαλύτερο συντελεστή των γραμμών· οι επιβαρύνσεις (`charges`, π.χ. μεταφορικά) μπαίνουν στη βάση του ΦΠΑ τους χωρίς έκπτωση.
+ */
+export function softoneTotals(lines: NetLine[], headerDisc = 0, charges: NetLine[] = []) {
   const by = new Map<number, number>();
   for (const l of lines) by.set(l.rate, r2((by.get(l.rate) ?? 0) + l.net));
   const main = [...by.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
   if (main != null && headerDisc) by.set(main, r2(by.get(main)! - headerDisc));
+  for (const c of charges) by.set(c.rate, r2((by.get(c.rate) ?? 0) + c.net));
   let net = 0, vat = 0;
   for (const [rate, n] of by) { net = r2(net + n); vat = r2(vat + r2((n * rate) / 100)); }
   return { net, vat, gross: r2(net + vat) };
@@ -180,23 +191,23 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
       ...(l.promo ? { COMMENTS: cut(l.promo, 255) } : {}), ...(l.terms ? { COMMENTS1: cut(l.terms, 2000) } : {}),
     };
   });
+  const expanal: Record<string, unknown>[] = [], charges: NetLine[] = [];
   if (o.shippingFee > 0) {
-    if (!s.shippingMtrl?.trim()) needs.push("Είδος SoftOne για τα μεταφορικά (Ρυθμίσεις → SoftOne → Είδος μεταφορικών)");
     const price = ceil2(netOf(o.shippingFee, 24));
-    nets.push({ rate: 24, net: price });
-    itelines.push({ MTRL: s.shippingMtrl?.trim() ? Number(s.shippingMtrl) : null, QTY1: 1, PRICE: price, COMMENTS: cut(`Μεταφορικά${o.carrierName ? ` ${o.carrierName}` : ""}${o.payment === "cod" ? " · αντικαταβολή" : ""}`, 255) });
+    charges.push({ rate: 24, net: price });
+    expanal.push({ EXPN: S1_SHIPPING_EXPN, EXPVAL: price });
   }
 
   // στρογγύλεμα: η μικρότερη έκπτωση κεφαλίδας (χωρίς ΦΠΑ) που δίνει ακριβώς το σύνολο της παραγγελίας. Με δύο δεκαδικά
   // κάποια σύνολα δεν «πετυχαίνονται» ακριβώς (ο ΦΠΑ στρογγυλεύει) — τότε το πλησιέστερο, και το σύνολο δίνεται ρητά.
   const expected = r2(o.total);
   const warnings: string[] = [];
-  let rounding = 0, forceTotal = false, t = softoneTotals(nets);
+  let rounding = 0, forceTotal = false, t = softoneTotals(nets, 0, charges);
   if (t.gross !== expected) {
     const guess = Math.max(0, Math.round(((t.gross - expected) / 1.24) * 100));
     let best = { c: 0, t, d: Math.abs(t.gross - expected) };
     for (let c = Math.max(1, guess - 6); c <= guess + 8; c++) {
-      const tt = softoneTotals(nets, c / 100), dd = Math.abs(r2(tt.gross - expected));
+      const tt = softoneTotals(nets, c / 100, charges), dd = Math.abs(r2(tt.gross - expected));
       if (dd < best.d - 1e-9) best = { c, t: tt, d: dd };
       if (dd === 0) break;
     }
@@ -217,7 +228,7 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
   const afm = (o.invoice?.vatNumber ?? "").replace(/\D/g, "").slice(0, 30);
   const phone = cut(o.contact.phone ?? "", 30);
   const a = o.address;
-  const street = cut([a.street, a.number].filter(Boolean).join(" ") + (a.floor ? `, ${a.floor}ος όροφος` : ""), 255);
+  const street = cut([a.street, a.number].filter(Boolean).join(" ") + (floorLabel(a.floor) ? `, ${floorLabel(a.floor)}` : ""), 255);
   let ship: { addr: string; zip: string; city: string; district: string; line: string };
   if (o.fulfilment === "click-collect" && o.store) {
     ship = { addr: cut(o.store.address ?? o.store.name, 255), zip: o.store.zip ?? "", city: o.store.city ?? "", district: "", line: cut(`Παραλαβή από κατάστημα ${o.store.name}${o.store.address ? `, ${o.store.address}` : ""}${o.store.city ? `, ${o.store.city}` : ""}`, 255) };
@@ -245,7 +256,7 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
     `${o.fulfilment === "click-collect" ? "Παραλαμβάνει" : "Παραλήπτης"}: ${[name, phone ? `τηλ. ${phone}` : null].filter(Boolean).join(", ") || "—"}`,
     `${o.fulfilment === "click-collect" ? "Σημείο" : "Παράδοση"}: ${[ship.line, o.fulfilment !== "click-collect" && !o.locker ? ship.district : null].filter(Boolean).join(", ") || "—"}`,
     o.slots?.length ? `Ώρες που βολεύουν τον πελάτη για τηλέφωνο: ${o.slots.join(", ")}` : null,
-    o.fulfilment === "click-collect" ? null : (o.shippingFee > 0 ? `Μεταφορικά${cod ? " και χρέωση αντικαταβολής" : ""}: ${eur(o.shippingFee)} (ξεχωριστή γραμμή στο παραστατικό)` : "Μεταφορικά: δωρεάν"),
+    o.fulfilment === "click-collect" ? null : (o.shippingFee > 0 ? `Μεταφορικά${cod ? " και χρέωση αντικαταβολής" : ""}: ${eur(o.shippingFee)} (επιβάρυνση «Μεταφορικά» στο παραστατικό)` : "Μεταφορικά: δωρεάν"),
     "",
     "ΠΕΛΑΤΗΣ",
     o.email ? `Email: ${o.email}` : null,
@@ -279,6 +290,7 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
         ...(o.invoice?.doy ? { CCCSHPIRSDATA: cut(o.invoice.doy, 64) } : {}),
       }],
       ITELINES: itelines,
+      ...(expanal.length ? { EXPANAL: expanal } : {}),
     },
     needs: [...new Set(needs)],
     warnings,

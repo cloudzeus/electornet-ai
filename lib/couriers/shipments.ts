@@ -1,4 +1,5 @@
 import "server-only";
+import { floorLabel } from "@/lib/orders/model";
 import { db } from "@/lib/db";
 import { shippingLimits } from "@/lib/shipping/bulky-server";
 import { PDFDocument } from "pdf-lib";
@@ -89,7 +90,7 @@ export async function createShipment(orderId: string, input: { weightKg: number;
       // ο LastMily θέλει οδό / αριθμό χωριστά (για τις συντεταγμένες) — από τη διεύθυνση της παραγγελίας
       const o = await db.order.findUnique({ where: { id: orderId }, select: { shipping: true } });
       const s = (o?.shipping ?? {}) as ShipTo & { notes?: string };
-      const notes = [s.floor ? `${s.floor}ος όροφος` : "", input.comments ?? "", s.notes ?? ""].filter((x) => x.trim()).join(" · ");
+      const notes = [floorLabel(s.floor), input.comments ?? "", s.notes ?? ""].filter((x) => x.trim()).join(" · ");
       const v = await asapCreateShipment(c, {
         order: d.number, pieces, weightKg, cod: d.cod,
         recipient: { name: d.name, phone: d.phone, street: s.street ?? d.address, number: s.number ?? null, zip: d.zip, city: d.city, notes },
