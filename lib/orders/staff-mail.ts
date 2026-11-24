@@ -67,7 +67,7 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
   // το παραστατικό όπως θα πάει (ή πήγε) στο SoftOne: πελάτης, ό,τι λείπει, παρατηρήσεις — και η πορεία του αν έχει σταλεί
   const doc = await import("@/lib/softone/order-doc").then((m) => m.saldocForOrder(orderId)).catch(() => null);
   const head = (doc?.data.SALDOC[0] ?? {}) as { TRDR?: number | null; SERIES?: number; REMARKS?: string };
-  const erpCustomer = head.TRDR ? await trdrLabel(String(head.TRDR), o.customer?.erpTrdr === String(head.TRDR) ? o.customer.erpCode : null) : "Δεν έχει καρτέλα στο SoftOne ακόμη (τιμολόγιο σε νέο ΑΦΜ)";
+  const erpCustomer = head.TRDR ? await trdrLabel(String(head.TRDR), o.customer?.erpTrdr === String(head.TRDR) ? o.customer.erpCode : null) : "Νέος ΑΦΜ: η καρτέλα πελάτη ανοίγει αυτόματα στο SoftOne με την αποστολή του παραστατικού";
   const chain = o.erpSync?.erpDocId ? await import("@/lib/softone/order-chain").then((m) => m.orderChain(orderId)).catch(() => null) : null;
   const docs = chain?.ok
     ? chain.nodes.map((x) => ({ no: x.fincode || `FINDOC ${x.findoc}`, type: x.typeName ?? x.seriesName ?? `σειρά ${x.series}`, date: dmy(x.date), total: x.total }))

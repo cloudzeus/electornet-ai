@@ -74,12 +74,22 @@ test("παρατηρήσεις: πλήρης ανάλυση πληρωμής κ�
   assert.ok(rm({ address: { ...base.address, notes: "ν".repeat(5000) } }).length <= 2000);
 });
 
-test("τιμολόγιο: καρτέλα του πελάτη· χωρίς καρτέλα → λείπει (όχι λιανική)", () => {
-  const inv = { ...base, invoice: { vatNumber: "123456789", doy: "Α΄ Αθηνών", company: "ΑΒΓ ΑΕ" } };
-  assert.equal(composeSaldoc({ ...inv, invoiceTrdr: "3405" }, S).data.SALDOC[0].TRDR, 3405);
+test("τιμολόγιο: καρτέλα του πελάτη· χωρίς καρτέλα → ανοίγει στην αποστολή, δεν μπλοκάρει (και ποτέ λιανική)", () => {
+  const inv = { ...base, invoice: { vatNumber: "EL 123456789", doy: "Α΄ Αθηνών", company: "ΑΒΓ ΑΕ", activity: "Εμπόριο" } };
+  const linked = composeSaldoc({ ...inv, invoiceTrdr: "3405" }, S);
+  assert.equal(linked.data.SALDOC[0].TRDR, 3405);
+  assert.equal(linked.newCustomer, undefined);
   const d = composeSaldoc(inv, S);
   assert.equal(d.data.SALDOC[0].TRDR, null);
-  assert.ok(d.needs.some((n) => n.includes("123456789")));
+  assert.deepEqual(d.needs, []);
+  assert.deepEqual({ afm: d.newCustomer?.afm, name: d.newCustomer?.name, doy: d.newCustomer?.doy, activity: d.newCustomer?.activity, order: d.newCustomer?.order }, { afm: "123456789", name: "ΑΒΓ ΑΕ", doy: "Α΄ Αθηνών", activity: "Εμπόριο", order: base.number });
+  assert.ok(d.warnings.some((w) => w.includes("123456789")));
+  // χωρίς επωνυμία ή με ΑΦΜ που δεν είναι 9 ψηφία δεν ανοίγει καρτέλα στα τυφλά: μένει «λείπει»
+  for (const bad of [{ vatNumber: "123456789" }, { vatNumber: "DE123", company: "ACME GmbH" }]) {
+    const b = composeSaldoc({ ...base, invoice: bad }, S);
+    assert.equal(b.newCustomer, undefined);
+    assert.equal(b.needs.length, 1);
+  }
   assert.equal(d.data.MTRDOC[0].CCCSHPIRSDATA, "Α΄ Αθηνών");
 });
 

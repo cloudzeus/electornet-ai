@@ -3,7 +3,8 @@ import type { Address, Customer } from "@prisma/client";
 import { db } from "@/lib/db";
 import { s1, getS1Config } from "@/lib/softone";
 import { getSetting } from "@/lib/settings/store";
-import { erpCodes, mapCustomer } from "./customer-map";
+import { erpCodes, mapCustomer, resolveDoy } from "./customer-map";
+import type { NewErpCustomer } from "./order-doc-core";
 
 /**
  * SoftOne CUSTOMER (table TRDR) ⇄ shop Customer.
@@ -182,3 +183,66 @@ export async function erpPreflight(customerId: string) {
   const row: Record<string, string> = { ...toErpCustomer(c, main, d), ...m.fields, ...(c.erpTrdr ? {} : m.commercial) };
   return { linked: !!c.erpTrdr, row, commercial: m.commercial, issues: m.issues, lastError: c.erpLastError };
 }
+
+/** Η κατηγορία των πελατών τιμολογίου του eshop στο SoftOne (267 καρτέλες, ανάγνωση 24/11/2026). Ισχύει όταν η ρύθμιση είναι κενή. */
+const ESHOP_TRDCATEGORY = "8";
+
+/**
+ * Η καρτέλα πελάτη (TRDR) με αυτόν τον ΑΦΜ στο SoftOne, ή null. Πετά σφάλμα όταν δεν μπόρεσε να ελεγχθεί — ο καλών ΔΕΝ
+ * πρέπει τότε να ανοίξει νέα καρτέλα στα τυφλά. Με πολλές καρτέλες στον ίδιο ΑΦΜ: πρώτα η κατηγορία ESHOP (8), μετά η παλαιότερη.
+ */
+export async function findErpCustomerByAfm(afm: string): Promise<string | null> {
+  if (!/^\d{9}$/.test(afm)) return null; // μόνο ψηφία μπαίνουν στο φίλτρο (κείμενο SQL χωρίς παραμέτρους)
+  const { getTable } = await import("./lookups");
+  const rows = await getTable("TRDR", ["TRDR", "TRDCATEGORY"], `SODTYPE=13 AND AFM='${afm}'`);
+  return rows.sort((a, b) => Number(b[1] === ESHOP_TRDCATEGORY) - Number(a[1] === ESHOP_TRDCATEGORY) || Number(a[0]) - Number(b[0]))[0]?.[0] || null;
+}
+
+/**
+ * Νέα καρτέλα πελάτη τιμολογίου στο SoftOne για παραγγελία του eshop (ο αγοραστής μπορεί να είναι επισκέπτης, χωρίς
+ * λογαριασμό). Ίδια μορφή με τις καρτέλες που ανοίγει σήμερα το προσωπικό με το χέρι: κατηγορία ESHOP, Ελλάδα / EUR,
+ * κανονικό καθεστώς ΦΠΑ, Δ.Ο.Υ. ως ΟΝΟΜΑ (το TRDR.IRSDATA κρατά κείμενο: 572 καρτέλες με όνομα, μόνο οι 7 που έστειλε
+ * παλιότερα το site με κωδικό έχουν αριθμό). Κωδικός = πρόθεμα ρυθμίσεων (WEB) + ΑΦΜ: μοναδικός ανά ΑΦΜ, δεν συγκρούεται με
+ * την αρίθμηση του προσωπικού. Έδρα από το μητρώο ΑΑΔΕ όταν απαντά. Διαβάζεται πίσω: `success:true` ≠ αποθηκεύτηκε.
+ * Καλείται μόνο από την αποστολή παραγγελίας· δεύτερη δικλείδα το S1_ORDER_WRITE, όπως στο παραστατικό.
+ */
+export async function createInvoiceCustomer(c: NewErpCustomer): Promise<{ ok: true; trdr: string; code: string } | { ok: false; error: string }> {
+  if (process.env.S1_ORDER_WRITE !== "1") return { ok: false, error: "οι εγγραφές παραγγελιών στο SoftOne είναι κλειστές σε αυτόν τον διακομιστή" };
+  try {
+    const row = await invoiceCustomerRow(c);
+    const res = await s1("setData", { OBJECT: "CUSTOMER", KEY: "", data: { CUSTOMER: [row] } });
+    if (!res?.success) throw new Error(res?.error ?? `setData errorcode ${res?.errorcode}`);
+    const trdr = String(res.id ?? "") || (await findErpCustomerByAfm(c.afm)) || "";
+    if (!trdr) throw new Error("το SoftOne απάντησε «επιτυχία» αλλά η καρτέλα δεν βρίσκεται");
+    const back = await s1("getData", { object: "CUSTOMER", key: trdr, locateinfo: "CUSTOMER:CODE,NAME,AFM" });
+    const saved = (back?.data?.CUSTOMER?.[0] ?? {}) as Record<string, string>;
+    if (String(saved.AFM ?? "").replace(/\D/g, "") !== c.afm) throw new Error(`η καρτέλα ${trdr} δεν διαβάζεται πίσω με ΑΦΜ ${c.afm} — έλεγξέ τη στο ERP`);
+    return { ok: true, trdr, code: saved.CODE || row.CODE };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "αποτυχία" };
+  }
+}
+
+/** Η γραμμή CUSTOMER της νέας καρτέλας. Χωρίς καμία κλήση στο SoftOne (μόνο το μητρώο ΑΑΔΕ για την έδρα). */
+export async function invoiceCustomerRow(c: NewErpCustomer): Promise<Record<string, string>> {
+  const d = await defaults(), codes = await erpCodes();
+  const doy = resolveDoy(c.doy, codes.L);
+  const seat = await import("@/lib/aade/vat").then((m) => m.lookupAfm(c.afm)).then((r) => (r.ok ? r.company : null)).catch(() => null);
+  const zip = seat?.zip?.replace(/\D/g, "") ?? "";
+  const district = zip ? codes.L.zips.get(zip) ?? null : null;
+  const row: Record<string, string> = {
+    CODE: `${d.prefix}${c.afm}`,
+    // « ? » στη θέση παύλας: έτσι έρχονται κάποιες επωνυμίες από το μητρώο
+    NAME: c.name.replace(/\s\?\s/g, " - ").slice(0, 128), AFM: c.afm, ISACTIVE: "1", ISPROSP: "0",
+    COUNTRY: d.country || codes.country, SOCURRENCY: d.currency || codes.currency, VATSTS: d.vatSts, TRDCATEGORY: d.trdCategory || ESHOP_TRDCATEGORY,
+    ...(d.payment ? { PAYMENT: d.payment } : {}),
+    ...(c.doy ? { IRSDATA: (doy && "id" in doy ? doy.name : c.doy.toLocaleUpperCase("el-GR")).slice(0, 64) } : {}),
+    ...(c.activity ? { JOBTYPETRD: c.activity.slice(0, 128) } : {}),
+    ...(c.phone ? { PHONE01: c.phone.slice(0, 20) } : {}),
+    ...(c.email ? { EMAIL: c.email.slice(0, 128) } : {}),
+    ...(seat?.address ? { ADDRESS: seat.address.replace(/\s+/g, " ").trim().slice(0, 100) } : {}), ...(zip ? { ZIP: zip } : {}), ...(seat?.city ? { CITY: seat.city.slice(0, 30) } : {}), ...(district ? { DISTRICT: district } : {}),
+    REMARKS: `e-shop: τιμολόγιο παραγγελίας ${c.order}`,
+  };
+  return row;
+}
+

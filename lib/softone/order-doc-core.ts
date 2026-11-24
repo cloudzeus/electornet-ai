@@ -97,7 +97,7 @@ export interface SaldocOrder {
   slots?: string[] | null;
   locker?: { name?: string; address?: string; zip?: string } | null;
   store?: { name: string; address?: string | null; zip?: string | null; city?: string | null } | null;
-  invoice?: { vatNumber?: string; doy?: string; company?: string } | null;
+  invoice?: { vatNumber?: string; doy?: string; company?: string; activity?: string } | null;
   /** η καρτέλα CUSTOMER του πελάτη τιμολογίου, αν υπάρχει ήδη στο SoftOne */
   invoiceTrdr?: string | null;
   lines: SaldocLine[];
@@ -107,11 +107,16 @@ export interface SaldocOrder {
   total: number;
 }
 
+/** Καρτέλα πελάτη τιμολογίου προς δημιουργία στο SoftOne. `afm` = 9 ψηφία. */
+export interface NewErpCustomer { afm: string; name: string; doy: string | null; activity: string | null; phone: string | null; email: string | null; order: string }
+
 export interface SaldocDoc {
   OBJECT: "SALDOC";
   data: { SALDOC: Record<string, unknown>[]; MTRDOC: Record<string, unknown>[]; ITELINES: Record<string, unknown>[]; /** επιβαρύνσεις (μεταφορικά) — λείπει όταν δεν υπάρχουν */ EXPANAL?: Record<string, unknown>[] };
   /** τι λείπει για να σταλεί (κενό = έτοιμο) */
   needs: string[];
+  /** τιμολόγιο σε ΑΦΜ χωρίς γνωστή καρτέλα: τα στοιχεία της καρτέλας πελάτη που ανοίγει η αποστολή στο SoftOne (TRDR κενό ως τότε) */
+  newCustomer?: NewErpCustomer | null;
   /** δεν εμποδίζουν την αποστολή (π.χ. διαφορά 1 λεπτού από στρογγύλεμα ΦΠΑ) */
   warnings: string[];
   /** πώς βγαίνει το σύνολο στο SoftOne με αυτές τις τιμές (υπολογισμός εδώ· η τελική επιβεβαίωση με calculate) */
@@ -163,14 +168,20 @@ export function orderDocFilter(number: string, series: string | null | undefined
 }
 
 export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
-  const needs: string[] = [];
+  const needs: string[] = [], warnings: string[] = [];
   const series = s.series?.trim() || DEFAULT_SERIES;
 
-  // πελάτης: απόδειξη → πελάτης λιανικής· τιμολόγιο → η καρτέλα του πελάτη (ΑΦΜ)
-  let trdr: string | null;
+  // πελάτης: απόδειξη → πελάτης λιανικής· τιμολόγιο → η καρτέλα του πελάτη (ΑΦΜ). ΑΦΜ χωρίς καρτέλα ΔΕΝ εμποδίζει την
+  // αποστολή: η αποστολή ψάχνει τον ΑΦΜ στο SoftOne και, αν δεν υπάρχει, ανοίγει την καρτέλα (`newCustomer`) πριν το παραστατικό
+  let trdr: string | null, newCustomer: NewErpCustomer | null = null;
   if (o.invoice?.vatNumber) {
     trdr = o.invoiceTrdr ?? null;
-    if (!trdr) needs.push(`Καρτέλα πελάτη τιμολογίου στο SoftOne για ΑΦΜ ${o.invoice.vatNumber} (δημιουργείται πριν την αποστολή)`);
+    const vat = o.invoice.vatNumber.replace(/\D/g, ""), company = cut(o.invoice.company ?? "", 128);
+    if (trdr) { /* υπάρχει καρτέλα */ }
+    else if (/^\d{9}$/.test(vat) && company) {
+      newCustomer = { afm: vat, name: company, doy: o.invoice.doy?.trim() || null, activity: o.invoice.activity?.trim() || null, phone: o.contact.phone?.trim() || null, email: o.email, order: o.number };
+      warnings.push(`Ο ΑΦΜ ${vat} δεν έχει ακόμη καρτέλα πελάτη: με την αποστολή ψάχνεται στο SoftOne και, αν δεν υπάρχει, η καρτέλα ανοίγει αυτόματα πριν από το παραστατικό.`);
+    } else needs.push(`Επωνυμία και ελληνικός ΑΦΜ 9 ψηφίων για το τιμολόγιο (ΑΦΜ ${o.invoice.vatNumber}): χωρίς αυτά δεν ανοίγει αυτόματα καρτέλα πελάτη στο SoftOne`);
   } else {
     trdr = s.retailTrdr?.trim() || DEFAULT_RETAIL_TRDR;
   }
@@ -205,7 +216,6 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
   // στρογγύλεμα: η μικρότερη έκπτωση κεφαλίδας (χωρίς ΦΠΑ) που δίνει ακριβώς το σύνολο της παραγγελίας. Με δύο δεκαδικά
   // κάποια σύνολα δεν «πετυχαίνονται» ακριβώς (ο ΦΠΑ στρογγυλεύει) — τότε το πλησιέστερο, και το σύνολο δίνεται ρητά.
   const expected = r2(o.total);
-  const warnings: string[] = [];
   let rounding = 0, forceTotal = false, t = softoneTotals(nets, 0, charges);
   if (t.gross !== expected) {
     const guess = Math.max(0, Math.round(((t.gross - expected) / 1.24) * 100));
@@ -297,6 +307,7 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
       ...(expanal.length ? { EXPANAL: expanal } : {}),
     },
     needs: [...new Set(needs)],
+    ...(newCustomer ? { newCustomer } : {}),
     warnings,
     totals: { expected, net: t.net, vat: t.vat, gross: t.gross, rounding },
   };
