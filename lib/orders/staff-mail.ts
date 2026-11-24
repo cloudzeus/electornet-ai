@@ -15,9 +15,10 @@ import { ERP_STATUS, FULFILMENT, PAYMENT_STATUS, statusLabel } from "./model";
  * Πλήρης ανάλυση κάθε παραγγελίας στο προσωπικό, χτισμένη από ό,τι ισχύει στη βάση τη στιγμή της αποστολής. Φεύγει:
  * νέα παραγγελία (ή μόλις πληρωθεί, για κάρτα/Klarna) · έκδοση voucher · καταχώρηση στο SoftOne · νέο παραστατικό στην
  * πορεία της. Κάθε μήνυμα είναι ολόκληρο (όχι «τι άλλαξε»), ώστε το τελευταίο να αρκεί για τη διαχείριση.
- * Παραλήπτης: eshop@euronics.gr (εντολή χρήστη 23/11/2026· πριν info@)· `ORDER_STAFF_EMAIL` στο περιβάλλον τον αλλάζει, κενό = καμία αποστολή (π.χ. τοπικές δοκιμές).
+ * Παραλήπτες: eshop@euronics.gr (εντολή χρήστη 23/11/2026· πριν info@) και, από 24/11/2026, αντίγραφο στο gkozyris@i4ria.com
+ * για έλεγχο προβλημάτων. `ORDER_STAFF_EMAIL` στο περιβάλλον τους αλλάζει (λίστα με κόμμα), κενό = καμία αποστολή (π.χ. τοπικές δοκιμές).
  */
-const staffTo = () => (process.env.ORDER_STAFF_EMAIL ?? "eshop@euronics.gr").trim();
+const staffTo = () => (process.env.ORDER_STAFF_EMAIL ?? "eshop@euronics.gr,gkozyris@i4ria.com").split(",").map((s) => s.trim()).filter(Boolean);
 
 const SHIP_STATUS: Record<string, string> = { created: "Εκδόθηκε", closed: "Παραδόθηκε στον courier", "in-transit": "Σε μεταφορά", "out-for-delivery": "Σε διανομή", attempted: "Απόπειρα παράδοσης", "on-hold": "Σε αναμονή", returning: "Επιστρέφει", returned: "Επιστράφηκε", delivered: "Παραδόθηκε", cancelled: "Ακυρώθηκε" };
 const dmy = (d: string) => (d ? d.slice(0, 10).split("-").reverse().join("/") : "");
@@ -155,8 +156,10 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
 
 export async function sendStaffOrderMail(orderId: string, event: StaffEvent) {
   const to = staffTo();
-  if (!to) return;
+  if (!to.length) return;
   const d = await staffOrderData(orderId, event);
   if (!d) return;
-  await sendMail({ to, template: "staff-order", meta: { orderId, event }, ...renderStaffOrder(d, await emailCtx()) });
+  const mail = renderStaffOrder(d, await emailCtx());
+  // ξεχωριστό μήνυμα ανά παραλήπτη: ξεχωριστή γραμμή στο ιστορικό email, και η αποτυχία του ενός δεν κόβει τον άλλον
+  for (const t of to) await sendMail({ to: t, template: "staff-order", meta: { orderId, event }, ...mail });
 }
