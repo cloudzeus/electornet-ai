@@ -1,14 +1,25 @@
 import Link from "next/link";
 import Image from "@/components/ui/Image";
+import { headers } from "next/headers";
 import { getSettings } from "@/lib/cms/settings-server";
+import ShopLayout from "./(shop)/layout";
+import ShopNotFound from "./(shop)/not-found";
 
 export const metadata = { title: "Η σελίδα δεν βρέθηκε", robots: { index: false } };
 
 /**
- * 404 για διευθύνσεις έξω από το shop (εκεί ισχύει το app/(shop)/not-found.tsx με header και αναζήτηση).
- * Ο Ερμής εδώ είναι μόνο περσόνα: μασκότ και κείμενο, χωρίς αναζήτηση ή συνομιλία. Με «Απόκρυψη του Ερμή» ουδέτερο κείμενο.
+ * 404 για διευθύνσεις που δεν ταιριάζουν σε καμία διαδρομή. Στο κατάστημα δείχνει ολόκληρο το πλαίσιο του shop
+ * (μενού, αναζήτηση, footer), ίδιο με το app/(shop)/not-found.tsx. Στην πύλη συνεργατών (synergaton.*) το μενού
+ * του καταστήματος δεν έχει θέση: εκεί μένει η λιτή σελίδα με τον Ερμή μόνο ως περσόνα.
  */
 export default async function NotFound() {
+  if (!/^synergaton\./i.test((await headers()).get("host") ?? "")) {
+    return (
+      <ShopLayout params={Promise.resolve({})}>
+        <ShopNotFound />
+      </ShopLayout>
+    );
+  }
   const { advisor } = await getSettings();
   return (
     <>
