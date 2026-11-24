@@ -81,6 +81,17 @@ export async function createVivaOrder(c: VivaConfig, i: VivaOrderInput): Promise
 export const getVivaTransaction = (c: VivaConfig, transactionId: string) =>
   api<VivaTransaction>(c, `/checkout/v2/transactions/${encodeURIComponent(transactionId)}`);
 
+/**
+ * Οι συναλλαγές ενός payment order (παλιό API της Viva, Merchant ID + API key): έτσι βρίσκουμε πληρωμή που πέρασε
+ * ενώ ο πελάτης δεν γύρισε ποτέ στο site και το webhook δεν ήρθε. Χωρίς Merchant ID / API key → κενή λίστα.
+ */
+export async function vivaOrderTransactions(c: VivaConfig, orderCode: string): Promise<{ TransactionId: string; StatusId: string }[]> {
+  if (!c.merchantId || !c.apiKey) return [];
+  const r = await fetch(`${vivaHosts(c.mode).web}/api/transactions/?ordercode=${encodeURIComponent(orderCode)}`, { cache: "no-store", signal: AbortSignal.timeout(15000), headers: { authorization: `Basic ${Buffer.from(`${c.merchantId}:${c.apiKey}`).toString("base64")}` } });
+  if (!r.ok) throw new Error(`Viva transactions: ${r.status}`);
+  return ((await r.json()) as { Transactions?: { TransactionId: string; StatusId: string }[] }).Transactions ?? [];
+}
+
 /** Το κλειδί που ζητά η Viva όταν ορίζεται το webhook URL (GET στο endpoint μας πρέπει να το επιστρέψει). */
 export async function vivaWebhookKey(c: VivaConfig): Promise<string> {
   if (!c.merchantId || !c.apiKey) throw new Error("Viva: χρειάζονται Merchant ID και API key για το webhook.");

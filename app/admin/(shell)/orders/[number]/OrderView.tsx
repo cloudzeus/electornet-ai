@@ -7,6 +7,7 @@ import { currentStage } from "@/lib/orders/erp-stages-core";
 import { ERP_STATUS, FULFILMENT, NOTIFY_ON, addressOf, nameOf, nextAction, nextStatuses, orderSteps, statusLabel, type Fulfilment, type ShipTo } from "@/lib/orders/model";
 import type { shipmentDraft } from "@/lib/couriers/shipments";
 import { payLabel } from "@/lib/account/labels";
+import { CopyValue } from "@/components/admin/settings/ui";
 import { ShipmentTracker } from "@/components/shipping/ShipmentTracker";
 import { Badge, ErpBadge, OrderStatusBadge, PaymentBadge, ReturnBadge, dateTime, eur } from "@/components/admin/orders/ui";
 import { CreateVoucher } from "../../apostoles/vouchers/VoucherControls";
@@ -36,7 +37,7 @@ const Row = ({ k, children }: { k: string; children: React.ReactNode }) => <div 
  */
 export type Draft = Awaited<ReturnType<typeof shipmentDraft>>;
 /** Η παρουσίαση της καρτέλας (χωριστά από τη φόρτωση — δοκιμάζεται και με ψεύτικα δεδομένα). */
-export function OrderView({ o, draft, erp, canWrite, canRefund }: { o: OrderDetail; draft: Draft; erp: { needs: string[]; warnings: string[]; gross: number; expected: number; canSend?: boolean } | null; canWrite: boolean; canRefund: boolean }) {
+export function OrderView({ o, draft, erp, canWrite, canRefund, pay }: { o: OrderDetail; /** απλήρωτη online παραγγελία: ο σύνδεσμος πληρωμής του πελάτη και μέχρι πότε ισχύει */ pay?: { url: string; until: string } | null; draft: Draft; erp: { needs: string[]; warnings: string[]; gross: number; expected: number; canSend?: boolean } | null; canWrite: boolean; canRefund: boolean }) {
   const s = (o.shipping ?? {}) as ShipTo;
   // πού βρίσκεται η παραγγελία στο SoftOne, σε απλά ελληνικά (τα παραστατικά τα καταγράφει η αυτόματη εργασία)
   const stage = currentStage(o.erpStages.map((x) => ({ fprms: x.fprms, at: x.docDate || x.seenAt.toISOString().slice(0, 10), notified: !!x.notifiedAt })));
@@ -148,6 +149,13 @@ export function OrderView({ o, draft, erp, canWrite, canRefund }: { o: OrderDeta
               {o.payment?.psp && <Row k="Πάροχος">{o.payment.psp}{o.payment.pspRef ? <> · <span className="font-mono text-[length:var(--fs-12)] select-all">{o.payment.pspRef}</span></> : null}</Row>}
               {o.payment && <Row k="Ενημέρωση">{dateTime(o.payment.updatedAt)}{o.payment.scaDone ? " · 3-D Secure" : ""}</Row>}
             </dl>
+            {pay && (
+              <div data-help="order.paylink" className="rounded-lg border border-eu-amber/40 bg-eu-amber/10 p-2.5 grid gap-1.5 print:hidden">
+                <span className="inline-flex items-center gap-1.5 font-bold text-eu-ink text-[length:var(--fs-13)]"><AlertTriangle className="size-4 shrink-0 text-eu-amber" aria-hidden /> Ο πελάτης δεν έχει πληρώσει</span>
+                <span className="text-eu-ink-2 text-[length:var(--fs-12)]">Δεν χρειάζεται νέα παραγγελία. Στείλε του αυτόν τον σύνδεσμο και πληρώνει την ίδια, με όποιον τρόπο θέλει. Ισχύει μέχρι {pay.until}· μετά η παραγγελία ακυρώνεται αυτόματα.</span>
+                <CopyValue label="Σύνδεσμος πληρωμής" value={pay.url} />
+              </div>
+            )}
             {canRefund && paid && <RefundForm orderId={o.id} number={o.number} total={n(o.total)} />}
           </Card>
 

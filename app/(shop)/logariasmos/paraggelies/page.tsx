@@ -39,7 +39,12 @@ export default async function OrdersPage() {
             </div>
             <div className="flex items-center gap-3 @md:flex-col @md:items-end">
               <span className="font-extrabold text-eu-ink text-[length:var(--fs-16)]">{priceLong(o.total)}</span>
-              <Link href={`/logariasmos/paraggelies/${encodeURIComponent(o.number)}`} className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-14)] px-4 min-h-10 inline-flex items-center hover:bg-eu-blue">
+              {o.pay && (
+                <Link href={o.pay.url} className="rounded-full bg-eu-amber text-eu-ink font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 inline-flex items-center hover:brightness-95 transition-[filter]">
+                  Πλήρωσε τώρα
+                </Link>
+              )}
+              <Link href={`/logariasmos/paraggelies/${encodeURIComponent(o.number)}`} className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 inline-flex items-center hover:bg-eu-blue">
                 Λεπτομέρειες
               </Link>
             </div>

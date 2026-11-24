@@ -52,6 +52,14 @@ export const JOBS: JobDef[] = [
     run: async () => (await import("@/lib/orders/erp-stages")).runErpStages(),
   },
   {
+    key: "unpaid-orders", label: "Απλήρωτες online παραγγελίες: email με σύνδεσμο πληρωμής στον πελάτη και ενημέρωση προσωπικού στα 30′, ακύρωση στις 24 ώρες", schedule: { everyMin: 5 }, group: "unpaid-orders", maxMin: 5,
+    run: async () => {
+      const m = await import("@/lib/payments/order-payment");
+      const r = await m.remindUnpaidOnline(), c = await m.cancelUnpaidOnline(24);
+      return { ok: true, message: `${r.sent} υπενθυμίσεις · ${c.cancelled} ακυρώσεις`, idle: !r.sent && !c.cancelled };
+    },
+  },
+  {
     key: "category-ops", label: "Μετακινήσεις κατηγοριών προς SoftOne (συνέχεια μετά από διακοπή)", schedule: { everyMin: 1 }, group: "category-ops", maxMin: 6,
     run: async () => (await import("@/lib/catalog/category-ops")).runPendingOps(),
   },

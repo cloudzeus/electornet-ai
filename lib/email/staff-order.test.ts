@@ -27,3 +27,12 @@ test("email προσωπικού: χωρίς voucher το λέει, και κά�
   assert.match(renderStaffOrder({ ...S, event: "voucher" }, ctx).subject, /Εκδόθηκε voucher/);
   assert.match(renderStaffOrder({ ...S, event: "erp-doc" }, ctx).subject, /Νέο παραστατικό στο SoftOne/);
 });
+
+test("email προσωπικού: απλήρωτη παραγγελία — τίτλος «Δεν πληρώθηκε» και ο σύνδεσμος πληρωμής του πελάτη", () => {
+  const payUrl = "https://www.euronics.gr/checkout/pliromi?no=EUR-20261123-4821&k=abc";
+  const m = renderStaffOrder({ ...S, event: "unpaid", payUrl }, ctx);
+  assert.match(m.subject, /Δεν πληρώθηκε/);
+  assert.ok(m.html.includes("Σύνδεσμος πληρωμής για τον πελάτη") && m.html.includes("pliromi?no=EUR-20261123-4821&amp;k=abc"), "σύνδεσμος στο html");
+  assert.ok(m.text.includes(payUrl), "σύνδεσμος στο απλό κείμενο");
+  assert.ok(!renderStaffOrder(S, ctx).html.includes("Σύνδεσμος πληρωμής"), "πληρωμένη ή αντικαταβολή: χωρίς σύνδεσμο");
+});

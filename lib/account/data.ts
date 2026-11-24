@@ -1,4 +1,5 @@
 import "server-only";
+import { payable, paymentPagePath, payUntil } from "@/lib/payments/order-payment";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getCustomerSession } from "@/lib/account/session";
@@ -39,7 +40,7 @@ export async function accountCustomer(id: string): Promise<Customer | null> {
 const PRODUCT = { select: { slug: true, brand: { select: { name: true } }, media: { where: { kind: "image", hidden: false }, orderBy: { sortNo: "asc" as const }, take: 1, select: { url: true } } } } as const;
 /** Τα στοιχεία μιας παραγγελίας e-shop που χρειάζονται οι σελίδες (λογαριασμός, εντοπισμός) — και η τρέχουσα αποστολή. */
 const SHOP_ORDER = {
-  payment: { select: { method: true, instalments: true, status: true } },
+  payment: { select: { method: true, instalments: true, status: true, psp: true } },
   lines: { select: { id: true, title: true, qty: true, unitPrice: true, addons: { select: { price: true, service: { select: { slug: true, title: true } } } }, variant: { select: { product: PRODUCT } } } },
   shipments: { where: { status: { not: "cancelled" } }, orderBy: { createdAt: "desc" as const }, take: 1, select: { carrier: true, voucher: true, status: true, createdAt: true, deliveredAt: true, lastCheckpoint: true, liveUrl: true, eta: true } },
   // η πορεία στο SoftOne όπως την έχει καταγράψει η αυτόματη εργασία (lib/orders/erp-stages)
@@ -57,6 +58,7 @@ function toShopOrder(o: ShopOrderRow, storeName: Map<string, string>): Order {
     lines: o.lines.map((l) => ({ productId: l.variant.product.slug || l.id, title: l.title, brand: l.variant.product.brand.name, image: l.variant.product.media[0]?.url ?? null, qty: l.qty, unitPrice: n(l.unitPrice), addons: l.addons.map((a) => ({ slug: a.service.slug, title: a.service.title, price: n(a.price) })) })),
     subtotal: n(o.subtotal), shippingFee: n(o.shippingFee), total: n(o.total),
     payment: { method: o.payment?.method ?? o.paymentMethod ?? "", instalments: o.payment?.instalments ?? undefined },
+    ...(payable(o) ? { pay: { url: paymentPagePath(o.number), until: payUntil(o.createdAt) } } : {}),
     tracking: o.tracking ? { courier: carrierDef(o.courier ?? s.carrier)?.name ?? s.carrierName ?? "Courier", code: o.tracking, url: "", events: [] } : undefined,
     invoice: inv?.vatNumber ? { vat: inv.vatNumber, company: inv.company ?? "", doy: inv.doy ?? "" } : undefined,
     ...erpProgress(o.erpStages),

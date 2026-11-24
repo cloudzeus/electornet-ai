@@ -6,12 +6,14 @@ import { BRAND, FONT, esc, money, renderEmail, h1, h2, note, button, kv, totals,
  * παραστατικά και κωδικός πελάτη στο SoftOne. Καθαρή σύνθεση· τα στοιχεία τα μαζεύει το lib/orders/staff-mail.ts.
  * Όλες οι τιμές είναι κείμενο από τη βάση (και από τον πελάτη): περνούν ΠΑΝΤΑ από esc πριν μπουν στο HTML.
  */
-export type StaffEvent = "new" | "voucher" | "erp" | "erp-doc";
-const EVENT: Record<StaffEvent, string> = { new: "Νέα παραγγελία", voucher: "Εκδόθηκε voucher", erp: "Καταχωρήθηκε στο SoftOne", "erp-doc": "Νέο παραστατικό στο SoftOne" };
+export type StaffEvent = "new" | "voucher" | "erp" | "erp-doc" | "unpaid";
+const EVENT: Record<StaffEvent, string> = { new: "Νέα παραγγελία", voucher: "Εκδόθηκε voucher", erp: "Καταχωρήθηκε στο SoftOne", "erp-doc": "Νέο παραστατικό στο SoftOne", unpaid: "Δεν πληρώθηκε" };
 
 type Rows = [string, string][];
 export interface StaffOrderData {
   event: StaffEvent; number: string; adminUrl: string;
+  /** απλήρωτη online παραγγελία: ο σύνδεσμος με τον οποίο ο πελάτης πληρώνει την ίδια παραγγελία */
+  payUrl?: string;
   /** σύντομη περίληψη για το θέμα: ποσό · αποστολή · πληρωμή */
   summary: string;
   /** τι κάνει το προσωπικό τώρα */
@@ -44,6 +46,7 @@ export function renderStaffOrder(d: StaffOrderData, ctx: EmailCtx) {
     h1(`${EVENT[d.event]} ${d.number}`),
     note(`<b>Τι κάνεις τώρα:</b> ${esc(d.next.text)}`, d.next.tone),
     button("Άνοιγμα στη διαχείριση", d.adminUrl),
+    ...(d.payUrl ? [links([["Σύνδεσμος πληρωμής για τον πελάτη (στείλ' τον με email ή μήνυμα)", d.payUrl]])] : []),
     h2("Παραγγελία"), kvs(d.order),
     h2("Πελάτης"), kvs(d.customer),
     h2("Προϊόντα"),

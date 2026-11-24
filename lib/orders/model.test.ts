@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canTransition, nextAction, nextStatuses, orderSteps, searchKind, addressOf } from "./model";
+import { canTransition, nextAction, nextStatuses, orderSteps, searchKind, addressOf, payable, payUntil } from "./model";
 
 test("nextStatuses: ανά τρόπο παράδοσης", () => {
   assert.deepEqual(nextStatuses("processing", "courier"), ["shipped", "cancelled"]);
@@ -36,4 +36,22 @@ test("searchKind / addressOf", () => {
   assert.equal(searchKind("Παπαδόπουλος"), "text");
   assert.equal(addressOf({ street: "Ερμού", number: "10", floor: "3", zip: "10563", city: "Αθήνα" }), "Ερμού 10, 3ος, 10563 Αθήνα");
   assert.match(addressOf({ locker: { name: "Σύνταγμα", zip: "10563" } }), /BOX NOW/);
+});
+
+test("payable: μόνο online παραγγελία που περιμένει ακόμη πληρωμή", () => {
+  const o = (status: string, psp: string | null, pay: string) => ({ status, payment: { psp, status: pay } });
+  assert.equal(payable(o("pending", "viva", "pending")), true); // έφυγε από τη σελίδα της Viva
+  assert.equal(payable(o("pending", "viva", "failed")), true); // η τράπεζα απέρριψε: δοκιμάζει ξανά
+  assert.equal(payable(o("pending", "klarna", "pending")), true);
+  assert.equal(payable(o("pending", "viva", "processing")), false); // IRIS που επιβεβαιώνεται: όχι δεύτερη πληρωμή
+  assert.equal(payable(o("pending", "viva", "review")), false);
+  assert.equal(payable(o("paid", "viva", "paid")), false);
+  assert.equal(payable(o("cancelled", "viva", "cancelled")), false);
+  assert.equal(payable(o("pending", null, "pending")), false); // αντικαταβολή, κατάθεση
+  assert.equal(payable({ status: "pending", payment: null }), false);
+});
+
+test("payUntil: 24 ώρες μετά την καταχώρηση, σε ώρα Ελλάδας", () => {
+  // Δευτέρα 23/11/2026 14:45 UTC = 16:45 Ελλάδας → Τρίτη 16:45
+  assert.match(payUntil(new Date("2026-11-23T14:45:00Z")), /Τρίτη.*16:45/);
 });

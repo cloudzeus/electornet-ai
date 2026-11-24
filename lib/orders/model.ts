@@ -120,3 +120,9 @@ export const LEGACY_STATUS: Record<string, { label: string; tone: Tone }> = {
   paid: { label: "Πληρωμένη", tone: "good" }, unpaid: { label: "Απλήρωτη", tone: "warn" }, cancelled: { label: "Ακυρωμένη", tone: "bad" },
   pending: { label: "Καταχωρημένη", tone: "neutral" }, phone: { label: "Τηλεφωνική", tone: "info" }, issued: { label: "Εκδόθηκε", tone: "neutral" },
 };
+
+/** Online παραγγελία (Viva / Klarna) που περιμένει ακόμη πληρωμή: ούτε πληρωμένη, ούτε υπό επιβεβαίωση από την τράπεζα, ούτε ακυρωμένη. */
+export const payable = (o: { status: string; payment?: { psp: string | null; status: string } | null }) =>
+  o.status === "pending" && !!o.payment && ["viva", "klarna"].includes(o.payment.psp ?? "") && !["paid", "processing", "review"].includes(o.payment.status);
+/** Μέχρι πότε περιμένει μια απλήρωτη παραγγελία πριν ακυρωθεί (24 ώρες από την καταχώρηση), σε ώρα Ελλάδας. */
+export const payUntil = (createdAt: Date) => new Date(createdAt.getTime() + 24 * 3600_000).toLocaleString("el-GR", { weekday: "long", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/Athens" });

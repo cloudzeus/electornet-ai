@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { getPublicSettings } from "@/lib/settings/store";
 import { enabledVivaPays } from "@/lib/payments/viva-core";
 import { klarnaConfig } from "@/lib/payments/klarna";
-import { paymentPagePath, validPaymentKey } from "@/lib/payments/order-payment";
+import { paymentPagePath, payUntil, validPaymentKey } from "@/lib/payments/order-payment";
 import { priceLong } from "@/lib/format";
 import { RetryPayment } from "@/components/checkout/RetryPayment";
 
@@ -28,7 +28,7 @@ export default async function PaymentPage({ searchParams }: { searchParams: Prom
   const paid = o.payment?.status === "paid";
   const checking = !paid && (o.payment?.status === "processing" || s === "pending");
   const cancelled = o.status === "cancelled";
-  const until = new Date(o.createdAt.getTime() + 24 * 3600_000).toLocaleString("el-GR", { weekday: "long", hour: "2-digit", minute: "2-digit" });
+  const until = payUntil(o.createdAt);
   const box = "rounded-2xl border border-eu-line bg-white p-6 @md:p-8 grid gap-4";
   return (
     <div className="eu-container eu-canvas eu-gutter py-8 @md:py-12 max-w-2xl mx-auto">

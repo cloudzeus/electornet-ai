@@ -4,6 +4,7 @@ import { emailCtx, money } from "@/lib/email/layout";
 import { renderStaffOrder, type StaffEvent, type StaffOrderData } from "@/lib/email/staff-order";
 import { sendMail } from "@/lib/email/send";
 import { payLabel } from "@/lib/account/labels";
+import { payable, paymentPagePath, payUntil } from "@/lib/payments/order-payment";
 import { carrierDef } from "@/lib/shipping/carriers";
 import { S1_SERVICE_MTRL } from "@/lib/softone/order-doc-core";
 import { trackUrl } from "@/lib/couriers/timeline-model";
@@ -71,9 +72,11 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
     : o.erpStages.map((x) => ({ no: x.docNo ?? "—", type: x.fprms ? `τύπος ${x.fprms}` : "—", date: dmy(x.docDate ?? ""), total: null }));
 
   const active = o.shipments.filter((x) => x.status !== "cancelled" && x.voucher);
+  const unpaid = event === "unpaid" && payable(o);
   // τι κάνει το προσωπικό τώρα: ένα βήμα, σε απλά ελληνικά
   const next: StaffOrderData["next"] =
     o.status === "cancelled" ? { tone: "danger", text: "Η παραγγελία έχει ακυρωθεί. Μην την εκτελέσεις." }
+    : unpaid ? { tone: "warning", text: `Ο πελάτης δεν ολοκλήρωσε την πληρωμή ${money(total)}${payStatus === "failed" ? " (η τράπεζα απέρριψε τη συναλλαγή)" : " (έφυγε από τη σελίδα πληρωμής)"}. Του στείλαμε email με σύνδεσμο πληρωμής.${phone ? ` Κάλεσέ τον στο ${phone} αν θέλεις να τον βοηθήσεις:` : ""} δεν χρειάζεται νέα παραγγελία, πληρώνει την ίδια από τον σύνδεσμο πιο κάτω. Αν δεν πληρώσει μέχρι ${payUntil(o.createdAt)}, ακυρώνεται αυτόματα. Μην στείλεις τίποτα πριν πληρωθεί.` }
     : pay === "later" ? { tone: "warning", text: "Περιοχή χωρίς τιμή αποστολής: κάλεσε τον πελάτη για τα μεταφορικά και τον τρόπο πληρωμής πριν από οτιδήποτε άλλο." }
     : pay === "bank" && payStatus !== "paid" ? { tone: "warning", text: `Περίμενε την κατάθεση ${money(total)} (αιτιολογία ${o.number}). Μην στείλεις πριν επιβεβαιωθεί.` }
     : !collect && payStatus !== "paid" ? { tone: "danger", text: `Η πληρωμή δεν έχει ολοκληρωθεί (${PAYMENT_STATUS[payStatus]?.label ?? payStatus}). Μην στείλεις πριν πληρωθεί.` }
@@ -94,7 +97,7 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
 
   const base = ctx.assetUrl, enc = encodeURIComponent;
   return {
-    event, number: o.number, adminUrl: `${base}/admin/orders/${enc(o.number)}`, summary: [money(total), how, payLabel(pay)].join(" · "), next,
+    event, number: o.number, adminUrl: `${base}/admin/orders/${enc(o.number)}`, ...(unpaid ? { payUrl: `${ctx.baseUrl}${paymentPagePath(o.number)}` } : {}), summary: [money(total), how, payLabel(pay)].join(" · "), next,
     order: [["Αριθμός", o.number], ["Ημερομηνία", o.createdAt.toLocaleString("el-GR", { timeZone: "Europe/Athens", dateStyle: "short", timeStyle: "short" })], ["Κατάσταση", statusLabel(o.status)]],
     customer: [
       ["Ονοματεπώνυμο", name || "—"], ["Τηλέφωνο", phone ?? "—"], ["Email", email ?? "—"], ["Λογαριασμός", o.customer ? "Εγγεγραμμένος πελάτης" : "Αγορά ως επισκέπτης"],

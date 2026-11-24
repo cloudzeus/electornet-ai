@@ -5,9 +5,10 @@ import { db } from "@/lib/db";
 import { renderTemplate } from "@/lib/email/templates";
 import { sendMail } from "@/lib/email/send";
 import { checkoutUrl, judgeTransaction, type VivaPay, type VivaVerdict } from "./viva-core";
-import { createVivaOrder, getVivaTransaction, vivaConfig } from "./viva";
+import { createVivaOrder, getVivaTransaction, vivaConfig, vivaOrderTransactions } from "./viva";
 import { bankTransfer } from "./bank-transfer";
 import { payLabel } from "@/lib/account/labels";
+import { payable, payUntil } from "@/lib/orders/model";
 
 /**
  * Ο κύκλος ζωής μιας online πληρωμής (Viva):
@@ -16,7 +17,13 @@ import { payLabel } from "@/lib/account/labels";
  * 3. επιστροφή ή webhook → η συναλλαγή επιβεβαιώνεται ΠΑΝΤΑ από το API της Viva (κωδικός + ποσό) → πληρωμένη, ERP, email
  * 4. αποτυχία → η παραγγελία μένει εκκρεμής, με «Δοκίμασε ξανά» (ασφαλής σύνδεσμος)· μετά από 24 ώρες ακυρώνεται
  *    και οι χρήσεις προσφορών / κουπονιού επιστρέφουν.
+ * 5. ο πελάτης έφυγε από τη σελίδα της Viva χωρίς να γυρίσει → μετά από 30′ παίρνει email με τον ίδιο σύνδεσμο και
+ *    ενημερώνεται το προσωπικό· ο σύνδεσμος φαίνεται και στον λογαριασμό του, στον εντοπισμό και στη διαχείριση.
  */
+
+/** Online παραγγελία που περιμένει ακόμη πληρωμή: ούτε πληρωμένη, ούτε υπό επιβεβαίωση από την τράπεζα. */
+const UNPAID: Prisma.OrderWhereInput = { status: "pending", payment: { psp: { in: ["viva", "klarna"] }, status: { notIn: ["paid", "processing", "review"] } } };
+export { payable, payUntil };
 
 // ---------- ασφαλής σύνδεσμος της σελίδας πληρωμής ----------
 const secret = () => process.env.SETTINGS_KEY || process.env.AUTH_SECRET || "dev-only";
@@ -37,6 +44,8 @@ export async function startVivaPayment(orderId: string, pay: VivaPay): Promise<s
   const o = await db.order.findUnique({ where: { id: orderId }, select: { number: true, total: true, status: true, shipping: true, guestEmail: true, customer: { select: { email: true } }, payment: { select: { instalments: true, status: true } } } });
   if (!o) throw new Error("Η παραγγελία δεν βρέθηκε.");
   if (o.status !== "pending" || o.payment?.status === "paid") throw new Error("Η παραγγελία δεν περιμένει πληρωμή.");
+  // «Δοκίμασε ξανά»: αν η προηγούμενη προσπάθεια τελικά πέρασε στη Viva, δεν ανοίγει δεύτερη πληρωμή
+  if (await reconcileViva(orderId)) throw new Error("Η παραγγελία έχει ήδη πληρωθεί.");
   const s = (o.shipping ?? {}) as { firstName?: string; lastName?: string; email?: string; phone?: string };
   const code = await createVivaOrder(c, {
     amount: cents(o.total), number: o.number, instalments: o.payment?.instalments,
@@ -66,6 +75,19 @@ export async function settleViva(transactionId: string): Promise<{ number: strin
   if (verdict === "paid") await markPaid(pay.orderId, `${code}:${transactionId}`);
   else await db.payment.update({ where: { orderId: pay.orderId }, data: { status: verdict === "pending" ? "processing" : verdict === "mismatch" ? "review" : "failed" } });
   return { number: pay.order.number, verdict, kind: "order" };
+}
+
+/**
+ * Ρωτά τη Viva αν το τελευταίο payment order της παραγγελίας έχει ολοκληρωμένη συναλλαγή που δεν μάθαμε (ο πελάτης έκλεισε
+ * τη σελίδα πριν γυρίσει, το webhook χάθηκε) και την περνά ως πληρωμένη. true = η παραγγελία είναι πληρωμένη.
+ */
+export async function reconcileViva(orderId: string): Promise<boolean> {
+  const pay = await db.payment.findUnique({ where: { orderId }, select: { psp: true, pspRef: true, status: true } });
+  if (pay?.status === "paid") return true;
+  const c = pay?.psp === "viva" && pay.pspRef ? await vivaConfig() : null;
+  if (!c) return false;
+  const done = (await vivaOrderTransactions(c, pay!.pspRef!.split(":")[0]).catch(() => [])).find((t) => t.StatusId === "F");
+  return done ? (await settleViva(done.TransactionId)).verdict === "paid" : false;
 }
 
 /** Πληρωμένη: κατάσταση, παραστατικό προς ERP, email επιβεβαίωσης. Μόνο μία φορά (ατομικός έλεγχος). */
@@ -119,8 +141,9 @@ export async function rollbackPromos(tx: Prisma.TransactionClient, orderId: stri
  */
 export async function cancelUnpaidOnline(hours = 24) {
   const since = new Date(Date.now() - hours * 3600_000);
-  const due = await db.order.findMany({ where: { status: "pending", createdAt: { lt: since }, payment: { psp: { in: ["viva", "klarna"] }, status: { notIn: ["paid", "processing", "review"] } } }, select: { id: true, couponCode: true }, take: 100 });
+  const due = await db.order.findMany({ where: { ...UNPAID, createdAt: { lt: since } }, select: { id: true, couponCode: true }, take: 100 });
   for (const o of due) {
+    if (await reconcileViva(o.id).catch(() => false)) continue; // πληρώθηκε χωρίς να το μάθουμε: δεν ακυρώνεται
     await db.$transaction(async (tx) => {
       const n = await tx.order.updateMany({ where: { id: o.id, status: "pending" }, data: { status: "cancelled" } });
       if (n.count !== 1) return;
@@ -130,4 +153,37 @@ export async function cancelUnpaidOnline(hours = 24) {
     });
   }
   return { cancelled: due.length };
+}
+
+/**
+ * Απλήρωτες online παραγγελίες μετά από `minutes` (η σελίδα πληρωμής της Viva λήγει στα 30′): ένα email στον πελάτη με τον
+ * σύνδεσμο πληρωμής της ίδιας παραγγελίας και ένα στο προσωπικό. Μία φορά ανά παραγγελία — το σημάδι είναι το EmailLog,
+ * άρα και αποτυχημένη αποστολή δεν ξαναστέλνεται. Την τελευταία ώρα πριν από την ακύρωση δεν στέλνεται. Τρέχει από τον scheduler.
+ */
+export async function remindUnpaidOnline(minutes = 30) {
+  const now = Date.now();
+  const due = await db.order.findMany({
+    where: { ...UNPAID, createdAt: { lt: new Date(now - minutes * 60_000), gt: new Date(now - 23 * 3600_000) } }, take: 50, orderBy: { createdAt: "asc" },
+    select: { id: true, number: true, createdAt: true, total: true, shipping: true, guestEmail: true, customer: { select: { email: true } },
+      lines: { select: { title: true, qty: true, unitPrice: true, variant: { select: { product: { select: { brand: { select: { name: true } }, media: { where: { kind: "image", hidden: false }, orderBy: { sortNo: "asc" }, take: 1, select: { url: true, emailUrl: true } } } } } } } } },
+  });
+  let sent = 0;
+  for (const o of due) {
+    const byOrder = { meta: { path: ["orderId"], equals: o.id } };
+    if (await db.emailLog.count({ where: { at: { gte: o.createdAt }, OR: [{ template: "payment-pending", ...byOrder }, { template: "staff-order", AND: [byOrder, { meta: { path: ["event"], equals: "unpaid" } }] }] } })) continue;
+    if (await reconcileViva(o.id).catch(() => false)) continue; // πλήρωσε τελικά: παίρνει την επιβεβαίωση, όχι υπενθύμιση
+    const s = (o.shipping ?? {}) as { firstName?: string; email?: string };
+    const to = s.email ?? o.customer?.email ?? o.guestEmail;
+    // έκανε νεότερη παραγγελία (π.χ. την ξαναπέρασε από την αρχή): η υπενθύμιση αφορά μόνο την τελευταία του
+    if (to && (await db.order.count({ where: { createdAt: { gt: o.createdAt }, status: { not: "cancelled" }, OR: [{ guestEmail: to }, { customer: { email: to } }, { shipping: { path: ["email"], equals: to } }] } }))) continue;
+    if (to) {
+      const base = (await import("@/lib/email/layout").then((m) => m.emailCtx())).baseUrl;
+      const tpl = await renderTemplate("payment-pending", { firstName: s.firstName ?? "", number: o.number, total: Number(o.total), payUrl: `${base}${paymentPagePath(o.number)}`, until: payUntil(o.createdAt),
+        lines: o.lines.map((l) => ({ title: l.title, brand: l.variant.product.brand.name, image: l.variant.product.media[0]?.emailUrl ?? l.variant.product.media[0]?.url ?? null, qty: l.qty, unitPrice: Number(l.unitPrice), addons: [] })) });
+      await sendMail({ to, subject: tpl.subject, html: tpl.html, text: tpl.text, template: "payment-pending", meta: { orderId: o.id } }).catch(() => null);
+    }
+    await import("@/lib/orders/staff-mail").then((m) => m.sendStaffOrderMail(o.id, "unpaid")).catch(() => null);
+    sent++;
+  }
+  return { due: due.length, sent };
 }

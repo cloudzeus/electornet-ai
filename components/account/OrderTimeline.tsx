@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { AlertTriangle } from "lucide-react";
 import type { Order } from "@/lib/data/types";
 import { payLabel } from "@/lib/account/labels";
 import { priceLong } from "@/lib/format";
@@ -45,6 +47,15 @@ export function OrderTimeline({ order: o }: { order: Order }) {
         </div>
         <StatusChip status={o.status} />
       </div>
+      {o.pay && (
+        <div role="status" className="rounded-xl border border-eu-amber/40 bg-eu-amber/10 p-4 grid gap-3 @md:grid-cols-[minmax(0,1fr)_auto] @md:items-center">
+          <div className="grid gap-1">
+            <span className="inline-flex items-center gap-2 font-extrabold text-eu-ink text-[length:var(--fs-16)]"><AlertTriangle className="size-5 shrink-0 text-eu-amber" aria-hidden /> Η πληρωμή δεν ολοκληρώθηκε</span>
+            <span className="text-eu-ink-2 text-[length:var(--fs-15)]">Δεν χρεώθηκες. Πλήρωσε αυτή την παραγγελία μέχρι {o.pay.until}, χωρίς να την ξανακάνεις. Μετά ακυρώνεται αυτόματα.</span>
+          </div>
+          <Link href={o.pay.url} className="justify-self-start rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-6 min-h-12 inline-flex items-center hover:bg-eu-blue transition-colors">Πλήρωσε τώρα · {priceLong(o.total)}</Link>
+        </div>
+      )}
       {o.erpStage && o.status !== "cancelled" && (
         <div className="rounded-xl bg-eu-chip/60 border border-eu-blue/15 px-4 py-3 grid gap-1.5">
           <div className="flex flex-wrap items-baseline gap-x-2">

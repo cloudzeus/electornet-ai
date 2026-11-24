@@ -11,6 +11,8 @@ import { OrderTabs } from "@/components/admin/orders/chain/OrderTabs";
 import { orderFlowBase } from "@/lib/orders/flow";
 import { orderChainAction } from "../actions";
 import { OrderView } from "./OrderView";
+import { payable, paymentPagePath, payUntil } from "@/lib/payments/order-payment";
+import { emailCtx } from "@/lib/email/layout";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ number: string }> }) {
@@ -35,7 +37,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const tab = (await searchParams).tab;
   return (
     <OrderTabs load={orderChainAction.bind(null, o.id)} number={o.number} initial={tab === "softone" || tab === "flow" ? tab : "order"} flow={flowBase ? { base: flowBase, canWrite } : undefined}>
-      <OrderView o={o} draft={draft} erp={erp} canWrite={canWrite} canRefund={canRefund} />
+      <OrderView o={o} draft={draft} erp={erp} canWrite={canWrite} canRefund={canRefund} pay={payable(o) ? { url: `${(await emailCtx()).baseUrl}${paymentPagePath(o.number)}`, until: payUntil(o.createdAt) } : null} />
       {restocks.length > 0 && (
         <section data-help="orders.restock" className="mt-4 grid gap-2">
           <h3 className="m-0 font-heading font-bold text-[length:var(--fs-16)]">Αναπλήρωση για το κατάστημα-συνεργάτη</h3>
