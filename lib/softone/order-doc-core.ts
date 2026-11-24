@@ -177,7 +177,11 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
 
   // γραμμές: τιμή και εκπτώσεις χωρίς ΦΠΑ
   const nets: NetLine[] = [];
-  const itelines: Record<string, unknown>[] = expandSetLines(o.lines).map((l) => {
+  // LINENUM σε κάθε γραμμή (νέες γραμμές: από 9000001). Χωρίς αρίθμηση, όταν ένα είδος είναι κύριο είδος σετ στο SoftOne και
+  // δεν είναι η πρώτη γραμμή, το ERP «ανοίγει» μόνο του το σετ και μπερδεύει τις γραμμές: χάνεται η προηγούμενη, μηδενίζονται
+  // οι τιμές, σύνολο 0 € (calculate 24/11/2026, EUR-20261116-7979: τηλεόραση + ψυγείο 141700 του σετ 677). Με αρίθμηση το
+  // σετ ανοίγει σωστά (το SoftOne προσθέτει το μέλος του με τιμή 0) και το σύνολο βγαίνει ακριβώς.
+  const itelines: Record<string, unknown>[] = expandSetLines(o.lines).map((l, i) => {
     if (!l.erpCode || !/^\d+$/.test(l.erpCode)) needs.push(l.spcs ? `Τα μέλη του σετ για «${l.title}» (η παραγγελία δεν κράτησε στιγμιότυπο)` : `Κωδικός είδους SoftOne για «${l.title}»`);
     const price = ceil2(netOf(l.listPrice, l.vatRate));
     // δώρο / δωρεάν: η έκπτωση καλύπτει ακριβώς την αξία (μηδενική γραμμή)· μέλος σετ με τιμή 0: απλώς 0
@@ -185,7 +189,7 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
     const d1 = free ? r2(price * l.qty) : floor2(netOf(l.discPrice, l.vatRate)), d2 = free ? 0 : floor2(netOf(l.discCoupon, l.vatRate)), d3 = free ? 0 : floor2(netOf(l.discPayment, l.vatRate));
     nets.push({ rate: l.vatRate, net: r2(r2(price * l.qty) - d1 - d2 - d3) });
     return {
-      MTRL: l.erpCode && /^\d+$/.test(l.erpCode) ? Number(l.erpCode) : null, QTY1: l.qty, PRICE: price,
+      LINENUM: 9000001 + i, MTRL: l.erpCode && /^\d+$/.test(l.erpCode) ? Number(l.erpCode) : null, QTY1: l.qty, PRICE: price,
       ...(d1 ? { DISC1VAL: d1 } : {}), ...(d2 ? { DISC2VAL: d2 } : {}), ...(d3 ? { DISC3VAL: d3 } : {}),
       ...(l.spcs ? { SPCS: l.spcs } : {}),
       ...(l.promo ? { COMMENTS: cut(l.promo, 255) } : {}), ...(l.terms ? { COMMENTS1: cut(l.terms, 2000) } : {}),

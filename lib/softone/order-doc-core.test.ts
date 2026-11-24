@@ -222,3 +222,8 @@ test("μήκη πεδίων MTRDOC: ποτέ πάνω από τα όρια το�
   const max: Record<string, number> = { CCCSHPNAME: 128, CCCSHPAFM: 30, CCCSHPIRSDATA: 64, CCCSHPPHONE: 64, CCCSHPADDRESS: 128, SHIPPINGADDR: 255 };
   for (const [k, n] of Object.entries(max)) assert.ok(String(m[k] ?? "").length <= n, `${k}: ${String(m[k] ?? "").length} > ${n}`);
 });
+
+test("κάθε γραμμή έχει LINENUM από 9000001, με τη σειρά (αλλιώς το SoftOne μπερδεύει τις γραμμές όταν ανοίγει μόνο του ένα σετ)", () => {
+  const d = composeSaldoc({ ...base, lines: [1, 2, 3].map((i) => ({ erpCode: String(i), title: `x${i}`, qty: 1, listPrice: 10, discPrice: 0, discCoupon: 0, discPayment: 0, vatRate: 24 })), total: 30 }, S);
+  assert.deepEqual(d.data.ITELINES.map((l) => l.LINENUM), [9000001, 9000002, 9000003]);
+});
