@@ -14,6 +14,7 @@ import type { ListFilter, ListResult, SuggestResult } from "./repo";
 import { hasEnergyLabel } from "@/lib/catalog/energy-types";
 import { fitMatters } from "@/lib/catalog/fit-types";
 import { specAttrs } from "@/lib/catalog/compare-specs";
+import { buildVocab, expandWord, wordLevel, bestMatches, type Vocab } from "@/lib/catalog/search-fold";
 import { IN_STOCK_MIN, defaultAvailability, toShopAvailability } from "@/lib/catalog/availability-core";
 
 /**
@@ -91,6 +92,14 @@ async function setSearchIndex() {
   const rows = sets.map((s) => ({ mtrl: String(s.mtrl), set: `SET-${s.spcs}`, text: norm([s.name, s.code, ...s.lines.flatMap((l) => [l.name, l.code ?? "", l.label ?? ""])].join(" ")) }));
   setIndex = { at: Date.now(), rows };
   return rows;
+}
+/** Οι λέξεις των τίτλων και των μαρκών όσων πωλούνται — από εδώ η αναζήτηση καταλαβαίνει greeklish, λέξεις χωρίς τόνους και ορθογραφικά. 5′ στη μνήμη. */
+let vocabIndex: { at: number; words: Vocab[] } | null = null;
+async function searchVocab() {
+  if (vocabIndex && Date.now() - vocabIndex.at < TTL) return vocabIndex.words;
+  const rows = await db.product.findMany({ where: LISTED, select: { title: true, brand: { select: { name: true } } } }).catch(() => []);
+  vocabIndex = { at: Date.now(), words: buildVocab(rows.flatMap((r) => [r.title, r.brand.name])) };
+  return vocabIndex.words;
 }
 
 /** Μετά από «Προβολή στο κατάστημα» ή ανέβασμα φωτογραφιών. */
@@ -322,10 +331,12 @@ async function listProductsFresh(f: ListFilter & { l3?: string }): Promise<ListR
   // Κάθε λέξη: τίτλος, κωδικός, μοντέλο, EAN, μάρκα — ή το όνομα του «Set ειδών» στο SoftOne / των μελών του
   // (π.χ. «MX1-EF» υπάρχει μόνο στο όνομα του set «Midea MX1-EF-09RD1 SOLUNAR», όχι στον τίτλο του προϊόντος).
   const qWords = (f.q ?? "").trim().split(/\s+/).filter((w) => w.length >= 2);
-  const sets = qWords.length ? await setSearchIndex() : [];
+  const [sets, vocab] = qWords.length ? await Promise.all([setSearchIndex(), searchVocab()]) : [[], []];
   const text: Prisma.ProductWhereInput = words.length ? { AND: qWords.map((w) => {
     const viaSet = sets.filter((s) => s.text.includes(norm(w))).flatMap((s) => [s.mtrl, s.set]);
-    return { OR: [{ title: { contains: w, mode: "insensitive" as const } }, { sku: { contains: w, mode: "insensitive" as const } }, { modelCode: { contains: w, mode: "insensitive" as const } }, { ean: { contains: w } }, { brand: { name: { contains: w, mode: "insensitive" as const } } }, ...(viaSet.length ? [{ erpCode: { in: viaSet } }] : [])] };
+    // η λέξη όπως γράφτηκε, και όσες λέξεις του καταλόγου εννοεί («plyntirio», «πληντυριο» → «Πλυντήριο»)
+    const meant = expandWord(w, vocab).filter((x) => x.toLowerCase() !== w.toLowerCase());
+    return { OR: [{ title: { contains: w, mode: "insensitive" as const } }, ...meant.flatMap((x) => [{ title: { contains: x, mode: "insensitive" as const } }, { brand: { name: { contains: x, mode: "insensitive" as const } } }]), { sku: { contains: w, mode: "insensitive" as const } }, { modelCode: { contains: w, mode: "insensitive" as const } }, { ean: { contains: w } }, { brand: { name: { contains: w, mode: "insensitive" as const } } }, ...(viaSet.length ? [{ erpCode: { in: viaSet } }] : [])] };
   }) } : {};
   const base: Prisma.ProductWhereInput = { AND: [scope, text] };
 
@@ -414,9 +425,9 @@ export async function dbSuggest(q: string, cat: string | undefined, rest: Pick<S
   const t = await catalogTree();
   const r = await dbListProducts({ q, l1: cat && cat !== "all" ? cat : undefined, perPage: 6 });
   const words = norm(q).split(/\s+/).filter((w) => w.length >= 2);
-  const hit = (name: string) => words.every((w) => norm(name).includes(w));
+  const hit = (name: string) => words.every((w) => wordLevel(w, name) < 9);
   const categories: SuggestResult["categories"] = [];
-  for (const n of t.byId.values()) if (n.count > 0 && hit(n.name)) { const p = (await categoryPath(n.slug))!; categories.push({ name: n.name, parent: p.length > 1 ? p[p.length - 2].name : undefined, href: hrefOf(p), count: n.count }); }
+  for (const n of bestMatches(words, [...t.byId.values()].filter((x) => x.count > 0), (x) => x.name)) { const p = (await categoryPath(n.slug))!; categories.push({ name: n.name, parent: p.length > 1 ? p[p.length - 2].name : undefined, href: hrefOf(p), count: n.count }); }
   return {
     q, total: r.total,
     products: r.items.map((p) => ({ id: p.id, slug: p.slug, brand: p.brand, title: p.title, price: p.price, noPrice: p.noPrice, image: p.image, avail: p.availability.kind, path: p.path?.[p.path.length - 1]?.name ?? "" })),
