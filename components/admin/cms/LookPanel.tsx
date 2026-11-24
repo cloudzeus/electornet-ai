@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
-import { Ban, Check, ChevronDown, Grid3x3, ImageIcon, Laptop, Maximize, Minus, MoveHorizontal, Palette, Plus, RotateCcw, Smartphone, Square, Tablet, TriangleAlert, Type, Undo2, type LucideIcon } from "lucide-react";
-import { contrast, hex, lookBase, lookCount, lookFor, luminance, MARGIN_STEPS, patternCss, safeImage, type BgFit, type BgPattern, type Look, type LookDevice, type LookFields, type LookOverride } from "@/lib/cms/look";
+import { createContext, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Ban, Check, ChevronDown, ClipboardPaste, Copy, Grid3x3, ImageIcon, Laptop, Maximize, Minus, MoveHorizontal, Palette, Plus, RotateCcw, Smartphone, Square, Tablet, TriangleAlert, Type, Undo2, type LucideIcon } from "lucide-react";
+import { contrast, hex, lookBase, lookCount, lookFor, luminance, MARGIN_STEPS, pasteLook, patternCss, safeImage, type BgFit, type BgPattern, type Look, type LookDevice, type LookFields, type LookOverride } from "@/lib/cms/look";
 import { ImageUrlField } from "@/components/admin/promos/ImageUrlField";
 import { sx } from "@/components/ui/sx";
 
@@ -39,6 +39,12 @@ const PATTERNS: [BgPattern, string][] = [["dots", "Κουκκίδες"], ["grid"
 const MARGIN_PRESETS: [string, number, number][] = [["Καθόλου", 0, 0], ["Μικρά", 16, 8], ["Κανονικά", 32, 16], ["Μεγάλα", 64, 32]];
 const SIDES: { key: "mt" | "mb" | "ml" | "mr"; label: string }[] = [{ key: "mt", label: "Πάνω" }, { key: "mb", label: "Κάτω" }, { key: "ml", label: "Αριστερά" }, { key: "mr", label: "Δεξιά" }];
 const GROUP_KEYS: Record<LookGroup, (keyof LookFields)[]> = { bg: ["bg", "bgImage", "bgFit", "pattern"], text: ["kickerColor", "titleColor", "subColor", "ink", "linkColor"], space: ["mt", "mr", "mb", "ml", "headGap", "padY"] };
+
+/** Η αντιγραμμένη εμφάνιση ζει στον browser (localStorage): περνά από ζώνη σε ζώνη, από σελίδα σε σελίδα και από καρτέλα σε καρτέλα. */
+const CLIP = "eu.look.clip";
+const onClip = (cb: () => void) => { window.addEventListener("storage", cb); window.addEventListener(CLIP, cb); return () => { window.removeEventListener("storage", cb); window.removeEventListener(CLIP, cb); }; };
+const readClip = () => { try { return localStorage.getItem(CLIP); } catch { return null; } };
+const tool = "inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-3 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:border-eu-navy";
 
 const chip = (on: boolean) => `rounded-xl border-2 px-3 min-h-11 font-bold text-[length:var(--fs-13)] ${on ? "border-eu-navy bg-eu-chip text-eu-navy" : "border-eu-line text-eu-ink-2 hover:border-eu-navy/50"}`;
 const sub = "text-eu-muted text-[length:var(--fs-13)] leading-snug";
@@ -94,6 +100,15 @@ export function LookPanel({ value, onChange, groups = ["bg", "text", "space"], i
   const box = sx({ padding: `${(f.mt ?? 0) * 0.3}px ${(f.mr ?? 0) * 0.3}px ${(f.mb ?? 0) * 0.3}px ${(f.ml ?? 0) * 0.3}px` });
   const zoneSw = sx({ background: surface });
   const [open0] = useState(total > 0);
+  // αντιγραφή / επικόλληση: από την αντιγραμμένη ζώνη μπαίνουν μόνο όσα ισχύουν εδώ
+  const clipRaw = useSyncExternalStore(onClip, readClip, () => null);
+  const allowed = useMemo(() => groups.flatMap((g) => GROUP_KEYS[g]).filter((k) => inner || (k !== "headGap" && k !== "padY")), [groups, inner]);
+  const pasted = useMemo(() => { try { const o: unknown = clipRaw ? JSON.parse(clipRaw) : null; return o && typeof o === "object" && !Array.isArray(o) ? pasteLook(value, o as Look, allowed) : null; } catch { return null; } }, [clipRaw, value, allowed]);
+  const pasteCount = pasted ? DEVICES.reduce((n, d) => n + lookCount(pasteLook({}, pasted, allowed), d.key), 0) : 0;
+  // επικόλληση που δεν θα άλλαζε τίποτα (η ίδια η ζώνη, ή ζώνη που την έχει ήδη) δεν προτείνεται
+  const same = !!pasted && JSON.stringify(pasted) === JSON.stringify(value);
+  const [note, setNote] = useState<string | null>(null);
+  const copy = () => { try { localStorage.setItem(CLIP, JSON.stringify(value)); window.dispatchEvent(new Event(CLIP)); setNote("Αντιγράφηκε. Άνοιξε μια άλλη ζώνη και πάτα «Επικόλληση» στην «Εμφάνισή» της."); } catch { setNote("Ο browser δεν επέτρεψε την αντιγραφή."); } };
 
   return (
     <details data-help="look.panel" className="group/look rounded-2xl border border-eu-line bg-white" open={open0 || undefined}>
@@ -214,7 +229,16 @@ export function LookPanel({ value, onChange, groups = ["bg", "text", "space"], i
           </section>
         )}
 
-        {total > 0 && <button type="button" onClick={() => { if (window.confirm("Να σβηστούν όλες οι ρυθμίσεις εμφάνισης, σε όλες τις συσκευές;")) onChange({}); }} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border border-eu-line px-3 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:bg-eu-surface"><RotateCcw className="size-3.5" aria-hidden /> Επαναφορά εμφάνισης στο σχέδιο</button>}
+        <div data-help="look.copy" className="grid gap-2 border-t border-eu-line pt-4">
+          <div className="flex flex-wrap gap-2">
+            {total > 0 && <button type="button" onClick={copy} className={tool}><Copy className="size-4" aria-hidden /> Αντιγραφή εμφάνισης</button>}
+            {pasted && pasteCount > 0 && !same && <button type="button" onClick={() => { onChange(pasted); setNote(`Επικολλήθηκε: ${pasteCount} ${pasteCount === 1 ? "ρύθμιση" : "ρυθμίσεις"} από την άλλη ζώνη.`); }} className={`${tool} border-eu-navy text-eu-navy`}><ClipboardPaste className="size-4" aria-hidden /> Επικόλληση ({pasteCount})</button>}
+            {total > 0 && <button type="button" onClick={() => { if (window.confirm("Να σβηστούν όλες οι ρυθμίσεις εμφάνισης, σε όλες τις συσκευές;")) { onChange({}); setNote(null); } }} className={tool}><RotateCcw className="size-4" aria-hidden /> Επαναφορά στο σχέδιο</button>}
+          </div>
+          {note ? <p role="status" className="m-0 inline-flex items-start gap-1.5 text-eu-green font-bold text-[length:var(--fs-13)]"><Check className="size-4 mt-0.5 shrink-0" aria-hidden />{note}</p>
+            : pasted && pasteCount > 0 && !same ? <p className={`m-0 ${sub}`}>Έχεις αντιγράψει την εμφάνιση μιας άλλης ζώνης. Η επικόλληση αντικαθιστά τις ρυθμίσεις αυτής εδώ, σε όλες τις συσκευές{groups.length < 3 ? " (μόνο όσα ισχύουν εδώ)" : ""}.</p>
+            : total === 0 ? <p className={`m-0 ${sub}`}>Όταν ρυθμίσεις μια ζώνη, μπορείς να αντιγράψεις την εμφάνισή της σε άλλη.</p> : null}
+        </div>
       </div>
     </details>
   );

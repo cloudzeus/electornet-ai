@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { contrast, lookCount, lookFor, lookOf, lookRules, lookStyle, withLook } from "./look";
+import { contrast, lookCount, lookFor, lookOf, lookRules, lookStyle, pasteLook, withLook } from "./look";
 
 test("χωρίς ρυθμίσεις: τίποτα — η ζώνη αποδίδεται όπως ήταν", () => {
   assert.equal(lookStyle({}), null);
@@ -64,4 +64,12 @@ test("αντικατάσταση εμφάνισης: τα υπόλοιπα πε�
   assert.deepEqual(lookOf(b), { bg: "#122a58", mt: 8, mobile: { bg: "#ffffff" } });
   assert.equal(lookCount({ bg: "#122a58", mt: 8, mb: 8, ml: 4, mobile: { mt: null, mb: null, pattern: "dots" } }, "desktop"), 2);
   assert.equal(lookCount({ mobile: { mt: null, mb: null, pattern: "dots" } }, "mobile"), 2);
+});
+
+test("επικόλληση εμφάνισης: μόνο τα πεδία που ισχύουν στη ζώνη, σε όλες τις συσκευές· τα υπόλοιπα της ζώνης μένουν", () => {
+  const clip = { bg: "#122a58", titleColor: "#f1c400", mt: 32, mobile: { bg: null, mt: 8 } };
+  // ζώνη που δέχεται μόνο περιθώρια (π.χ. hero): χρώματα της αντιγραμμένης αγνοούνται
+  assert.deepEqual(pasteLook({ mb: 16, tablet: { mb: 8 } }, clip, ["mt", "mr", "mb", "ml"]), { mt: 32, mobile: { mt: 8 } });
+  // πλήρης ζώνη: αντικαθίστανται όλα τα πεδία που ισχύουν· ό,τι είναι εκτός λίστας μένει
+  assert.deepEqual(pasteLook({ bg: "#ffffff", headGap: 2, mobile: { headGap: 0 } }, clip, ["bg", "titleColor", "mt"]), { headGap: 2, bg: "#122a58", titleColor: "#f1c400", mt: 32, mobile: { headGap: 0, bg: null, mt: 8 } });
 });

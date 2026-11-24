@@ -181,3 +181,20 @@ export function lookCount(l: Look, d: LookDevice) {
   const margins = keys.filter((k) => /^m[trbl]$/.test(k)).length;
   return keys.length - margins + (margins ? 1 : 0);
 }
+
+/**
+ * Επικόλληση εμφάνισης από άλλη ζώνη: παίρνει από την αντιγραμμένη ΜΟΝΟ τα πεδία που ισχύουν εδώ (`keys`), σε όλες τις
+ * συσκευές· ό,τι δεν ισχύει εδώ το αγνοεί και ό,τι είχε η ζώνη εκτός αυτών των πεδίων μένει όπως ήταν.
+ */
+export function pasteLook(target: Look, clip: Look, keys: readonly (keyof LookFields)[]): Look {
+  const allow = new Set<string>(keys);
+  const part = (t: object | undefined, c: object | undefined) => {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(t ?? {})) if (!allow.has(k) && k !== "tablet" && k !== "mobile") out[k] = v;
+    for (const [k, v] of Object.entries(c ?? {})) if (allow.has(k)) out[k] = v;
+    return out;
+  };
+  const out = part(target, clip) as Look;
+  for (const d of ["tablet", "mobile"] as const) { const o = part(target[d], clip[d]); if (Object.keys(o).length) out[d] = o; }
+  return out;
+}
