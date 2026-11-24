@@ -36,3 +36,18 @@ test("email προσωπικού: απλήρωτη παραγγελία — τί
   assert.ok(m.text.includes(payUrl), "σύνδεσμος στο απλό κείμενο");
   assert.ok(!renderStaffOrder(S, ctx).html.includes("Σύνδεσμος πληρωμής"), "πληρωμένη ή αντικαταβολή: χωρίς σύνδεσμο");
 });
+
+test("email προσωπικού: βήματα με αρίθμηση, εξήγηση κάτω από κάθε σύνδεσμο, δελτίο παράδοσης και έκδοση voucher", () => {
+  const m = renderStaffOrder(S, ctx);
+  for (const want of ["Όλη η δουλειά, βήμα βήμα", "Voucher και δελτίο παράδοσης", "Δελτίο παράδοσης στον courier (PDF A4)", "/api/admin/shipments/deltio?ids=sample", "θέσεις υπογραφής «Παρέδωσε» / «Παρέλαβε»", "Πορεία στο SoftOne"]) {
+    assert.ok(m.html.includes(want.replace(/&/g, "&amp;")), `html: ${want}`);
+    assert.ok(m.text.includes(want), `text: ${want}`);
+  }
+  assert.ok(m.html.includes("<ol ") && m.text.includes("1. Τύπωσε την ετικέτα"), "βήματα αριθμημένα και στο απλό κείμενο");
+  // πριν από το voucher: ο σύνδεσμος έκδοσης με την εξήγησή του, χωρίς σύνδεσμο δελτίου
+  const before = renderStaffOrder({ ...S, vouchers: [], voucherHelp: "Το voucher είναι η εντολή αποστολής προς τον courier.", voucherLinks: [["Έκδοση voucher στη διαχείριση", `${S.adminUrl}#voucher`, "Πάτα «Έκδοση voucher»."]] }, ctx);
+  assert.ok(before.html.includes(`${S.adminUrl}#voucher`) && before.text.includes("Πάτα «Έκδοση voucher»."), "σύνδεσμος έκδοσης voucher με εξήγηση");
+  assert.ok(!before.html.includes("shipments/deltio"), "χωρίς voucher δεν υπάρχει δελτίο");
+  // ό,τι δεν προχωρά ακόμη: χωρίς βήματα
+  assert.ok(!renderStaffOrder({ ...S, steps: [] }, ctx).html.includes("βήμα βήμα"));
+});

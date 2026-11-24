@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-24T13:30:54.882Z",
+ "generatedAt": "2026-11-24T13:49:37.166Z",
  "routes": [
   {
    "route": "/admin",
@@ -3015,6 +3015,7 @@
     "order.address",
     "order.invoice",
     "order.erp",
+    "order.erp.send",
     "order.notes",
     "order.history",
     "order.promos",
@@ -3114,6 +3115,7 @@
     "order.address",
     "order.invoice",
     "order.erp",
+    "order.erp.send",
     "order.notes",
     "order.history",
     "order.promos",
@@ -4938,6 +4940,11 @@
    ],
    "changes": [
     {
+     "hash": "53349d0",
+     "date": "2026-11-24T15:31:46+02:00",
+     "text": "Υπενθύμιση καλαθιού: τρέχει από τον εσωτερικό scheduler (ανά 15′)"
+    },
+    {
      "hash": "5bdbf64",
      "date": "2026-11-24T14:16:40+02:00",
      "text": "Απλήρωτες online παραγγελίες: πληρωμή της ίδιας παραγγελίας, email και ενημέρωση προσωπικού"
@@ -4983,7 +4990,7 @@
      "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
     }
    ],
-   "updatedAt": "2026-11-24T14:16:40+02:00",
+   "updatedAt": "2026-11-24T15:31:46+02:00",
    "shots": {
     "desktop": "/api/help-shot/softone.sync-d.jpg",
     "mobile": "/api/help-shot/softone.sync-m.jpg"
@@ -5450,6 +5457,18 @@
  ],
  "recent": [
   {
+   "hash": "8e8793d",
+   "date": "2026-11-24T15:48:55+02:00",
+   "text": "Παλιές διευθύνσεις του euronics.gr: μόνιμη ανακατεύθυνση στις νέες σελίδες",
+   "routes": []
+  },
+  {
+   "hash": "53349d0",
+   "date": "2026-11-24T15:31:46+02:00",
+   "text": "Υπενθύμιση καλαθιού: τρέχει από τον εσωτερικό scheduler (ανά 15′)",
+   "routes": []
+  },
+  {
    "hash": "e8a622e",
    "date": "2026-11-24T15:27:33+02:00",
    "text": "Ιστορικό πληρωμής: κάθε προσπάθεια με την αιτία της, και σελίδα «Αποτυχημένες πληρωμές»",
@@ -5721,21 +5740,6 @@
    "date": "2026-11-21T14:35:21+02:00",
    "text": "Κατάλογος: η «Εξαίρεση Web» κλείνει ξανά το σετ, απόθεμα από όλες τις πωλήσιμες αποθήκες",
    "routes": []
-  },
-  {
-   "hash": "ddf4904",
-   "date": "2026-11-21T12:51:22+02:00",
-   "text": "Καλάθι: μία κάθετη μπάρα, καμία χρέωση πριν τον Τ.Κ., κουμπιά που χωρούν στο κινητό",
-   "routes": []
-  },
-  {
-   "hash": "d06fa95",
-   "date": "2026-11-21T12:51:09+02:00",
-   "text": "Επέκταση εγγύησης: προαιρετική με χρέωση 15,5%, όχι δωρεάν",
-   "routes": [
-    "/admin",
-    "/admin/epektasi-eggyisis"
-   ]
   }
  ],
  "helpKeys": {
@@ -6134,6 +6138,9 @@
    "app/admin/(shell)/orders/[number]/OrderView.tsx"
   ],
   "order.erp": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
+  "order.erp.send": [
    "app/admin/(shell)/orders/[number]/OrderView.tsx"
   ],
   "order.notes": [

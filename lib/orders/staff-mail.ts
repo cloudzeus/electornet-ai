@@ -8,8 +8,9 @@ import { payable, paymentPagePath, payUntil } from "@/lib/payments/order-payment
 import { carrierDef } from "@/lib/shipping/carriers";
 import { S1_SERVICE_MTRL } from "@/lib/softone/order-doc-core";
 import { trackUrl } from "@/lib/couriers/timeline-model";
+import { isVoucherCarrier } from "@/lib/couriers/shipments";
 import { MODE_LABEL } from "@/lib/delivery/routing";
-import { ERP_STATUS, FULFILMENT, PAYMENT_STATUS, statusLabel } from "./model";
+import { ERP_STATUS, FULFILMENT, PAYMENT_STATUS, floorLabel, statusLabel } from "./model";
 
 /**
  * Πλήρης ανάλυση κάθε παραγγελίας στο προσωπικό, χτισμένη από ό,τι ισχύει στη βάση τη στιγμή της αποστολής. Φεύγει:
@@ -97,8 +98,70 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
   });
 
   const base = ctx.assetUrl, enc = encodeURIComponent;
+  const adminUrl = `${base}/admin/orders/${enc(o.number)}`;
+
+  // η παραγγελία δεν προχωρά ακόμη (ακυρωμένη, απλήρωτη, χωρίς συμφωνημένα μεταφορικά): μόνο το «Τι κάνεις τώρα», χωρίς βήματα και χωρίς έκδοση voucher
+  const hold = o.status === "cancelled" || unpaid || pay === "later" || (!collect && payStatus !== "paid");
+  const isCourier = o.fulfilment === "courier", cc = o.fulfilment === "click-collect";
+  const last = active[active.length - 1];
+  const courier = last ? carrierDef(last.carrier)?.name ?? last.carrier : s.carrierName ?? "courier";
+  const login = "Θέλει σύνδεση στη διαχείριση.";
+  const payStep = pay === "cod" ? `Είσπραξη: ο courier εισπράττει ${money(total)} από τον πελάτη στην παράδοση (το ποσό είναι γραμμένο στο voucher).`
+    : pay === "store" ? `Είσπραξη: ο πελάτης πληρώνει ${money(total)} στο κατάστημα, όταν παραλάβει.`
+    : "Πληρωμή: η παραγγελία είναι εξοφλημένη. Δεν εισπράττεται τίποτα στην παράδοση.";
+  const erpSent = o.erpSync?.status === "sent";
+  const erpStep = !o.erpSync ? null
+    : erpSent ? `SoftOne: η παραγγελία έχει καταχωρηθεί (FINDOC ${o.erpSync.erpDocId ?? "—"}). Δεν χρειάζεται κάτι.`
+    : doc?.needs.length ? "SoftOne: η παραγγελία ΔΕΝ έχει καταχωρηθεί, γιατί λείπουν στοιχεία (ενότητα «SoftOne» πιο κάτω). Συμπλήρωσέ τα και στείλ' τη με τον σύνδεσμο «Αποστολή στο SoftOne»."
+    : "SoftOne: η παραγγελία δεν έχει καταχωρηθεί ακόμη. Αν δεν έρθει σε λίγα λεπτά email «Καταχωρήθηκε στο SoftOne», στείλ' τη εσύ με τον σύνδεσμο «Αποστολή στο SoftOne» (ενότητα «SoftOne»).";
+  const steps: string[] = hold ? [] : [
+    ...(active.length ? [
+      `Τύπωσε την ετικέτα του voucher ${last.voucher} (σύνδεσμος «Ετικέτα voucher» πιο κάτω) και κόλλησέ τη στο δέμα, μία ετικέτα σε κάθε τεμάχιο.`,
+      "Τύπωσε το δελτίο παράδοσης (σύνδεσμος «Δελτίο παράδοσης στον courier»).",
+      `Δώσε το δέμα στον οδηγό του courier (${courier}). Ο οδηγός υπογράφει στο «Παρέλαβε» του δελτίου· κράτα το ως απόδειξη ότι το παρέλαβε.`,
+      "Από εκεί και πέρα η πορεία της αποστολής ενημερώνεται μόνη της, στη διαχείριση και στη σελίδα παρακολούθησης του πελάτη.",
+    ] : isCourier ? [
+      "Μάζεψε τα προϊόντα της ενότητας «Προϊόντα» και συσκεύασέ τα.",
+      `Βγάλε το voucher (${courier}) με τον σύνδεσμο «Έκδοση voucher» στην ενότητα «Voucher και δελτίο παράδοσης».`,
+      "Μόλις εκδοθεί, θα λάβεις νέο email «Εκδόθηκε voucher» με την ετικέτα και το δελτίο παράδοσης έτοιμα για εκτύπωση.",
+      "Κόλλησε την ετικέτα στο δέμα και δώσ' το στον οδηγό του courier. Ο οδηγός υπογράφει το δελτίο παράδοσης, που το κρατάς εσύ.",
+    ] : cc ? [
+      `Μάζεψε τα προϊόντα της ενότητας «Προϊόντα» για το κατάστημα ${o.pickupStore?.name ?? "παραλαβής"}.`,
+      "Όταν είναι έτοιμα στο κατάστημα, άνοιξε την παραγγελία στη διαχείριση και άλλαξε την κατάσταση σε «Έτοιμη για παραλαβή»: ο πελάτης παίρνει email με τον κωδικό παραλαβής.",
+      "Όταν ο πελάτης παραλάβει, άλλαξε την κατάσταση σε «Παραδόθηκε».",
+    ] : o.fulfilment === "freight" ? [
+      "Μάζεψε τα προϊόντα της ενότητας «Προϊόντα» και κανόνισε τη μεταφορική.",
+      `Κάλεσε τον πελάτη${phone ? ` (${phone})` : ""} για την ημέρα παράδοσης.`,
+      "Όταν φύγει, άλλαξε στη διαχείριση την κατάσταση σε «Στάλθηκε» και, μετά την παράδοση, σε «Παραδόθηκε».",
+    ] : [
+      `Κάλεσε τον πελάτη${phone ? ` (${phone})` : ""} και κλείσε ημέρα και ώρα παράδοσης.`,
+      "Μετά την παράδοση, άλλαξε στη διαχείριση την κατάσταση σε «Παραδόθηκε».",
+    ]),
+    payStep,
+    ...(erpStep ? [erpStep] : []),
+  ];
+
+  const deltioIds = active.filter((x) => isVoucherCarrier(x.carrier)).map((x) => x.id).join(",");
+  const voucherHelp = !isCourier ? `Η παραγγελία δεν φεύγει με courier (${how}), άρα δεν χρειάζεται voucher ούτε δελτίο παράδοσης.`
+    : active.length ? "Το voucher έχει εκδοθεί. Η ετικέτα μπαίνει πάνω στο δέμα. Το δελτίο παράδοσης είναι το χαρτί που υπογράφει ο οδηγός του courier όταν παραλαμβάνει τα δέματα και μένει σε εσάς ως απόδειξη παραλαβής."
+    : hold ? "Μην εκδώσεις voucher ακόμη: δες το «Τι κάνεις τώρα» στην αρχή του μηνύματος."
+    : "Το voucher είναι η εντολή αποστολής προς τον courier: χωρίς αυτό ο οδηγός δεν παραλαμβάνει το δέμα. Το δελτίο παράδοσης (η λίστα που υπογράφει ο οδηγός όταν παραλαμβάνει) βγαίνει αφού εκδοθεί το voucher.";
+  const voucherLinks: StaffOrderData["voucherLinks"] = !isCourier ? [] : active.length ? (deltioIds ? [
+    ["Δελτίο παράδοσης στον courier (PDF A4)", `${base}/api/admin/shipments/deltio?ids=${enc(deltioIds)}`, `Η λίστα με τα vouchers αυτής της παραγγελίας: αριθμός voucher, παραλήπτης, τεμάχια, βάρος, αντικαταβολή και θέσεις υπογραφής «Παρέδωσε» / «Παρέλαβε». Τύπωσέ το και δώσ' το στον οδηγό να υπογράψει όταν παραλάβει. ${login}`],
+    ["Δελτίο και ετικέτες μαζί (ένα PDF)", `${base}/api/admin/shipments/deltio?ids=${enc(deltioIds)}&labels=1`, "Το δελτίο παράδοσης και αμέσως μετά οι ετικέτες, για να τα τυπώσεις όλα με τη μία."],
+    ["Δελτίο για πολλές αποστολές μαζί", `${base}/admin/apostoles/vouchers`, "Αν ο οδηγός παίρνει και άλλα δέματα, στη σελίδα «Vouchers courier» διαλέγεις όλες τις αποστολές και βγάζεις ένα δελτίο ανά courier."],
+  ] : []) : hold ? [] : [
+    ["Έκδοση voucher στη διαχείριση", `${adminUrl}#voucher`, `Ανοίγει την παραγγελία στην κάρτα «Αποστολή». Εκεί φαίνονται ο courier (${courier}), τα τεμάχια και τα κιλά που υπολογίστηκαν από τα προϊόντα${pay === "cod" ? `, και η αντικαταβολή ${money(total)}` : ""}. Διόρθωσε τεμάχια ή κιλά αν χρειάζεται και πάτα «Έκδοση voucher»: το voucher εκδίδεται αμέσως στον courier. ${login}`],
+  ];
+  const erpLinks: StaffOrderData["erp"]["links"] = !o.erpSync ? [] : erpSent ? [
+    ["Πορεία στο SoftOne", `${adminUrl}?tab=softone`, "Σχηματικά όλα τα παραστατικά που βγήκαν από την παραγγελία μέσα στο ERP (παραγγελία, PKP αποθήκης, δελτίο αποστολής, απόδειξη ή τιμολόγιο)."],
+  ] : [
+    ...(hold ? [] : [["Αποστολή στο SoftOne", `${adminUrl}#softone`, doc?.needs.length ? `Πρώτα συμπλήρωσε όσα λείπουν (πλαίσιο από πάνω). Μετά, στην κάρτα «SoftOne» της παραγγελίας πάτα «Αποστολή στο SoftOne». ${login}` : `Ανοίγει την παραγγελία στην κάρτα «SoftOne». Πάτα «Αποστολή στο SoftOne», έλεγξε το ποσό και επιβεβαίωσε: το παραστατικό καταχωρείται στο ERP και σου έρχεται email «Καταχωρήθηκε στο SoftOne». Πριν γραφτεί οτιδήποτε, το SoftOne ελέγχει ότι το σύνολο είναι ίδιο με της παραγγελίας. ${login}`] as [string, string, string]]),
+    ["Προσχέδιο παραστατικού", `${base}/admin/prosfores/anafores/paraggelia/${enc(orderId)}`, "Το παραστατικό γραμμή προς γραμμή, όπως θα γραφτεί στο SoftOne: είδη, τιμές χωρίς ΦΠΑ, εκπτώσεις, μεταφορικά."],
+  ];
+
   return {
-    event, number: o.number, adminUrl: `${base}/admin/orders/${enc(o.number)}`, ...(unpaid ? { payUrl: `${ctx.baseUrl}${paymentPagePath(o.number)}` } : {}), summary: [money(total), how, payLabel(pay)].join(" · "), next,
+    event, number: o.number, adminUrl, steps, voucherHelp, voucherLinks, ...(unpaid ? { payUrl: `${ctx.baseUrl}${paymentPagePath(o.number)}` } : {}), summary: [money(total), how, payLabel(pay)].join(" · "), next,
     order: [["Αριθμός", o.number], ["Ημερομηνία", o.createdAt.toLocaleString("el-GR", { timeZone: "Europe/Athens", dateStyle: "short", timeStyle: "short" })], ["Κατάσταση", statusLabel(o.status)]],
     customer: [
       ["Ονοματεπώνυμο", name || "—"], ["Τηλέφωνο", phone ?? "—"], ["Email", email ?? "—"], ["Λογαριασμός", o.customer ? "Εγγεγραμμένος πελάτης" : "Αγορά ως επισκέπτης"],
@@ -125,7 +188,7 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
       [o.fulfilment === "click-collect" ? "Παραλαμβάνει" : "Παραλήπτης", [name, phone ? `τηλ. ${phone}` : null].filter(Boolean).join(", ") || "—"],
       o.fulfilment === "click-collect" && o.pickupStore ? ["Κατάστημα παραλαβής", [o.pickupStore.name, o.pickupStore.address, [o.pickupStore.zip, o.pickupStore.city].filter(Boolean).join(" "), o.pickupStore.phone ? `τηλ. ${o.pickupStore.phone}` : null].filter(Boolean).join(", ")]
         : s.locker ? ["Θυρίδα BOX NOW", [s.locker.name, s.locker.address, s.locker.zip].filter(Boolean).join(", ")]
-        : ["Διεύθυνση", [[s.street, s.number].filter(Boolean).join(" "), s.floor ? `${s.floor}ος όροφος` : null, [s.zip, s.city].filter(Boolean).join(" "), s.region].filter(Boolean).join(", ") || "—"],
+        : ["Διεύθυνση", [[s.street, s.number].filter(Boolean).join(" "), floorLabel(s.floor) || null, [s.zip, s.city].filter(Boolean).join(" "), s.region].filter(Boolean).join(", ") || "—"],
       ...(s.slots?.length ? [["Ώρες που βολεύουν τον πελάτη για τηλέφωνο", s.slots.join(", ")] as [string, string]] : []),
       ...(s.notes ? [["Σημειώσεις πελάτη", s.notes] as [string, string]] : []),
       ...(o.route ? [["Δρομολόγηση", [MODE_LABEL[o.route.mode as keyof typeof MODE_LABEL] ?? o.route.mode, o.route.partner?.name ?? o.route.agency?.name ?? o.route.carrier?.name, o.route.reason, o.route.cost != null ? `κόστος για εμάς ${money(n(o.route.cost))}` : null].filter(Boolean).join(" · ")] as [string, string]] : []),
@@ -137,9 +200,9 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
         title: `${carrierDef(x.carrier)?.name ?? x.carrier} · voucher ${x.voucher}${x.env === "test" ? " (ΔΟΚΙΜΑΣΤΙΚΟ περιβάλλον courier)" : ""}`,
         rows: [["Κατάσταση", SHIP_STATUS[x.status] ?? x.status], ["Τεμάχια / βάρος", `${x.pieces} τεμ. · ${String(n(x.weightKg)).replace(".", ",")} κιλά${x.subVouchers.length ? ` · επιπλέον vouchers: ${x.subVouchers.join(", ")}` : ""}`], ["Αντικαταβολή στο voucher", n(x.codAmount) ? money(n(x.codAmount)) : "όχι"]] as [string, string][],
         links: [
-          ...(x.status === "cancelled" ? [] : [["Εκτύπωση ετικέτας (PDF, θέλει σύνδεση στη διαχείριση)", `${base}/api/admin/shipments/label?ids=${enc(x.id)}`] as [string, string]]),
-          ...(courierUrl ? [["Παρακολούθηση στον courier", courierUrl] as [string, string]] : []),
-          ["Σελίδα παρακολούθησης του πελάτη", `${ctx.baseUrl}/entopismos?no=${enc(o.number)}`],
+          ...(x.status === "cancelled" ? [] : [["Ετικέτα voucher (PDF)", `${base}/api/admin/shipments/label?ids=${enc(x.id)}`, `Τύπωσέ τη και κόλλησέ τη στο δέμα, με το barcode ορατό. Μία ετικέτα ανά τεμάχιο. ${login}`] as [string, string, string]]),
+          ...(courierUrl ? [["Παρακολούθηση στον courier", courierUrl, "Η σελίδα του courier με την πορεία του δέματος."] as [string, string, string]] : []),
+          ["Σελίδα παρακολούθησης του πελάτη", `${ctx.baseUrl}/entopismos?no=${enc(o.number)}`, "Ό,τι βλέπει ο πελάτης για την αποστολή του στο site."],
         ],
       };
     }),
@@ -149,7 +212,7 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
         ["Παραστατικό παραγγελίας", `${o.erpSync?.erpDocId ? `FINDOC ${o.erpSync.erpDocId}` : "δεν έχει καταχωρηθεί ακόμη"} · σειρά ${head.SERIES ?? "—"}, αριθμός ${o.number}`],
         ["Πελάτης", erpCustomer],
       ],
-      docs, needs: doc?.needs ?? [], remarks: head.REMARKS ?? null,
+      links: erpLinks, docs, needs: doc?.needs ?? [], remarks: head.REMARKS ?? null,
     },
   };
 }
