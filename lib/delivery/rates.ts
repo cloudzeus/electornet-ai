@@ -64,7 +64,7 @@ export function bracketFor(data: RateData, kg: number): { index: number; extraKg
 
 export interface RateQuote { fee: number; baseFee: number; cost: number | null; zone: RateZone; remote: boolean; kg: number }
 
-/** Η τιμή για ένα καλάθι. null = άγνωστος Τ.Κ. ή ζώνη χωρίς τιμές (τότε ισχύει η σταθερή τιμή των ρυθμίσεων). */
+/** Η τιμή για ένα καλάθι. null = άγνωστος Τ.Κ. ή ζώνη χωρίς τιμές (τότε το ταμείο πάει στην τιμή της ASAP ή στη σταθερή τιμή των ρυθμίσεων). */
 export function quoteRate(data: RateData, input: { zip: string | null | undefined; kg: number }): RateQuote | null {
   const zone = zoneFor(data, input.zip);
   const row = zone && data.prices[zone.id];

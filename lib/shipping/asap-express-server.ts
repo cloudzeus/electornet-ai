@@ -49,7 +49,7 @@ const priceMem = new Map<string, { at: number; ttl: number; p: Promise<Priced>; 
 let depotMem: { at: number; v: { lat: number; lon: number } } | null = null;
 const TIMEOUT = 15_000;
 
-function livePrice(addr: { street: string; number: string; city: string; zip: string }, pkg: { weightKg: number; dims: [number, number, number] }, zones: string[]) {
+function livePrice(addr: { street: string; number: string; city: string; zip: string }, pkg: { weightKg: number; dims: [number, number, number] }, zones: string[], /** το σημείο παράδοσης, όταν δεν το βρίσκει η ASAP από τη διεύθυνση */ point?: () => Promise<{ lat: number; lon: number } | null>) {
   const key = JSON.stringify([addr.zip, Math.round(pkg.weightKg * 10), pkg.dims.map((d) => Math.round(d)), zones]);
   const hit = priceMem.get(key);
   if (hit && (!hit.done || Date.now() - hit.at < hit.ttl)) return hit;
@@ -59,7 +59,7 @@ function livePrice(addr: { street: string; number: string; city: string; zip: st
     try {
       if (!depotMem || Date.now() - depotMem.at > 86_400_000) { const d = await asapDepot(c, TIMEOUT); if (d) depotMem = { at: Date.now(), v: d }; }
       if (!depotMem) return { v: null, err: "χωρίς αποθήκη παραλαβής" };
-      const to = await asapGeocode(c, { street: addr.street, number: addr.number, zip: addr.zip, city: addr.city }, TIMEOUT);
+      const to = point ? await point() : await asapGeocode(c, { street: addr.street, number: addr.number, zip: addr.zip, city: addr.city }, TIMEOUT);
       if (!to) return { v: null, err: "η διεύθυνση δεν βρέθηκε" };
       const v = pickAsapPrice(await asapPriceQuote(c, depotMem.v, to, pkg, TIMEOUT), zones);
       return { v, err: v ? undefined : "εκτός ζώνης ή χωρίς τιμή" };
@@ -101,4 +101,32 @@ export async function atticaOffer(lines: { productId: string; qty: number; title
   if (!r) return { attica, standard, express: { state: "pending" }, why: null };
   if (!r.v) return { attica, standard, express: null, why: r.err ?? "χωρίς τιμή" };
   return { attica, standard, express: { state: "ok", fee: r.v.fee, zone: r.v.zone, eta: EXPRESS_ETA }, why: null };
+}
+
+// Το σημείο ενός Τ.Κ. από το OpenStreetMap: η αναζήτηση της ASAP με μόνο Τ.Κ. βγάζει λάθος σημείο (τη Ρόδο στην Ιταλία).
+// Ο Τ.Κ. δεν μετακινείται: μένει στη μνήμη της διεργασίας· η αποτυχία όχι, για να ξαναδοκιμαστεί.
+const zipPoint = new Map<string, Promise<{ lat: number; lon: number } | null>>();
+function pointOfZip(zip: string) {
+  let p = zipPoint.get(zip);
+  if (!p) {
+    p = fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=gr&postalcode=${zip}`, { headers: { "User-Agent": "euronics-redesign/1.0 (store locator; admin@euronics.gr)" }, signal: AbortSignal.timeout(6000) })
+      .then((r) => (r.ok ? (r.json() as Promise<{ lat: string; lon: string }[]>) : []))
+      .then((j) => (j[0] ? { lat: Number(j[0].lat), lon: Number(j[0].lon) } : null)).catch(() => null);
+    zipPoint.set(zip, p);
+    void p.then((v) => { if (!v) zipPoint.delete(zip); });
+  }
+  return p;
+}
+
+/**
+ * Η τιμή του ASAP price calculator για ένα δέμα προς έναν Τ.Κ., σε όλη την Ελλάδα (συμβολαιακός τιμοκατάλογος, με ΦΠΑ).
+ * Τη χρεώνει το ταμείο στον courier χωρίς δικό του τιμοκατάλογο και τη δείχνει το email του προσωπικού.
+ * Η ASAP απαντά σε ~5″ (μετά 30′ στη μνήμη ανά Τ.Κ. και βάρος): «pending» = δεν πρόλαβε μέσα στο waitMs, null = χωρίς τιμή.
+ */
+export async function asapCostQuote(zipRaw: string | null | undefined, pkg: { weightKg: number; dims: [number, number, number] }, waitMs = 20_000): Promise<{ fee: number; zone: string } | "pending" | null> {
+  const zip = (zipRaw ?? "").replace(/\s/g, "");
+  if (!/^\d{5}$/.test(zip)) return null;
+  const e = livePrice({ street: "", number: "", city: "", zip }, pkg, ["*"], () => pointOfZip(zip));
+  const r = e.done ?? (await Promise.race([e.p, new Promise<null>((ok) => setTimeout(() => ok(null), waitMs))]));
+  return r ? r.v : "pending";
 }

@@ -47,7 +47,7 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
       customer: { select: { email: true, firstName: true, lastName: true, phone: true, erpTrdr: true, erpCode: true } },
       pickupStore: { select: { name: true, address: true, zip: true, city: true, phone: true } },
       payment: { select: { method: true, instalments: true, status: true, psp: true, pspRef: true } },
-      lines: { orderBy: { id: "asc" }, select: { title: true, qty: true, unitPrice: true, listPrice: true, discPrice: true, discCoupon: true, discPayment: true, lineTotal: true, erpCode: true, isGift: true, promotions: true, setParts: true, addons: { select: { price: true, service: { select: { title: true, slug: true } } } } } },
+      lines: { orderBy: { id: "asc" }, select: { title: true, qty: true, unitPrice: true, listPrice: true, discPrice: true, discCoupon: true, discPayment: true, lineTotal: true, erpCode: true, isGift: true, promotions: true, setParts: true, variant: { select: { productId: true } }, addons: { select: { price: true, service: { select: { title: true, slug: true } } } } } },
       shipments: { orderBy: { createdAt: "asc" }, select: { id: true, carrier: true, env: true, voucher: true, subVouchers: true, pieces: true, weightKg: true, codAmount: true, status: true, liveUrl: true } },
       erpSync: { select: { status: true, erpDocId: true, lastError: true } },
       erpStages: { orderBy: { seenAt: "asc" }, select: { docNo: true, docDate: true, fprms: true } },
@@ -56,7 +56,7 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
   });
   if (!o) return null;
   const ctx = await emailCtx();
-  const s = (o.shipping ?? {}) as { firstName?: string; lastName?: string; email?: string; phone?: string; street?: string; number?: string; floor?: string; zip?: string; city?: string; region?: string; notes?: string; carrierName?: string; slots?: string[]; calc?: string[]; locker?: { name?: string; address?: string; zip?: string } };
+  const s = (o.shipping ?? {}) as { firstName?: string; lastName?: string; email?: string; phone?: string; street?: string; number?: string; floor?: string; zip?: string; city?: string; region?: string; notes?: string; carrier?: string; carrierName?: string; slots?: string[]; calc?: string[]; locker?: { name?: string; address?: string; zip?: string } };
   const inv = (o.invoice ?? null) as { vatNumber?: string; doy?: string; company?: string } | null;
   const total = n(o.total), pay = o.payment?.method ?? o.paymentMethod ?? "", payStatus = o.payment?.status ?? "pending";
   const name = [s.firstName ?? o.customer?.firstName, s.lastName ?? o.customer?.lastName].filter(Boolean).join(" ");
@@ -141,6 +141,32 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
     ...(erpStep ? [erpStep] : []),
   ];
 
+  // η μόνη τιμή courier που έρχεται από API είναι της ASAP (όλη η Ελλάδα): μπαίνει δίπλα στη χρέωση του πελάτη, για σύγκριση
+  // όταν το ταμείο χρέωσε ήδη την τιμή της ASAP, το γράφει ο ίδιος ο υπολογισμός
+  const byAsap = (s.calc ?? []).some((l) => l.includes("ASAP price calculator, ζώνη"));
+  const apiLine = isCourier && s.carrier !== "asap" && s.zip && !byAsap ? await asapLine().catch(() => null) : null;
+  async function asapLine() {
+    const [{ shippingLimits }, { asapCostQuote }, { asapCostLine }, { chargeableKg, DEFAULT_RATES }] = await Promise.all([import("@/lib/shipping/bulky-server"), import("@/lib/shipping/asap-express-server"), import("@/lib/shipping/asap-express"), import("@/lib/delivery/rates")]);
+    const limits = await shippingLimits([...new Set(o!.lines.map((l) => l.variant.productId))]);
+    const items = o!.lines.map((l) => ({ qty: l.qty, weightKg: limits.get(l.variant.productId)?.weightKg ?? null, dimsCm: limits.get(l.variant.productId)?.dimsCm ?? null }));
+    const kg = chargeableKg(items, DEFAULT_RATES.divisor);
+    const dims = items.map((i) => i.dimsCm).filter((d): d is [number, number, number] => !!d).sort((a, b) => b[0] * b[1] * b[2] - a[0] * a[1] * a[2])[0] ?? [30, 20, 15];
+    const q = await asapCostQuote(s.zip, { weightKg: Math.round(kg * 10) / 10, dims });
+    return q && q !== "pending" && asapCostLine(q, { kg, approx: items.some((i) => !i.weightKg), charged: Math.round(n(o!.shippingFee) * 100), cod: pay === "cod", carrierName: s.carrierName ?? null });
+  }
+
+  // ΕΛΤΑ ακόμη με δοκιμαστικά στοιχεία: το λέμε καθαρά στο προσωπικό, μαζί με το τι χρειάζεται για να ενεργοποιηθούν (εντολή 24/11/2026)
+  const eltaTest = isCourier && s.carrier === "elta" && await import("@/lib/couriers/elta/client").then((m) => m.eltaConfig()).then((c) => c?.env !== "production").catch(() => true);
+  const courierSetup: StaffOrderData["courierSetup"] = !eltaTest ? undefined : {
+    title: "ΔΕΝ ΕΧΕΙ ΕΝΕΡΓΟΠΟΙΗΘΕΙ ΤΟ ΠΑΡΑΓΩΓΙΚΟ ΠΕΡΙΒΑΛΛΟΝ ΤΩΝ ΕΛΤΑ COURIER.",
+    text: `Η σύνδεση με τα ΕΛΤΑ Courier δουλεύει ακόμη με δοκιμαστικά στοιχεία: το voucher που βγαίνει από τη διαχείριση είναι δοκιμαστικό και τα ΕΛΤΑ δεν παραλαμβάνουν δέμα με αυτό.${byAsap ? " Η τιμή μεταφορικών αυτής της παραγγελίας υπολογίστηκε με το ASAP price calculator, γιατί τα ΕΛΤΑ δεν δίνουν τιμή από το API τους και δεν έχει περαστεί τιμοκατάλογος ΕΛΤΑ." : ""} Τι χρειάζεται για να ενεργοποιηθούν:`,
+    steps: [
+      "Ζήτησε από τα ΕΛΤΑ Courier (τον εμπορικό εκπρόσωπο της σύμβασης, ή info@elta-courier.gr, τηλ. 210 607 3000) δύο πράγματα. Πρώτο, τον τιμοκατάλογο της σύμβασης: τιμή ανά ζώνη και κλίμακα βάρους, χρέωση για κάθε επιπλέον κιλό, για αντικαταβολή και για δυσπρόσιτες περιοχές. Δεύτερο, τα στοιχεία ΠΑΡΑΓΩΓΗΣ για τα Web Services (Customer API): κωδικό πελάτη, χρήστη και κωδικό. Τα σημερινά στοιχεία είναι του δοκιμαστικού περιβάλλοντος και δεν δουλεύουν στο παραγωγικό.",
+      "Τιμοκατάλογος: Διαχείριση → Αποστολές → Τιμοκατάλογοι → ΕΛΤΑ Courier. Γράψε ανά ζώνη και βάρος την τιμή πελάτη και το «Κόστος μας», και δημοσίευσέ τον. Από εκείνη τη στιγμή το ταμείο χρεώνει από τον τιμοκατάλογο ΕΛΤΑ και όχι από την ASAP, και αυτό το email δείχνει και το δικό μας κόστος.",
+      "Στοιχεία παραγωγής: Διαχείριση → Ρυθμίσεις → Αποστολές & courier → ΕΛΤΑ Courier. Βάλε κωδικό πελάτη, χρήστη και κωδικό, άλλαξε το «Περιβάλλον» σε «Παραγωγή», αποθήκευσε και πάτα «Δοκιμή σύνδεσης». Μόλις περάσει, τα voucher βγαίνουν κανονικά και αυτή η ειδοποίηση σταματά.",
+    ],
+  };
+
   const deltioIds = active.filter((x) => isVoucherCarrier(x.carrier)).map((x) => x.id).join(",");
   const voucherHelp = !isCourier ? `Η παραγγελία δεν φεύγει με courier (${how}), άρα δεν χρειάζεται voucher ούτε δελτίο παράδοσης.`
     : active.length ? "Το voucher έχει εκδοθεί. Η ετικέτα μπαίνει πάνω στο δέμα. Το δελτίο παράδοσης είναι το χαρτί που υπογράφει ο οδηγός του courier όταν παραλαμβάνει τα δέματα και μένει σε εσάς ως απόδειξη παραλαβής."
@@ -193,7 +219,7 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
       ...(s.notes ? [["Σημειώσεις πελάτη", s.notes] as [string, string]] : []),
       ...(o.route ? [["Δρομολόγηση", [MODE_LABEL[o.route.mode as keyof typeof MODE_LABEL] ?? o.route.mode, o.route.partner?.name ?? o.route.agency?.name ?? o.route.carrier?.name, o.route.reason, o.route.cost != null ? `κόστος για εμάς ${money(n(o.route.cost))}` : null].filter(Boolean).join(" · ")] as [string, string]] : []),
     ],
-    calc: s.calc ?? [],
+    calc: [...(s.calc ?? []), ...(apiLine ? [apiLine] : [])], courierSetup,
     vouchers: o.shipments.filter((x) => x.voucher).map((x) => {
       const courierUrl = x.liveUrl ?? trackUrl(x.carrier, x.voucher!);
       return {

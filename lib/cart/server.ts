@@ -1,7 +1,7 @@
 import "server-only";
 import { carrierOffers, FREIGHT_DEFAULT, freightOffer, isAtticaZip, ON_REQUEST_REASON, noPriceArea, pickCarrier, pricedArea, storeAreaZip, type CarrierId, type CarrierOffer, type FreightOffer } from "@/lib/shipping/carriers";
 import { shippingLimits } from "@/lib/shipping/bulky-server";
-import { atticaOffer, getAsapRules, type AtticaOffer } from "@/lib/shipping/asap-express-server";
+import { asapCostQuote, atticaOffer, getAsapRules, type AtticaOffer } from "@/lib/shipping/asap-express-server";
 import { STANDARD_ETA } from "@/lib/shipping/asap-express";
 import { extAddonPrices } from "@/lib/warranty/server";
 import { EXTENSION_SLUG } from "@/lib/warranty/policy";
@@ -17,7 +17,7 @@ import { activePromos, isNewCustomer, linesFor, lowest30, resolveCoupon, usesByP
 import { getSetting } from "@/lib/settings/store";
 import { areaHintFromRequest, getRateTables, localPartnerFor, nearStoresFor, storeZips, type LocalStore } from "@/lib/delivery/server";
 import { localDeliveryFee, localRules } from "@/lib/delivery/routing";
-import { chargeableKg, quoteRate } from "@/lib/delivery/rates";
+import { chargeableKg, DEFAULT_RATES, quoteRate } from "@/lib/delivery/rates";
 
 /**
  * Καλάθι στον server. Ο browser κρατά το καλάθι για ταχύτητα και το καθρεφτίζει εδώ (ολόκληρο, με κάθε αλλαγή).
@@ -92,6 +92,8 @@ export interface Quote {
   freeShipping: { promotionId: string; code: string; version: number; label: string; saved: number } | null;
   /** γιατί βγήκε αυτό το ποσό μεταφορικών, σε απλά ελληνικά — για το προσωπικό (email παραγγελίας)· δεν πάει στον browser */
   shippingWhy: string[];
+  /** η τιμή του courier έρχεται από την ASAP και δεν έχει απαντήσει ακόμη: ο browser ξαναρωτά */
+  shipPending: boolean;
   goods: number; addons: number; discPrice: number; discCoupon: number; discPayment: number; payment: EngineResult["payment"]; shipping: number; codFee: number; total: number; vat: number;
   coupon: { applied: string | null; message: string | null };
   trace: EngineResult["trace"];
@@ -229,7 +231,17 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
     : { attica: false, standard: { eta: STANDARD_ETA, inStock: true }, express: null, why: null };
   const express = attica.express?.state === "ok" ? attica.express : null;
   const isExpress = attica.attica && input.delivery === "courier" && input.carrier === "asap" && !!express;
-  const carriers = carrierOffers(rules.data, input.zip ?? null).filter((o) => !(asapRules.on && o.id === "asap")).map((o) => { const r = rated(o.id); return r ? { ...o, fee: r.fee, baseFee: r.baseFee } : o; }).map((o) =>
+  // courier στο σπίτι χωρίς δημοσιευμένο τιμοκατάλογο: χρεώνεται η τιμή του ASAP price calculator για τον Τ.Κ. και το χρεώσιμο βάρος
+  // (εντολή 24/11/2026: τα ΕΛΤΑ δεν δίνουν τιμή από το API τους). Χωρίς απάντηση της ASAP μένει η σταθερή τιμή των ρυθμίσεων.
+  // Όπου τα μεταφορικά είναι ήδη δωρεάν ή εκτός συνόλου (Αττική, περιοχή με κατάστημα, κατόπιν συνεννόησης) δεν ρωτάμε.
+  const offers0 = carrierOffers(rules.data, input.zip ?? null).filter((o) => !(asapRules.on && o.id === "asap"));
+  const viaAsap = (o: { id: string; kind: string }) => o.kind === "address" && o.id !== "asap" && !rated(o.id);
+  const shipItems = out.map((l) => ({ qty: l.qty, weightKg: limits.get(l.productId)?.weightKg ?? null, dimsCm: limits.get(l.productId)?.dimsCm ?? null }));
+  const shipKg = chargeableKg(shipItems, DEFAULT_RATES.divisor);
+  const askAsap = process.env.ASAP_COURIER_PRICE !== "off" && out.length > 0 && bulky.courier && !zipNeeded && !onRequest && !storeArea && !attica.attica && offers0.some(viaAsap);
+  const asapPrice = askAsap ? await asapCostQuote(input.zip, { weightKg: Math.round(shipKg * 10) / 10, dims: shipItems.map((i) => i.dimsCm).filter((d): d is [number, number, number] => !!d).sort((a, b) => b[0] * b[1] * b[2] - a[0] * a[1] * a[2])[0] ?? [30, 20, 15] }, input.settle ? 20_000 : 1500).catch(() => null) : null;
+  const asapFee = asapPrice && asapPrice !== "pending" ? asapPrice : null;
+  const carriers = offers0.map((o) => { const r = rated(o.id); return r ? { ...o, fee: r.fee, baseFee: r.baseFee } : asapFee && viaAsap(o) ? { ...o, fee: asapFee.fee, baseFee: asapFee.fee } : asapPrice === "pending" && viaAsap(o) ? { ...o, pending: true } : o; }).map((o) =>
     !bulky.courier ? { ...o, available: false, reason: freight?.available ? "Το καλάθι έχει ογκώδη συσκευή: αποστολή με μεταφορική ή παραλαβή από κατάστημα" : "Το καλάθι έχει μεγάλη συσκευή: παράδοση από συνεργαζόμενο κατάστημα ή παραλαβή από κατάστημα" }
     : o.kind === "locker" && !bulky.locker ? { ...o, available: false, reason: "Δεν χωράει σε θυρίδα (έως 20 κιλά, 36 × 45 × 60 εκ.)" } : o);
   const carriers2 = onRequest ? carriers.map((o) => ({ ...o, available: false, reason: ON_REQUEST_REASON })) : storeArea ? carriers.map((o) => ({ ...o, fee: 0 })) : carriers;
@@ -266,7 +278,9 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
       : `Μεταφορική${central ? ` από το κεντρικό (κανένα συνεργαζόμενο κατάστημα μέσα σε ${lr.maxKm} χλμ.)` : ""}: ${devices} ${devices === 1 ? "συσκευή" : "συσκευές"} × ${e2(unitFee)} = ${e2(freight!.fee)}.`)
     : (input.delivery && input.delivery !== "courier") || !bulky.courier ? "Παράδοση euronics με ραντεβού: χωρίς χρέωση μεταφορικών."
     : storeArea ? `${zipTxt}: περιοχή με κατάστημα Euronics, τα μεταφορικά είναι δωρεάν.`
-    : carrier ? (cr ? `${carrier.name}, ${byTable(cr)}.` : `${carrier.name}: σταθερή τιμή των ρυθμίσεων ${e2(carrier.fee)}.`)
+    : carrier ? (cr ? `${carrier.name}, ${byTable(cr)}.`
+      : asapFee && viaAsap(carrier) ? `${carrier.name}: τιμή από το ASAP price calculator, ζώνη «${asapFee.zone}» × χρεώσιμο βάρος ${dec(shipKg)} κιλά: ${e2(carrier.fee)} με ΦΠΑ (δεν υπάρχει δημοσιευμένος τιμοκατάλογος ${carrier.name}).`
+      : `${carrier.name}: σταθερή τιμή των ρυθμίσεων ${e2(carrier.fee)}${askAsap && viaAsap(carrier) ? " (το ASAP price calculator δεν έδωσε τιμή για αυτόν τον Τ.Κ.)" : ""}.`)
     : `Γενικό κόστος αποστολής των ρυθμίσεων: ${e2(rules.fee)}.`,
     ...(freeShipping ? [`Προσφορά «${freeShipping.label}» (${freeShipping.code}): δωρεάν μεταφορικά, ο πελάτης γλίτωσε ${e2(freeShipping.saved)}.`] : []),
     ...(codFee ? [`Αντικαταβολή: χρέωση ${e2(codFee)}.`] : []),
@@ -274,7 +288,7 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   ];
   // «σου λείπουν Χ € για δωρεάν μεταφορικά» δεν έχει νόημα όταν τα μεταφορικά είναι ήδη δωρεάν
   const hints = baseShipping === 0 ? engine.hints.filter((h) => !h.includes("δωρεάν μεταφορικά")) : engine.hints;
-  return { lines: out, missing, gifts, hints, freeShipping, shippingWhy, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, discPayment: engine.discPayment, payment: engine.payment, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, storeArea, zipNeeded, areaHint, pricedArea: priced, carriers: carriers2, carrier: isExpress ? "asap" : attica.attica ? null : carrier?.id ?? null, bulky, freight, attica, onRequest, engine };
+  return { lines: out, missing, gifts, hints, freeShipping, shippingWhy, shipPending: asapPrice === "pending", goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, discPayment: engine.discPayment, payment: engine.payment, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, storeArea, zipNeeded, areaHint, pricedArea: priced, carriers: carriers2, carrier: isExpress ? "asap" : attica.attica ? null : carrier?.id ?? null, bulky, freight, attica, onRequest, engine };
 }
 
 /** Για το JSON προς τον browser: χωρίς το εσωτερικό αποτέλεσμα της μηχανής. */

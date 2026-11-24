@@ -57,7 +57,7 @@ export function RateEditor({ carriers, current, rows, defaults, canWrite }: { ca
       <div className="flex flex-wrap items-center gap-2 text-[length:var(--fs-13)]">
         {edit?.status === "published" ? <span className="inline-flex items-center gap-1 rounded-full bg-eu-green/10 text-eu-green font-bold px-3 py-1"><Check className="size-3.5" aria-hidden /> Δημοσιευμένος: αυτός υπολογίζει τα μεταφορικά</span>
           : <span className="inline-flex items-center gap-1 rounded-full bg-eu-amber/15 text-eu-ink font-bold px-3 py-1"><CircleAlert className="size-3.5 text-eu-amber" aria-hidden /> {edit ? "Πρόχειρο: δεν επηρεάζει το checkout" : "Νέος, δεν έχει αποθηκευτεί"}</span>}
-        {!published && !isAgency && <span className="text-eu-muted">Σήμερα ισχύει η σταθερή τιμή των ρυθμίσεων.</span>}
+        {!published && !isAgency && <span className="text-eu-muted">Σήμερα ο courier στο σπίτι χρεώνεται με την τιμή του ASAP price calculator· οι υπόλοιποι με τη σταθερή τιμή των ρυθμίσεων.</span>}
       </div>
 
       <section key={`a${ver}`} className="rounded-2xl bg-white border border-eu-line p-4 grid gap-3 @2xl:grid-cols-3">

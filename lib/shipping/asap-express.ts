@@ -89,7 +89,7 @@ export function expressCheck(lines: ExpressLine[], rules: AsapRules): ExpressChe
   return { ok: true, pkg: { weightKg: big.weightKg!, dims: big.dimsCm! } };
 }
 
-/** Τιμή από το /voucher-price-calculator: μόνο τιμοκατάλογοι σε επιτρεπτή ζώνη, χωρίς «Επιστροφές» / συμβολικές τιμές. */
+/** Τιμή από το /voucher-price-calculator: μόνο τιμοκατάλογοι σε επιτρεπτή ζώνη ("*" = όλες), χωρίς «Επιστροφές» / συμβολικές τιμές. */
 export function pickAsapPrice(json: unknown, zones: string[]): { fee: number; zone: string } | null {
   const lists = (json as { items?: { price_lists?: unknown[] } } | null)?.items?.price_lists;
   if (!Array.isArray(lists)) return null;
@@ -98,8 +98,23 @@ export function pickAsapPrice(json: unknown, zones: string[]): { fee: number; zo
     const pl = raw as { name?: string; area_groups?: { to?: { name?: string } }; charges?: { total?: number } };
     const total = Number(pl.charges?.total);
     const zone = String(pl.area_groups?.to?.name ?? "").trim();
-    if (!Number.isFinite(total) || total < 0.5 || /επιστροφ/i.test(pl.name ?? "") || !allowed.has(zone.toLowerCase())) return [];
+    if (!Number.isFinite(total) || total < 0.5 || /επιστροφ/i.test(pl.name ?? "") || !(allowed.has("*") || allowed.has(zone.toLowerCase()))) return [];
     return [{ fee: Math.round(total * 100), zone }];
   });
   return ok.sort((a, b) => a.fee - b.fee)[0] ?? null;
+}
+
+/**
+ * Γραμμή για το email του προσωπικού: τι θα μας χρέωνε η ASAP για το ίδιο δέμα, δίπλα σε ό,τι χρεώθηκε ο πελάτης
+ * (ποσά σε λεπτά, με ΦΠΑ). Είναι η μόνη τιμή courier που έρχεται από API· οι άλλοι (π.χ. ΕΛΤΑ) δεν δίνουν τιμή.
+ */
+export function asapCostLine(q: { fee: number; zone: string }, o: { kg: number; approx?: boolean; charged: number; cod?: boolean; carrierName?: string | null }): string {
+  const e2 = (c: number) => `${(c / 100).toFixed(2).replace(".", ",")} €`;
+  const kg = String(Math.round(o.kg * 10) / 10).replace(".", ",");
+  const diff = o.charged - q.fee;
+  return [
+    `Σύγκριση με τιμή από API: η ASAP θα μας χρέωνε ${e2(q.fee)} με ΦΠΑ για αυτό το δέμα (${o.approx ? "περίπου " : ""}${kg} κιλά, ζώνη «${q.zone}»).`,
+    `Ο πελάτης χρεώθηκε ${e2(o.charged)}${o.cod ? " μαζί με την αντικαταβολή" : ""}: ${diff >= 0 ? `καλύπτει το κόστος, περισσεύουν ${e2(diff)}` : `δεν το καλύπτει, λείπουν ${e2(-diff)}`}.`,
+    ...(o.carrierName ? [`${o.carrierName}: δεν δίνει τιμή από το API, γι' αυτό η σύγκριση γίνεται με την ASAP.`] : []),
+  ].join(" ");
 }

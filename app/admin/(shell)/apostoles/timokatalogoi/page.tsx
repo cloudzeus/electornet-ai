@@ -32,7 +32,7 @@ export default async function RatesPage({ searchParams }: { searchParams: Promis
       <div>
         <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5"><Receipt className="size-3.5" aria-hidden /> Αποστολές</div>
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Τιμοκατάλογοι μεταφορικών</h2>
-        <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Η τιμή που βλέπει ο πελάτης στο checkout βγαίνει από τη ζώνη του Τ.Κ. του και το βάρος του καλαθιού (το μεγαλύτερο από πραγματικό και ογκομετρικό). Χωρίς δημοσιευμένο τιμοκατάλογο ισχύει η σταθερή τιμή των ρυθμίσεων. Στα πρακτορεία γράφεις τι πληρώνουμε εμείς, για τη σύγκριση στο κέντρο ελέγχου.</p>
+        <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Η τιμή που βλέπει ο πελάτης στο checkout βγαίνει από τη ζώνη του Τ.Κ. του και το βάρος του καλαθιού (το μεγαλύτερο από πραγματικό και ογκομετρικό). Χωρίς δημοσιευμένο τιμοκατάλογο, ο courier στο σπίτι χρεώνεται με την τιμή του ASAP price calculator για τον Τ.Κ. και το βάρος του καλαθιού· αν η ASAP δεν δώσει τιμή, με τη σταθερή τιμή των ρυθμίσεων. Στα πρακτορεία γράφεις τι πληρώνουμε εμείς, για τη σύγκριση στο κέντρο ελέγχου.</p>
       </div>
       {rows === null ? (
         <p className="m-0 rounded-2xl border border-eu-amber/40 bg-eu-amber/10 p-4 text-eu-ink text-[length:var(--fs-14)]">Οι πίνακες της δρομολόγησης δεν υπάρχουν ακόμη στη βάση. Χρειάζεται η εφαρμογή του <code>prisma/sql/2026-11-11-delivery-routing.sql</code>.</p>

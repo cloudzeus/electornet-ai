@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ASAP_DEFAULT, asapEligible, expressCheck, inZips, normalizeAsapRules, pickAsapPrice, type ExpressLine } from "./asap-express";
+import { ASAP_DEFAULT, asapCostLine, asapEligible, expressCheck, inZips, normalizeAsapRules, pickAsapPrice, type ExpressLine } from "./asap-express";
 
 test("ΤΚ Αττικής: εύρη και μεμονωμένοι, μόνο 5ψήφιοι", () => {
   assert.equal(inZips("11741", "10000-19999"), true);
@@ -40,6 +40,19 @@ test("τιμή: χωρίς «Επιστροφές» 0,01 €, μόνο επιτ�
   const chersaio = { items: { price_lists: [{ name: "Next Day", area_groups: { to: { name: "Χερσαίο" } }, charges: { total: 5.7 } }] } };
   assert.equal(pickAsapPrice(chersaio, ASAP_DEFAULT.zones), null);
   assert.equal(pickAsapPrice(null, ASAP_DEFAULT.zones), null);
+  // «*» = κάθε ζώνη (τιμή κόστους για το προσωπικό, όλη η Ελλάδα)· οι «Επιστροφές» μένουν εκτός
+  assert.deepEqual(pickAsapPrice(chersaio, ["*"]), { fee: 570, zone: "Χερσαίο" });
+  assert.deepEqual(pickAsapPrice(j, ["*"]), { fee: 484, zone: "Αθήνα εντός" });
+});
+
+test("γραμμή κόστους ASAP για το email του προσωπικού", () => {
+  const less = asapCostLine({ fee: 422, zone: "Χερσαίο" }, { kg: 2, charged: 390, carrierName: "ΕΛΤΑ Courier" });
+  assert.match(less, /η ASAP θα μας χρέωνε 4,22 € με ΦΠΑ.*\(2 κιλά, ζώνη «Χερσαίο»\)/);
+  assert.match(less, /χρεώθηκε 3,90 €: δεν το καλύπτει, λείπουν 0,32 €/);
+  assert.match(less, /ΕΛΤΑ Courier: δεν δίνει τιμή από το API/);
+  const more = asapCostLine({ fee: 242, zone: "Αθήνα εντός" }, { kg: 12.44, approx: true, charged: 590, cod: true });
+  assert.match(more, /περίπου 12,4 κιλά/);
+  assert.match(more, /5,90 € μαζί με την αντικαταβολή: καλύπτει το κόστος, περισσεύουν 3,48 €/);
 });
 
 test("κανόνες: προεπιλογές και καθάρισμα", () => {

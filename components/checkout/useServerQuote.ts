@@ -17,7 +17,7 @@ export function useServerQuote(lines: CartLine[], hydrated: boolean, params: Quo
   const [quote, setQuote] = useState<ServerQuote | null>(null);
   const [loading, setLoading] = useState(false);
   const seq = useRef(0);
-  // η τιμή ASAP Express αργεί (~5″): όσο είναι «pending» ξαναρωτάμε
+  // η τιμή της ASAP (Express ή courier χωρίς τιμοκατάλογο) αργεί ~5″: όσο είναι «pending» ξαναρωτάμε
   const [tick, setTick] = useState(0);
   const { coupon = null, payment = null, delivery = null, zip = null, email = null, storeId = null, localStoreId = null, carrier = null, street = null, number = null, city = null } = params;
   useEffect(() => {
@@ -30,7 +30,7 @@ export function useServerQuote(lines: CartLine[], hydrated: boolean, params: Quo
         await fetch("/api/cart", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ lines: lines.filter((l) => l.product.fromDb).map((l) => ({ productId: l.product.id, qty: l.qty, addons: l.addons.map((a) => ({ slug: a.slug })) })) }) });
         const r = await fetch("/api/checkout/quote", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ coupon, payment, delivery, zip, email, storeId, localStoreId, carrier, street, number, city }) });
         const q = (await r.json()) as ServerQuote;
-        if (my === seq.current) { setQuote(q); if (q.attica?.express?.state === "pending") setTimeout(() => setTick((n) => n + 1), 1500); }
+        if (my === seq.current) { setQuote(q); if (q.attica?.express?.state === "pending" || q.shipPending) setTimeout(() => setTick((n) => n + 1), 1500); }
       } catch { /* μένει ο προηγούμενος υπολογισμός */ } finally {
         if (my === seq.current) setLoading(false);
       }

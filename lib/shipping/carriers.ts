@@ -77,6 +77,8 @@ export interface CarrierOffer {
   /** τι πληρώνει ο πελάτης για αυτό το καλάθι */
   fee: number; baseFee: number;
   available: boolean; reason: string | null;
+  /** η τιμή έρχεται από την ASAP και δεν έχει απαντήσει ακόμη (το fee είναι προσωρινά η σταθερή τιμή) */
+  pending?: boolean;
 }
 
 type Data = Record<string, unknown>;
