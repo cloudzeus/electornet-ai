@@ -18,7 +18,7 @@ export const checkoutUrl = (mode: VivaMode, orderCode: string, pay: VivaPay) =>
   `${vivaHosts(mode).web}/web/checkout?ref=${encodeURIComponent(orderCode)}${VIVA_METHODS[pay] == null ? "" : `&paymentMethod=${VIVA_METHODS[pay]}`}`;
 
 /** Η συναλλαγή όπως την επιστρέφει το Retrieve Transaction (checkout/v2/transactions/{id}). */
-export interface VivaTransaction { statusId: string; amount: number; orderCode: number | string; merchantTrns?: string | null; email?: string | null; totalInstallments?: number | null }
+export interface VivaTransaction { statusId: string; amount: number; orderCode: number | string; merchantTrns?: string | null; email?: string | null; totalInstallments?: number | null; /** αιτία αποτυχίας (Event ID code) */ eventId?: number | null; /** 6 πρώτα + XXXXXX + 4 τελευταία */ cardNumber?: string | null; cardIssuingBank?: string | null }
 export type VivaVerdict = "paid" | "pending" | "failed" | "mismatch";
 
 /**

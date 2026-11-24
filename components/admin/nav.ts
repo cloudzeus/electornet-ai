@@ -3,7 +3,7 @@ import {
   GitBranch,
   BadgeCheck, BadgePercent, BookOpen, BarChart3, Box, Boxes, Database, DatabaseBackup, FileSpreadsheet, FolderTree, Images, LayoutDashboard, LayoutTemplate, ListChecks, Mail, Megaphone, Package, Radar,
   RefreshCw, ScanText, ScrollText, Settings, ShieldCheck, ShieldHalf, ShoppingBag, Sticker, Store, Truck, Users, Wrench, Zap, CalendarCheck,
-  Handshake, PackagePlus, Sparkles, Receipt, Warehouse, Map as MapIcon, Scale, Timer, Percent, Ruler,
+  Handshake, PackagePlus, Sparkles, Receipt, Warehouse, Map as MapIcon, Scale, Timer, Percent, Ruler, CreditCard,
 } from "lucide-react";
 import type { Feature } from "@/lib/admin/features";
 
@@ -35,6 +35,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "Πωλήσεις & πελάτες",
     items: [
       { href: "/admin/orders", label: "Παραγγελίες", icon: ShoppingBag, perm: "orders.read" },
+      { href: "/admin/orders/pliromes", label: "Αποτυχημένες πληρωμές", icon: CreditCard, perm: "orders.read" },
       { href: "/admin/orders/enimerosi", label: "Ρυθμίσεις ενημέρωσης", icon: Mail, perm: "orders.write" },
       { href: "/admin/customers", label: "Πελάτες", icon: Users, perm: "customers.read" },
       { href: "/admin/stores", label: "Καταστήματα", icon: Store, perm: "stores.read" },

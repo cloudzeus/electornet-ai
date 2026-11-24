@@ -1,12 +1,13 @@
 import Link from "next/link";
 import Image from "@/components/ui/Image";
-import { AlertTriangle, ArrowLeft, Building2, Check, CreditCard, ExternalLink, FileText, Gift, History, Mail, MapPin, MessageSquare, Package, Phone, RotateCcw, Store, Tag, Truck, User } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Building2, Check, CheckCircle2, Clock, CreditCard, ExternalLink, FileText, Gift, History, LogOut, Mail, MapPin, MessageSquare, Package, Phone, RotateCcw, Store, Tag, Truck, User, XCircle } from "lucide-react";
 import type { OrderDetail } from "@/lib/orders/admin";
 import { pickupCode, rmaOf } from "@/lib/orders/ops";
 import { currentStage } from "@/lib/orders/erp-stages-core";
 import { ERP_STATUS, FULFILMENT, NOTIFY_ON, addressOf, nameOf, nextAction, nextStatuses, orderSteps, statusLabel, type Fulfilment, type ShipTo } from "@/lib/orders/model";
 import type { shipmentDraft } from "@/lib/couriers/shipments";
 import { payLabel } from "@/lib/account/labels";
+import { payTimeline, payTrouble, type TimelineRow } from "@/lib/payments/events-core";
 import { CopyValue } from "@/components/admin/settings/ui";
 import { ShipmentTracker } from "@/components/shipping/ShipmentTracker";
 import { Badge, ErpBadge, OrderStatusBadge, PaymentBadge, ReturnBadge, dateTime, eur } from "@/components/admin/orders/ui";
@@ -28,6 +29,8 @@ function Card({ title, icon: Icon, right, children, id, "data-help": help }: { t
     </section>
   );
 }
+const PAY_ICON: Record<TimelineRow["icon"] | "mail", typeof Package> = { open: ExternalLink, retry: RotateCcw, x: XCircle, left: LogOut, clock: Clock, check: CheckCircle2, alert: AlertTriangle, mail: Mail };
+const PAY_TONE: Record<TimelineRow["tone"], string> = { muted: "text-eu-muted", bad: "text-eu-red", warn: "text-eu-amber", good: "text-eu-green", info: "text-eu-blue" };
 const Row = ({ k, children }: { k: string; children: React.ReactNode }) => <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-2 text-[length:var(--fs-13)]"><dt className="text-eu-muted">{k}</dt><dd className="m-0 text-eu-ink-2 min-w-0 break-words">{children}</dd></div>;
 
 /**
@@ -54,6 +57,12 @@ export function OrderView({ o, draft, erp, canWrite, canRefund, pay }: { o: Orde
   const discPrice = lines.reduce((a, l) => a + n(l.discPrice), 0), discCoupon = lines.reduce((a, l) => a + n(l.discCoupon), 0), discPay = lines.reduce((a, l) => a + n(l.discPayment), 0);
   const addonsTotal = lines.reduce((a, l) => a + l.addons.reduce((x, ad) => x + n(ad.price), 0), 0);
   const paid = o.payment?.status === "paid" || o.payment?.status === "partially-refunded";
+  // ιστορικό πληρωμής: κάθε προσπάθεια με την αιτία της, και τα email με τον σύνδεσμο πληρωμής ανάμεσά τους
+  const payEvents = o.payEvents ?? [];
+  const payRows: (Omit<TimelineRow, "icon"> & { icon: TimelineRow["icon"] | "mail" })[] = payEvents.length
+    ? [...payTimeline(payEvents, payLabel), ...o.emails.filter((e) => e.template === "payment-pending").map((e) => ({ at: new Date(e.at), tone: "info" as const, icon: "mail" as const, title: e.status === "sent" ? "Στάλθηκε email στον πελάτη με τον σύνδεσμο πληρωμής" : "Το email με τον σύνδεσμο πληρωμής δεν στάλθηκε", sub: e.status === "sent" ? undefined : e.error ?? undefined }))].sort((a, b) => +a.at - +b.at)
+    : [];
+  const trouble = payTrouble(payEvents);
   const openReturns = o.returns.filter((r) => ["requested", "approved", "received"].includes(r.status)).length;
   const timeline = [
     { at: o.createdAt, title: "Η παραγγελία καταχωρήθηκε", by: "e-shop", icon: Package },
@@ -143,12 +152,40 @@ export function OrderView({ o, draft, erp, canWrite, canRefund, pay }: { o: Orde
           </Card>
 
           {/* πληρωμή */}
-          <Card title="Πληρωμή" icon={CreditCard} data-help="order.payment" right={<PaymentBadge status={o.payment?.status ?? null} />}>
+          <Card id="pliromi" title="Πληρωμή" icon={CreditCard} data-help="order.payment" right={<PaymentBadge status={o.payment?.status ?? null} />}>
             <dl className="m-0 grid gap-1">
               <Row k="Τρόπος">{payLabel(o.payment?.method ?? o.paymentMethod)}{(o.payment?.instalments ?? 1) > 1 ? ` · ${o.payment!.instalments} δόσεις` : ""}</Row>
               {o.payment?.psp && <Row k="Πάροχος">{o.payment.psp}{o.payment.pspRef ? <> · <span className="font-mono text-[length:var(--fs-12)] select-all">{o.payment.pspRef}</span></> : null}</Row>}
               {o.payment && <Row k="Ενημέρωση">{dateTime(o.payment.updatedAt)}{o.payment.scaDone ? " · 3-D Secure" : ""}</Row>}
             </dl>
+            {trouble && (
+              <div data-help="order.paytrouble" className={`rounded-lg border p-2.5 grid gap-1 ${paid ? "border-eu-green/40 bg-eu-green/10" : "border-eu-red/40 bg-eu-red/10"}`}>
+                <span className="inline-flex items-center gap-1.5 font-bold text-eu-ink text-[length:var(--fs-13)]">
+                  {paid ? <CheckCircle2 className="size-4 shrink-0 text-eu-green" aria-hidden /> : <AlertTriangle className="size-4 shrink-0 text-eu-red" aria-hidden />}
+                  {paid ? `Πλήρωσε, αφού δεν πέρασ${trouble.missed === 1 ? "ε 1 προσπάθεια" : `αν ${trouble.missed} προσπάθειες`}` : trouble.missed === trouble.attempts ? `${trouble.attempts === 1 ? "1 προσπάθεια" : `${trouble.attempts} προσπάθειες`}, καμία δεν πέρασε` : `${trouble.missed} από ${trouble.attempts} προσπάθειες δεν πέρασαν`}
+                </span>
+                <span className="text-eu-ink-2 text-[length:var(--fs-12)]">Τελευταία αιτία: {trouble.reason.label}.{paid ? "" : ` ${trouble.reason.advice}`}</span>
+              </div>
+            )}
+            {payRows.length > 0 && (
+              <div data-help="order.payhistory" className="grid gap-1">
+                <h4 className="m-0 font-bold text-eu-ink text-[length:var(--fs-13)]">Τι έγινε, με τη σειρά</h4>
+                <ol className="m-0 p-0 list-none grid gap-1.5">
+                  {payRows.map((r, i) => {
+                    const Icon = PAY_ICON[r.icon];
+                    return (
+                      <li key={i} className="grid grid-cols-[1rem_minmax(0,1fr)] gap-x-2 text-[length:var(--fs-13)]">
+                        <Icon className={`size-4 mt-0.5 ${PAY_TONE[r.tone]}`} aria-hidden />
+                        <div className="min-w-0">
+                          <span className={r.tone === "bad" ? "text-eu-red font-bold" : r.tone === "warn" ? "text-eu-ink font-bold" : "text-eu-ink-2"}>{r.title}</span>
+                          <span className="block text-eu-muted text-[length:var(--fs-12)] break-words"><time dateTime={r.at.toISOString()} className="tabular-nums">{dateTime(r.at)}</time>{r.sub ? ` · ${r.sub}` : ""}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            )}
             {pay && (
               <div data-help="order.paylink" className="rounded-lg border border-eu-amber/40 bg-eu-amber/10 p-2.5 grid gap-1.5 print:hidden">
                 <span className="inline-flex items-center gap-1.5 font-bold text-eu-ink text-[length:var(--fs-13)]"><AlertTriangle className="size-4 shrink-0 text-eu-amber" aria-hidden /> Ο πελάτης δεν έχει πληρώσει</span>

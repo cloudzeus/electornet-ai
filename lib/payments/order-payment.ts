@@ -9,6 +9,8 @@ import { createVivaOrder, getVivaTransaction, vivaConfig, vivaOrderTransactions 
 import { bankTransfer } from "./bank-transfer";
 import { payLabel } from "@/lib/account/labels";
 import { payable, payUntil } from "@/lib/orders/model";
+import { logPayment } from "./events";
+import { cardText } from "./events-core";
 
 /**
  * Ο κύκλος ζωής μιας online πληρωμής (Viva):
@@ -38,7 +40,7 @@ export function validPaymentKey(number: string, k: string | null | undefined) {
 const cents = (d: unknown) => Math.round(Number(d) * 100);
 
 /** Νέο payment order στη Viva για εκκρεμή παραγγελία → η διεύθυνση της σελίδας πληρωμής (με τον τρόπο προεπιλεγμένο). */
-export async function startVivaPayment(orderId: string, pay: VivaPay): Promise<string> {
+export async function startVivaPayment(orderId: string, pay: VivaPay, source: "checkout" | "retry" = "checkout"): Promise<string> {
   const c = await vivaConfig();
   if (!c) throw new Error("Η Viva δεν έχει ρυθμιστεί.");
   const o = await db.order.findUnique({ where: { id: orderId }, select: { number: true, total: true, status: true, shipping: true, guestEmail: true, customer: { select: { email: true } }, payment: { select: { instalments: true, status: true } } } });
@@ -52,14 +54,16 @@ export async function startVivaPayment(orderId: string, pay: VivaPay): Promise<s
     customer: { email: s.email ?? o.customer?.email ?? o.guestEmail ?? "", fullName: [s.firstName, s.lastName].filter(Boolean).join(" "), phone: s.phone ?? null },
   });
   await db.payment.update({ where: { orderId }, data: { psp: "viva", pspRef: code, method: pay, status: "pending" } });
+  await logPayment(orderId, "started", { source, method: pay, psp: "viva", pspOrder: code });
   return checkoutUrl(c.mode, code, pay);
 }
 
 /**
  * Επιβεβαίωση από τη Viva (επιστροφή πελάτη ή webhook): ανάκτηση της συναλλαγής, έλεγχος κωδικού και ποσού, ενημέρωση.
  * Ιδεμπότητη — δεύτερη κλήση για ήδη πληρωμένη παραγγελία δεν κάνει τίποτα.
+ * `hint`: από πού ήρθε η ειδοποίηση και ο κωδικός αιτίας που έδωσε (η Viva τον δίνει και στη συναλλαγή· αυτός προηγείται).
  */
-export async function settleViva(transactionId: string): Promise<{ number: string | null; verdict: VivaVerdict | "unknown"; kind?: "order" | "warranty" }> {
+export async function settleViva(transactionId: string, hint: { source?: string; eventId?: unknown } = {}): Promise<{ number: string | null; verdict: VivaVerdict | "unknown"; kind?: "order" | "warranty" }> {
   const c = await vivaConfig();
   if (!c) return { number: null, verdict: "unknown" };
   const t = await getVivaTransaction(c, transactionId);
@@ -72,6 +76,7 @@ export async function settleViva(transactionId: string): Promise<{ number: strin
   const code = pay.pspRef!.split(":")[0];
   const verdict = judgeTransaction(t, { orderCode: code, totalCents: cents(pay.order.total) });
   if (pay.status === "paid") return { number: pay.order.number, verdict: "paid", kind: "order" };
+  await logPayment(pay.orderId, verdict === "mismatch" ? "review" : verdict, { source: hint.source ?? "check", psp: "viva", pspOrder: code, txId: transactionId, eventId: verdict === "failed" ? t.eventId || hint.eventId : null, card: cardText(t.cardNumber, t.cardIssuingBank) });
   if (verdict === "paid") await markPaid(pay.orderId, `${code}:${transactionId}`);
   else await db.payment.update({ where: { orderId: pay.orderId }, data: { status: verdict === "pending" ? "processing" : verdict === "mismatch" ? "review" : "failed" } });
   return { number: pay.order.number, verdict, kind: "order" };

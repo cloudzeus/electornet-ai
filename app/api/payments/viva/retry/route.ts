@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const o = await db.order.findUnique({ where: { number: b.no }, select: { id: true } });
   if (!o) return NextResponse.json({ ok: false, error: "Η παραγγελία δεν βρέθηκε." }, { status: 404 });
   try {
-    const redirect = klarna ? await startKlarnaPayment(o.id, await publicOrigin(req)) : await startVivaPayment(o.id, b.pay as Parameters<typeof startVivaPayment>[1]);
+    const redirect = klarna ? await startKlarnaPayment(o.id, await publicOrigin(req)) : await startVivaPayment(o.id, b.pay as Parameters<typeof startVivaPayment>[1], "retry");
     return NextResponse.json({ ok: true, redirect });
   } catch (e) { return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : "Δεν ξεκίνησε η πληρωμή." }, { status: 409 }); }
 }

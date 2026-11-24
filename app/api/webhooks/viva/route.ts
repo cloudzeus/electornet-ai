@@ -14,8 +14,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const b = (await req.json().catch(() => null)) as { EventTypeId?: number; EventData?: { TransactionId?: string } } | null;
+  const b = (await req.json().catch(() => null)) as { EventTypeId?: number; EventData?: { TransactionId?: string; ResponseEventId?: number } } | null;
   const id = b?.EventData?.TransactionId;
-  if (id && (b?.EventTypeId === 1796 || b?.EventTypeId === 1798)) await settleViva(id).catch(() => null);
+  if (id && (b?.EventTypeId === 1796 || b?.EventTypeId === 1798)) await settleViva(id, { source: "webhook", eventId: b.EventData?.ResponseEventId }).catch(() => null);
   return NextResponse.json({ ok: true });
 }

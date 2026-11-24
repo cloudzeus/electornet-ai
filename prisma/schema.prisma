@@ -1744,6 +1744,7 @@ model Order {
   promoUsages   PromotionUsage[]
   lines         OrderLine[]
   payment       Payment?
+  paymentEvents PaymentEvent[]
   erpSync       ErpSync?
   returns       Return[]
   shipments     Shipment[]
@@ -1824,6 +1825,30 @@ model Payment {
   status      String   @default("pending")
   scaDone     Boolean  @default(false)
   updatedAt   DateTime @updatedAt
+}
+
+/// Ιστορικό πληρωμής: μία γραμμή ανά γεγονός (άνοιγμα σελίδας παρόχου, απόρριψη, πληρωμή). Η Payment κρατά μόνο την τρέχουσα
+/// κατάσταση· εδώ φαίνονται όλες οι προσπάθειες και η αιτία κάθε αποτυχίας (lib/payments/events.ts). Μόνο προσθήκες.
+model PaymentEvent {
+  id       String   @id @default(cuid())
+  orderId  String
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  at       DateTime @default(now())
+  kind     String // started | failed | pending | paid | review
+  source   String // checkout | retry | return | webhook | check
+  method   String?
+  psp      String?
+  /// payment order του παρόχου: μία «προσπάθεια» (ο πελάτης μπορεί να δοκιμάσει πολλές κάρτες μέσα της)
+  pspOrder String?
+  txId     String?
+  /// κωδικός αιτίας της Viva (EventId), βλ. lib/payments/events-core.ts
+  eventId  Int?
+  /// «•••• 4821 · Τράπεζα»: μόνο τα 4 τελευταία ψηφία
+  card     String?
+
+  @@unique([txId, kind])
+  @@index([orderId, at])
+  @@index([at])
 }
 
 /// Αποστολή με courier (voucher): έκδοση, ετικέτα, ακύρωση, κλείσιμο ημέρας, παρακολούθηση. Μία παραγγελία μπορεί να έχει

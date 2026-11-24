@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { shipmentTimeline } from "@/lib/couriers/timeline";
+import { paymentEvents } from "@/lib/payments/events";
 import { searchKind, type ShipTo } from "./model";
 import { legacyRows, legacyWhere } from "./legacy";
 
@@ -180,12 +181,14 @@ export async function orderDetail(number: string) {
   });
   if (!o) return null;
   const shipmentIds = o.shipments.map((s) => s.id), returnIds = o.returns.map((r) => r.id);
-  const [history, emails, customerTotals, timeline] = await Promise.all([
+  const [history, emails, customerTotals, timeline, payEvents] = await Promise.all([
     db.auditLog.findMany({ where: { OR: [{ entity: "Order", entityId: o.id }, ...(shipmentIds.length ? [{ entity: "Shipment", entityId: { in: shipmentIds } }] : []), ...(returnIds.length ? [{ entity: "Return", entityId: { in: returnIds } }] : [])] }, orderBy: { createdAt: "desc" }, take: 60, select: { id: true, action: true, after: true, createdAt: true, staff: { select: { name: true } } } }),
     db.emailLog.findMany({ where: { meta: { path: ["orderId"], equals: o.id } }, orderBy: { at: "desc" }, take: 20, select: { id: true, template: true, status: true, at: true, error: true } }),
     o.customerId ? db.order.aggregate({ where: { customerId: o.customerId, status: { notIn: ["cancelled", "pending"] } }, _sum: { total: true }, _count: { _all: true } }) : null,
     o.shipments.find((s) => s.status !== "cancelled") ? shipmentTimeline(o.shipments.find((s) => s.status !== "cancelled")!).catch(() => null) : null,
+    // όλες οι προσπάθειες πληρωμής με την αιτία κάθε αποτυχίας (κάρτα «Πληρωμή»)
+    paymentEvents(o.id),
   ]);
-  return { ...o, history, emails, customerTotals: customerTotals ? { count: customerTotals._count._all, total: Number(customerTotals._sum.total ?? 0) } : null, timeline };
+  return { ...o, payEvents, history, emails, customerTotals: customerTotals ? { count: customerTotals._count._all, total: Number(customerTotals._sum.total ?? 0) } : null, timeline };
 }
 export type OrderDetail = NonNullable<Awaited<ReturnType<typeof orderDetail>>>;

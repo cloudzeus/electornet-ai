@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-24T12:12:36.001Z",
+ "generatedAt": "2026-11-24T12:44:36.847Z",
  "routes": [
   {
    "route": "/admin",
@@ -2223,6 +2223,11 @@
    ],
    "changes": [
     {
+     "hash": "004959e",
+     "date": "2026-11-24T14:16:39+02:00",
+     "text": "Κείμενα: χωρίς το «350 καταστήματα» σε κατάστημα, email, SEO και Ερμή"
+    },
+    {
      "hash": "232dbc1",
      "date": "2026-11-23T18:37:34+02:00",
      "text": "Δόσεις: υπολογισμός στο ταμείο, και όλο το site ακολουθεί το όριο των ρυθμίσεων"
@@ -2266,14 +2271,9 @@
      "hash": "7031a04",
      "date": "2026-11-13T12:52:35+02:00",
      "text": "Αρχική: τα χρώματα καμπάνιας ρυθμίζονται από τη διαχείριση"
-    },
-    {
-     "hash": "26312cc",
-     "date": "2026-11-13T12:50:21+02:00",
-     "text": "Banners: στυλ τετραγώνου «Βάθρο» (φωτεινό φόντο, προϊόν σε βάθρο, στρογγυλή τιμή, χαρακτηριστικά με εικονίδιο)"
     }
    ],
-   "updatedAt": "2026-11-23T18:37:34+02:00",
+   "updatedAt": "2026-11-24T14:16:39+02:00",
    "shots": {
     "desktop": "/api/help-shot/cms.home-d.jpg",
     "mobile": "/api/help-shot/cms.home-m.jpg"
@@ -3006,6 +3006,8 @@
     "order.progress",
     "order.lines",
     "order.payment",
+    "order.paytrouble",
+    "order.payhistory",
     "order.paylink",
     "order.delivery",
     "order.returns",
@@ -3025,9 +3027,21 @@
     "orders.legacy.docs",
     "orders.header",
     "orders.kpi",
-    "orders.views"
+    "orders.views",
+    "payfail.header",
+    "payfail.period",
+    "payfail.kpi",
+    "payfail.spike",
+    "payfail.reasons",
+    "payfail.filters",
+    "payfail.list"
    ],
    "changes": [
+    {
+     "hash": "5bdbf64",
+     "date": "2026-11-24T14:16:40+02:00",
+     "text": "Απλήρωτες online παραγγελίες: πληρωμή της ίδιας παραγγελίας, email και ενημέρωση προσωπικού"
+    },
     {
      "hash": "c88fd7a",
      "date": "2026-11-23T19:09:35+02:00",
@@ -3072,14 +3086,9 @@
      "hash": "e029767",
      "date": "2026-11-10T15:03:47+02:00",
      "text": "Πορεία στο SoftOne: όλη η διαδρομή από την παραγγελία ως το τιμολόγιο"
-    },
-    {
-     "hash": "7df8653",
-     "date": "2026-11-06T15:59:55+02:00",
-     "text": "Παραγγελίες → Ρυθμίσεις ενημέρωσης: ο διαχειριστής διαλέγει ποια στάδια στο SoftOne (τύποι παραστατικών) στέλνουν email στον πελάτη και γράφει τίτλο/κείμενο με μεταβλητές"
     }
    ],
-   "updatedAt": "2026-11-23T19:09:35+02:00",
+   "updatedAt": "2026-11-24T14:16:40+02:00",
    "shots": {}
   },
   {
@@ -3096,6 +3105,8 @@
     "order.progress",
     "order.lines",
     "order.payment",
+    "order.paytrouble",
+    "order.payhistory",
     "order.paylink",
     "order.delivery",
     "order.returns",
@@ -3117,6 +3128,11 @@
     "orders.softone.all-details"
    ],
    "changes": [
+    {
+     "hash": "5bdbf64",
+     "date": "2026-11-24T14:16:40+02:00",
+     "text": "Απλήρωτες online παραγγελίες: πληρωμή της ίδιας παραγγελίας, email και ενημέρωση προσωπικού"
+    },
     {
      "hash": "80885d0",
      "date": "2026-11-23T18:59:54+02:00",
@@ -3161,14 +3177,9 @@
      "hash": "aa4015a",
      "date": "2026-11-06T10:33:12+02:00",
      "text": "Πορεία στο SoftOne: μακριές αλυσίδες χωράνε ολόκληρες στην αρχική προβολή"
-    },
-    {
-     "hash": "9fcea86",
-     "date": "2026-11-06T10:21:17+02:00",
-     "text": "Πορεία στο SoftOne: μόνο οι γραμμές της παραγγελίας"
     }
    ],
-   "updatedAt": "2026-11-23T18:59:54+02:00",
+   "updatedAt": "2026-11-24T14:16:40+02:00",
    "shots": {}
   },
   {
@@ -3238,6 +3249,31 @@
     }
    ],
    "updatedAt": "2026-11-10T15:03:47+02:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/orders/pliromes",
+   "slug": "orders.pliromes",
+   "file": "app/admin/(shell)/orders/pliromes/page.tsx",
+   "title": "Αποτυχημένες πληρωμές",
+   "doc": "Παραγγελίες → Αποτυχημένες πληρωμές (ui-ux-pro-max, dataviz): πόσοι δοκίμασαν να πληρώσουν online και δεν τα κατάφεραν, γιατί, και ποιοι αξίζουν ένα τηλέφωνο. Όλα τα φίλτρα είναι σύνδεσμοι (μένουν στη διεύθυνση). Τα δεδομένα έρχονται από το ιστορικό πληρωμής (PaymentEvent), που γράφεται από τη στιγμή που ενεργοποιήθηκε· παλιότερες παραγγελίες δεν εμφανίζονται.",
+   "perm": "orders.read",
+   "nav": {
+    "group": "Πωλήσεις & πελάτες",
+    "label": "Αποτυχημένες πληρωμές"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "payfail.header",
+    "payfail.period",
+    "payfail.kpi",
+    "payfail.spike",
+    "payfail.reasons",
+    "payfail.filters",
+    "payfail.list"
+   ],
+   "changes": [],
+   "updatedAt": null,
    "shots": {}
   },
   {
@@ -4896,6 +4932,11 @@
    ],
    "changes": [
     {
+     "hash": "5bdbf64",
+     "date": "2026-11-24T14:16:40+02:00",
+     "text": "Απλήρωτες online παραγγελίες: πληρωμή της ίδιας παραγγελίας, email και ενημέρωση προσωπικού"
+    },
+    {
      "hash": "05535dd",
      "date": "2026-11-17T14:56:33+02:00",
      "text": "Συγχρονισμοί SoftOne ανά 10 λεπτά: εργασία «Τιμές SoftOne» (Τιμή Web, MTREXTRA.NUM04"
@@ -4936,7 +4977,7 @@
      "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
     }
    ],
-   "updatedAt": "2026-11-17T14:56:33+02:00",
+   "updatedAt": "2026-11-24T14:16:40+02:00",
    "shots": {
     "desktop": "/api/help-shot/softone.sync-d.jpg",
     "mobile": "/api/help-shot/softone.sync-m.jpg"
@@ -5403,6 +5444,28 @@
  ],
  "recent": [
   {
+   "hash": "5bdbf64",
+   "date": "2026-11-24T14:16:40+02:00",
+   "text": "Απλήρωτες online παραγγελίες: πληρωμή της ίδιας παραγγελίας, email και ενημέρωση προσωπικού",
+   "routes": [
+    "/admin",
+    "/admin/orders",
+    "/admin/orders/[number]"
+   ]
+  },
+  {
+   "hash": "004959e",
+   "date": "2026-11-24T14:16:39+02:00",
+   "text": "Κείμενα: χωρίς το «350 καταστήματα» σε κατάστημα, email, SEO και Ερμή",
+   "routes": []
+  },
+  {
+   "hash": "faae4ff",
+   "date": "2026-11-24T14:16:39+02:00",
+   "text": "Αναζήτηση: βρίσκει greeklish, λέξεις χωρίς τόνους και ορθογραφικά",
+   "routes": []
+  },
+  {
    "hash": "15d6a50",
    "date": "2026-11-23T19:10:41+02:00",
    "text": "Ταμείο: η πληρωμή «Στο κατάστημα» κλειστή, ανοίγει από Ρυθμίσεις → Πληρωμές",
@@ -5664,29 +5727,6 @@
    "hash": "add54f2",
    "date": "2026-11-21T11:20:56+02:00",
    "text": "Κατάστημα: τρεις διορθώσεις και το πρώτο πέρασμα σχεδιασμού σε λίστα, προϊόν και ταμείο",
-   "routes": []
-  },
-  {
-   "hash": "70b17aa",
-   "date": "2026-11-21T11:17:50+02:00",
-   "text": "Μεταφορικά 3.0: δωρεάν όπου υπάρχει κατάστημα, χωρίς ελάχιστο ποσό",
-   "routes": [
-    "/admin",
-    "/admin/apostoles",
-    "/admin/apostoles/timokatalogoi",
-    "/admin/cms/slides"
-   ]
-  },
-  {
-   "hash": "78eec77",
-   "date": "2026-11-21T11:16:22+02:00",
-   "text": "Έλεγχος καταστήματος: αναφορά με screenshots και προτάσεις σχεδιασμού",
-   "routes": []
-  },
-  {
-   "hash": "3ca8ce4",
-   "date": "2026-11-21T11:14:54+02:00",
-   "text": "Next.js 16.4.3 → 16.4.6: αναβάθμιση ασφαλείας",
    "routes": []
   }
  ],
@@ -6061,6 +6101,12 @@
   "order.payment": [
    "app/admin/(shell)/orders/[number]/OrderView.tsx"
   ],
+  "order.paytrouble": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
+  "order.payhistory": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
   "order.paylink": [
    "app/admin/(shell)/orders/[number]/OrderView.tsx"
   ],
@@ -6120,6 +6166,27 @@
   ],
   "orders.views": [
    "app/admin/(shell)/orders/page.tsx"
+  ],
+  "payfail.header": [
+   "app/admin/(shell)/orders/pliromes/FailuresView.tsx"
+  ],
+  "payfail.period": [
+   "app/admin/(shell)/orders/pliromes/FailuresView.tsx"
+  ],
+  "payfail.kpi": [
+   "app/admin/(shell)/orders/pliromes/FailuresView.tsx"
+  ],
+  "payfail.spike": [
+   "app/admin/(shell)/orders/pliromes/FailuresView.tsx"
+  ],
+  "payfail.reasons": [
+   "app/admin/(shell)/orders/pliromes/FailuresView.tsx"
+  ],
+  "payfail.filters": [
+   "app/admin/(shell)/orders/pliromes/FailuresView.tsx"
+  ],
+  "payfail.list": [
+   "app/admin/(shell)/orders/pliromes/FailuresView.tsx"
   ],
   "promo.campaign-link": [
    "app/admin/(shell)/prosfores/[id]/page.tsx"
