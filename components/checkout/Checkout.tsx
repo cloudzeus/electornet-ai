@@ -112,7 +112,10 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   const freightOk = !!freight?.available;
   const localStores = useMemo(() => freight?.localStores ?? [], [freight?.localStores]);
   const localPick = localStores.find((x) => x.id === localStoreId) ?? null;
+  // «Παράδοση από συνεργαζόμενο κατάστημα»: όχι για ό,τι πάει με courier σε περιοχή χωρίς κατάστημα (ο server το ξαναελέγχει)
+  const storeDeliveryOk = quote?.storeDelivery !== false;
   const fulBase: Fulfilment = onRequest && fulPick !== "click-collect" ? "appointment"
+    : fulPick === "appointment" && !storeDeliveryOk ? "courier"
     : fulPick === "courier" && courierBlocked ? (freightOk ? "freight" : "appointment")
     : fulPick === "freight" && !freightOk ? (courierBlocked ? "appointment" : "courier") : fulPick;
   // Αττική (παράδοση στο σπίτι): μόνο «Κανονική παράδοση euronics» (appointment) ή «ASAP Express» (courier + asap)
@@ -276,7 +279,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   const km = (n: number) => (n < 1 ? "κάτω από 1 χλμ" : `${String(n).replace(".", ",")} χλμ`);
   // ογκώδη εκτός Αττικής με συνεργαζόμενο κατάστημα κοντά: στο σπίτι τα φέρνει το κατάστημα που διαλέγει ο πελάτης (παρακάτω),
   // αλλιώς η παράδοση γίνεται από το κατάστημα της περιοχής κατόπιν συνεννόησης
-  const storeDelivery: ShipOpt | null = localStores.length || freight?.central ? null : {
+  const storeDelivery: ShipOpt | null = localStores.length || freight?.central || !storeDeliveryOk ? null : {
     key: "appointment", icon: CalendarClock, t: "Παράδοση από συνεργαζόμενο κατάστημα",
     sub: heavy ? "Κατόπιν συνεννόησης για ημέρα και ώρα παράδοσης · με εγκατάσταση από τεχνικό του καταστήματος" : "Κατόπιν συνεννόησης για ημέρα και ώρα παράδοσης",
     price: "Δωρεάν", on: ful === "appointment", pick: () => setFul("appointment"),

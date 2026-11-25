@@ -94,9 +94,11 @@ const cents = (n: number) => Math.round(n * 100);
 export function carrierOffers(data: Data, zip: string | null): CarrierOffer[] {
   return CARRIERS.filter((c) => data[`${c.id}On`] === true && (c.id !== "boxnow" || String(data.boxnowPartnerId ?? "").trim() !== "")).map((c) => {
     const baseFee = num(data[`${c.id}Fee`]) != null ? cents(num(data[`${c.id}Fee`])!) : c.fee;
-    const eta = String(data[`${c.id}Eta`] ?? "").trim() || c.eta;
     const atticaOnly = c.id === "asap" && data.asapAtticaOnly !== false;
-    const outside = atticaOnly && /^\d{5}$/.test(zip ?? "") && !isAtticaZip(zip);
+    const away = /^\d{5}$/.test(zip ?? "") && !isAtticaZip(zip);
+    const outside = atticaOnly && away;
+    // η ASAP εκτός Αττικής (όταν ανοίξει για όλη τη χώρα) δεν παραδίδει αυθημερόν
+    const eta = String(data[`${c.id}Eta`] ?? "").trim() || (c.id === "asap" && away ? "1–3 εργάσιμες" : c.eta);
     return { id: c.id, name: c.name, kind: c.kind, eta, baseFee, fee: baseFee, available: !outside, reason: outside ? "Μόνο για διευθύνσεις στην Αττική" : null };
   });
 }

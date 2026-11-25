@@ -30,6 +30,10 @@ test("ASAP μόνο στην Αττική — με άγνωστο ΤΚ διαθ�
   assert.equal(carrierOffers({ asapOn: true }, "11523")[0].available, true);
   assert.equal(carrierOffers({ asapOn: true }, null)[0].available, true);
   assert.equal(carrierOffers({ asapOn: true, asapAtticaOnly: false }, "54622")[0].available, true);
+  // ASAP σε όλη τη χώρα: εκτός Αττικής δεν υπόσχεται αυθημερόν, εκτός αν ο διαχειριστής γράψει δικό του χρόνο
+  assert.equal(carrierOffers({ asapOn: true, asapAtticaOnly: false }, "54622")[0].eta, "1–3 εργάσιμες");
+  assert.equal(carrierOffers({ asapOn: true, asapAtticaOnly: false }, "11527")[0].eta, "Αυθημερόν στην Αττική");
+  assert.equal(carrierOffers({ asapOn: true, asapAtticaOnly: false, asapEta: "2 ημέρες" }, "54622")[0].eta, "2 ημέρες");
 });
 
 test("επιλογή: ο διαλεγμένος αν είναι διαθέσιμος, αλλιώς ο φθηνότερος για το σπίτι (όχι θυρίδα)", () => {

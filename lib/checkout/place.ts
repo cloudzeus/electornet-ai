@@ -100,6 +100,8 @@ export async function placeOrder(input: PlaceInput) {
   if (q.onRequest && !["click-collect", "appointment"].includes(input.fulfilment)) return { ok: false as const, error: `Στην περιοχή «${q.onRequest}» τα μεταφορικά ορίζονται κατόπιν συνεννόησης. Διάλεξε «Κατόπιν συνεννόησης» ή «Παραλαβή από κατάστημα».`, quote: publicQuote(q) };
   if (onRequestHome && input.payment !== "later") return { ok: false as const, error: "Σε αυτή την περιοχή η παραγγελία καταχωρείται χωρίς πληρωμή — θα σε καλέσουμε για τα μεταφορικά και τον τρόπο πληρωμής.", quote: publicQuote(q) };
   if (input.payment === "later" && !onRequestHome) return { ok: false as const, error: "Διάλεξε τρόπο πληρωμής.", quote: publicQuote(q) };
+  // ό,τι πάει με courier σε περιοχή χωρίς κατάστημα: δεν υπάρχει δωρεάν παράδοση «από κατάστημα» (ο server δεν εμπιστεύεται το ταμείο)
+  if (input.fulfilment === "appointment" && !q.storeDelivery) return { ok: false as const, error: "Στην περιοχή σου δεν έχουμε κατάστημα για δωρεάν παράδοση στο σπίτι. Διάλεξε αποστολή με courier ή παραλαβή από κατάστημα.", quote: publicQuote(q) };
   // ογκώδη εκτός Αττικής με συνεργαζόμενο κατάστημα κοντά: στο σπίτι τα φέρνει το κατάστημα που διάλεξε ο πελάτης (υποχρεωτικό)
   if (q.freight?.localStores.length && !q.attica.attica) {
     if (input.fulfilment === "appointment") return { ok: false as const, error: "Για αυτό το καλάθι διάλεξε παράδοση από κατάστημα Euronics ή παραλαβή από κατάστημα.", quote: publicQuote(q) };
