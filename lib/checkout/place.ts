@@ -66,6 +66,8 @@ function validate(i: PlaceInput): string | null {
   const toLocker = i.fulfilment === "courier" && carrierDef(i.carrier)?.kind === "locker";
   if (toLocker && !i.locker?.id) return "Διάλεξε θυρίδα BOX NOW στον χάρτη.";
   if (i.fulfilment !== "click-collect" && !toLocker && !/^\d{5}$/.test(i.address?.zip ?? "")) return "Ο ΤΚ θέλει 5 ψηφία.";
+  // χωρίς πόλη ο χάρτης δεν ψάχνει κατάστημα για τη μεγάλη συσκευή και η παράδοση θα περνούσε δωρεάν
+  if (i.fulfilment !== "click-collect" && !toLocker && !i.address?.city?.trim()) return "Συμπλήρωσε την πόλη.";
   if (i.fulfilment === "click-collect" && !i.storeId) return "Διάλεξε κατάστημα παραλαβής.";
   if (i.invoice && !/^\d{9}$/.test(i.invoice.vatNumber ?? "")) return "Ο ΑΦΜ θέλει 9 ψηφία.";
   return null;
@@ -93,12 +95,14 @@ export async function placeOrder(input: PlaceInput) {
   const zip = carrierDef(input.carrier)?.kind === "locker" ? input.locker?.zip ?? input.address?.zip ?? null : input.address?.zip ?? null;
   // οι ώρες επικοινωνίας που διάλεξε ο πελάτης: μόνο ώρες του ωραρίου και μόνο για παράδοση από συνεργαζόμενο κατάστημα
   const slots = input.fulfilment === "appointment" ? cleanSlots(input.slots) : [];
-  const q = await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, storeId: input.storeId ?? null, localStoreId: input.localStoreId ?? null, zip, email, carrier: input.carrier ?? null, street: input.address?.street ?? null, number: input.address?.number ?? null, city: input.address?.city ?? null, settle: input.fulfilment === "courier" && input.carrier === "asap" }, cart);
+  const q = await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, storeId: input.storeId ?? null, localStoreId: input.localStoreId ?? null, zip, email, carrier: input.carrier ?? null, street: input.address?.street ?? null, number: input.address?.number ?? null, city: input.address?.city ?? null, settle: (input.fulfilment === "courier" && input.carrier === "asap") || input.fulfilment === "freight" || input.fulfilment === "appointment" }, cart);
+  // ο χάρτης ψάχνει ακόμη κατάστημα για τη μεγάλη συσκευή: δεν καταχωρούμε πριν ξέρουμε τη χρέωση
+  if (q.shipPending && !q.bulky.courier && input.fulfilment !== "click-collect") return { ok: false as const, error: "Υπολογίζουμε ακόμη την παράδοση για τη διεύθυνσή σου. Δοκίμασε ξανά σε λίγα δευτερόλεπτα.", quote: publicQuote(q) };
   // περιοχή χωρίς συμφωνημένη τιμή αποστολής: η παραγγελία περνά, αλλά χωρίς courier/μεταφορική και χωρίς πληρωμή —
   // τα μεταφορικά και τον τρόπο πληρωμής τα ορίζουμε στο τηλέφωνο (απόφαση Euronics 19/11/2026)
   const onRequestHome = !!q.onRequest && input.fulfilment === "appointment";
-  if (q.onRequest && !["click-collect", "appointment"].includes(input.fulfilment)) return { ok: false as const, error: `Στην περιοχή «${q.onRequest}» τα μεταφορικά ορίζονται κατόπιν συνεννόησης. Διάλεξε «Κατόπιν συνεννόησης» ή «Παραλαβή από κατάστημα».`, quote: publicQuote(q) };
-  if (onRequestHome && input.payment !== "later") return { ok: false as const, error: "Σε αυτή την περιοχή η παραγγελία καταχωρείται χωρίς πληρωμή — θα σε καλέσουμε για τα μεταφορικά και τον τρόπο πληρωμής.", quote: publicQuote(q) };
+  if (q.onRequest && !["click-collect", "appointment"].includes(input.fulfilment)) return { ok: false as const, error: `${q.onRequestWhy === "address" ? "Για τη διεύθυνσή σου" : `Στην περιοχή «${q.onRequest}»`} τα μεταφορικά ορίζονται κατόπιν συνεννόησης. Διάλεξε «Κατόπιν συνεννόησης» ή «Παραλαβή από κατάστημα».`, quote: publicQuote(q) };
+  if (onRequestHome && input.payment !== "later") return { ok: false as const, error: "Η παραγγελία αυτή καταχωρείται χωρίς πληρωμή — θα σε καλέσουμε για τα μεταφορικά και τον τρόπο πληρωμής.", quote: publicQuote(q) };
   if (input.payment === "later" && !onRequestHome) return { ok: false as const, error: "Διάλεξε τρόπο πληρωμής.", quote: publicQuote(q) };
   // ό,τι πάει με courier σε περιοχή χωρίς κατάστημα: δεν υπάρχει δωρεάν παράδοση «από κατάστημα» (ο server δεν εμπιστεύεται το ταμείο)
   if (input.fulfilment === "appointment" && !q.storeDelivery) return { ok: false as const, error: "Στην περιοχή σου δεν έχουμε κατάστημα για δωρεάν παράδοση στο σπίτι. Διάλεξε αποστολή με courier ή παραλαβή από κατάστημα.", quote: publicQuote(q) };

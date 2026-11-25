@@ -42,6 +42,9 @@ export type Draft = Awaited<ReturnType<typeof shipmentDraft>>;
 /** Η παρουσίαση της καρτέλας (χωριστά από τη φόρτωση — δοκιμάζεται και με ψεύτικα δεδομένα). */
 export function OrderView({ o, draft, erp, canWrite, canRefund, pay }: { o: OrderDetail; /** απλήρωτη online παραγγελία: ο σύνδεσμος πληρωμής του πελάτη και μέχρι πότε ισχύει */ pay?: { url: string; until: string } | null; draft: Draft; erp: { needs: string[]; warnings: string[]; gross: number; expected: number; /** γιατί δεν στέλνεται από αυτόν τον διακομιστή (null = στέλνεται) */ sendBlock?: string | null } | null; canWrite: boolean; canRefund: boolean }) {
   const s = (o.shipping ?? {}) as ShipTo;
+  // «κατόπιν συνεννόησης» (περιοχή χωρίς τιμή, ή μεγάλη συσκευή με διεύθυνση που δεν βρήκε ο χάρτης): μένει ορατό μέχρι να κλείσει
+  const onRequest = o.paymentMethod === "later" && ["pending", "paid", "processing"].includes(o.status);
+  const onRequestWhy = ((o.shipping as { calc?: unknown } | null)?.calc as string[] | undefined)?.find((l) => l.includes("ΔΕΝ έχουν μπει")) ?? null;
   // πού βρίσκεται η παραγγελία στο SoftOne, σε απλά ελληνικά (τα παραστατικά τα καταγράφει η αυτόματη εργασία)
   const stage = currentStage(o.erpStages.map((x) => ({ fprms: x.fprms, at: x.docDate || x.seenAt.toISOString().slice(0, 10), notified: !!x.notifiedAt })));
   const inv = (o.invoice ?? null) as { vatNumber?: string; company?: string; doy?: string; activity?: string } | null;
@@ -104,8 +107,9 @@ export function OrderView({ o, draft, erp, canWrite, canRefund, pay }: { o: Orde
       </div>
 
       {/* προειδοποιήσεις */}
-      {(o.payment?.status === "failed" || o.erpSync?.status === "failed" || openReturns > 0 || (activeShip && ["attempted", "returning"].includes(activeShip.status))) && (
+      {(onRequest || o.payment?.status === "failed" || o.erpSync?.status === "failed" || openReturns > 0 || (activeShip && ["attempted", "returning"].includes(activeShip.status))) && (
         <ul className="m-0 p-0 list-none grid gap-1">
+          {onRequest && <li data-help="order.on-request" className="flex items-start gap-2 rounded-lg bg-eu-amber/10 border border-eu-amber/30 px-3 py-2 text-[length:var(--fs-13)]"><Phone className="size-4 mt-0.5 shrink-0 text-eu-amber" aria-hidden /><span><b className="text-eu-ink">Κατόπιν συνεννόησης: κάλεσε τον πελάτη.</b> Δεν έχουν μπει μεταφορικά και δεν έχει πληρώσει. {onRequestWhy ?? "Συμφώνησε μεταφορικά και τρόπο πληρωμής στο τηλέφωνο."}</span></li>}
           {o.payment?.status === "failed" && <li className="flex items-start gap-2 rounded-lg bg-eu-red/5 border border-eu-red/20 px-3 py-2 text-[length:var(--fs-13)]"><AlertTriangle className="size-4 mt-0.5 shrink-0 text-eu-red" aria-hidden />Η πληρωμή απέτυχε — μην προχωρήσεις χωρίς επικοινωνία με τον πελάτη.</li>}
           {o.erpSync?.status === "failed" && <li className="flex items-start gap-2 rounded-lg bg-eu-red/5 border border-eu-red/20 px-3 py-2 text-[length:var(--fs-13)]"><AlertTriangle className="size-4 mt-0.5 shrink-0 text-eu-red" aria-hidden /><span>Η αποστολή στο SoftOne απέτυχε{o.erpSync.lastError ? `: ${o.erpSync.lastError.slice(0, 200)}` : "."}</span></li>}
           {activeShip && ["attempted", "returning"].includes(activeShip.status) && <li className="flex items-start gap-2 rounded-lg bg-eu-amber/10 border border-eu-amber/30 px-3 py-2 text-[length:var(--fs-13)]"><AlertTriangle className="size-4 mt-0.5 shrink-0 text-eu-amber" aria-hidden />Πρόβλημα στην αποστολή — δες την παρακολούθηση παρακάτω.</li>}

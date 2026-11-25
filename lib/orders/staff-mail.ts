@@ -79,7 +79,7 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
   const next: StaffOrderData["next"] =
     o.status === "cancelled" ? { tone: "danger", text: "Η παραγγελία έχει ακυρωθεί. Μην την εκτελέσεις." }
     : unpaid ? { tone: "warning", text: `Ο πελάτης δεν ολοκλήρωσε την πληρωμή ${money(total)}${payStatus === "failed" ? " (η τράπεζα απέρριψε τη συναλλαγή)" : " (έφυγε από τη σελίδα πληρωμής)"}. Του στείλαμε email με σύνδεσμο πληρωμής.${phone ? ` Κάλεσέ τον στο ${phone} αν θέλεις να τον βοηθήσεις:` : ""} δεν χρειάζεται νέα παραγγελία, πληρώνει την ίδια από τον σύνδεσμο πιο κάτω. Αν δεν πληρώσει μέχρι ${payUntil(o.createdAt)}, ακυρώνεται αυτόματα. Μην στείλεις τίποτα πριν πληρωθεί.` }
-    : pay === "later" ? { tone: "warning", text: "Περιοχή χωρίς τιμή αποστολής: κάλεσε τον πελάτη για τα μεταφορικά και τον τρόπο πληρωμής πριν από οτιδήποτε άλλο." }
+    : pay === "later" ? { tone: "warning", text: "Μεταφορικά κατόπιν συνεννόησης (περιοχή χωρίς τιμή, ή μεγάλη συσκευή με διεύθυνση που δεν βρήκε ο χάρτης): κάλεσε τον πελάτη για τα μεταφορικά και τον τρόπο πληρωμής πριν από οτιδήποτε άλλο. Ο λόγος γράφεται πιο κάτω, στα μεταφορικά." }
     : pay === "bank" && payStatus !== "paid" ? { tone: "warning", text: `Περίμενε την κατάθεση ${money(total)} (αιτιολογία ${o.number}). Μην στείλεις πριν επιβεβαιωθεί.` }
     : !collect && payStatus !== "paid" ? { tone: "danger", text: `Η πληρωμή δεν έχει ολοκληρωθεί (${PAYMENT_STATUS[payStatus]?.label ?? payStatus}). Μην στείλεις πριν πληρωθεί.` }
     : active.length ? { tone: "success", text: `Το voucher ${active[active.length - 1].voucher} εκδόθηκε: τύπωσε την ετικέτα και παράδωσε το δέμα στον courier.${collect ? ` Ο courier εισπράττει ${money(total)}.` : ""}` }

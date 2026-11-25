@@ -73,6 +73,7 @@ export function nextAction(o: { status: string; fulfilment: string; paymentMetho
   const cc = o.fulfilment === "click-collect";
   switch (o.status) {
     case "pending":
+      if (o.paymentMethod === "later") return { kind: "none", label: "Κάλεσε τον πελάτη", hint: "Κατόπιν συνεννόησης: δεν έχουν μπει μεταφορικά και δεν έχει πληρωθεί. Συμφώνησε μεταφορικά και τρόπο πληρωμής στο τηλέφωνο." };
       return o.paymentMethod === "cod"
         ? { kind: "status", to: "processing", label: "Επιβεβαίωση & επεξεργασία", hint: "Αντικαταβολή: ξεκίνα την προετοιμασία." }
         : o.paymentMethod === "bank" || o.paymentMethod === "bank-transfer"

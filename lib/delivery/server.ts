@@ -36,7 +36,8 @@ export const resetPartnerCache = () => { partnerMem = null; };
 
 /**
  * Συνεργαζόμενα καταστήματα κοντά στη διεύθυνση του πελάτη, ταξινομημένα με ΟΔΙΚΗ απόσταση (για την παράδοση στο σπίτι
- * από κατάστημα, εκτός Αττικής). [] = κανένα κοντά · undefined = άγνωστο ακόμη (ο χάρτης αργεί ή δεν απαντά) — ποτέ ευθεία.
+ * από κατάστημα, εκτός Αττικής). [] = κανένα κοντά · undefined = ακόμη υπολογίζεται (ή λείπει Τ.Κ. / πόλη) · null = ο χάρτης
+ * δεν βρήκε τη διεύθυνση ή την απόσταση (5′ στη μνήμη: το ταμείο το κάνει «κατόπιν συνεννόησης») — ποτέ ευθεία.
  */
 export interface LocalStore { id: string; partnerId: string; name: string; /** η διεύθυνση του καταστήματος: αυτή διαβάζει ο πελάτης, όχι το επώνυμο του συνεργάτη */ address: string; city: string; km: number }
 let coopMem: { at: number; v: { id: string; partnerId: string; name: string; address: string; city: string; lat: number; lng: number }[] } | null = null;
@@ -46,25 +47,25 @@ async function coopStores() {
   coopMem = { at: Date.now(), v: rows.map((r) => ({ ...r, partnerId: r.partnerId! })) };
   return coopMem.v;
 }
-const nearMem = new Map<string, { at: number; p: Promise<LocalStore[] | undefined>; done?: boolean }>();
-export async function nearStoresFor(a: { street?: string | null; number?: string | null; city?: string | null; zip?: string | null }, budgetMs = 2500): Promise<LocalStore[] | undefined> {
+const nearMem = new Map<string, { at: number; p: Promise<LocalStore[] | null>; done?: boolean; ttl?: number }>();
+export async function nearStoresFor(a: { street?: string | null; number?: string | null; city?: string | null; zip?: string | null }, budgetMs = 2500): Promise<LocalStore[] | null | undefined> {
   const zip = (a.zip ?? "").trim(), city = (a.city ?? "").trim(), street = [a.street, a.number].map((x) => (x ?? "").trim()).filter(Boolean).join(" ");
   if (!/^\d{5}$/.test(zip) || !city) return undefined;
   const key = `${street}|${zip}|${city}`.toLowerCase();
   let hit = nearMem.get(key);
-  // έτοιμο αποτέλεσμα: 30′ · όσο τρέχει ο υπολογισμός μοιράζεται · αποτυχία ξαναδοκιμάζεται στον επόμενο υπολογισμό
-  if (!hit || (hit.done && Date.now() - hit.at > 30 * 60_000)) {
+  // έτοιμο αποτέλεσμα: 30′ · όσο τρέχει ο υπολογισμός μοιράζεται · «δεν βρέθηκε»: 5′, μετά ξαναδοκιμάζεται
+  if (!hit || (hit.done && Date.now() - hit.at > (hit.ttl ?? 30 * 60_000))) {
     if (nearMem.size > 2000) nearMem.clear();
-    const run = async (): Promise<LocalStore[] | undefined> => {
+    const run = async (): Promise<LocalStore[] | null> => {
       // Nominatim: 1 αίτημα το δευτερόλεπτο — πρώτα η οδός, αλλιώς ο οικισμός του Τ.Κ.
       let pt = street ? await geocodeAddress(`${street}, ${zip} ${city}, Ελλάδα`, { timeoutMs: 6000, preferPlace: true }).catch(() => null) : null;
       if (!pt) { if (street) await new Promise((r) => setTimeout(r, 1100)); pt = await geocodeAddress(`${zip} ${city}, Ελλάδα`, { timeoutMs: 6000, preferPlace: true }).catch(() => null); }
-      if (!pt) return undefined;
+      if (!pt) return null;
       const r = await rankByRoad(pt, await coopStores());
-      return r?.map((x) => ({ id: x.item.id, partnerId: x.item.partnerId, name: x.item.name, address: x.item.address, city: x.item.city, km: x.km }));
+      return r?.map((x) => ({ id: x.item.id, partnerId: x.item.partnerId, name: x.item.name, address: x.item.address, city: x.item.city, km: x.km })) ?? null;
     };
-    const entry: NonNullable<typeof hit> = { at: Date.now(), p: run().catch(() => undefined) };
-    void entry.p.then((v) => { if (v === undefined) nearMem.delete(key); else entry.done = true; });
+    const entry: NonNullable<typeof hit> = { at: Date.now(), p: run().catch(() => null) };
+    void entry.p.then((v) => { entry.done = true; entry.at = Date.now(); if (v === null) entry.ttl = 5 * 60_000; });
     nearMem.set(key, entry); hit = entry;
   }
   return Promise.race([hit.p, new Promise<undefined>((r) => setTimeout(() => r(undefined), budgetMs))]);
@@ -182,7 +183,7 @@ export async function partnerOptions(orderId: string, q = "") {
   const o = await db.order.findUnique({ where: { id: orderId }, select: { shipping: true, route: { select: { partnerId: true } } } });
   if (!o) return { known: false, current: null as string | null, stores: [] as (Omit<LocalStore, "km"> & { km: number | null; agency: boolean })[] };
   const s = (o.shipping ?? {}) as { street?: string; number?: string; city?: string; zip?: string };
-  const near = q.trim() ? undefined : await nearStoresFor({ street: s.street, number: s.number, city: s.city, zip: s.zip }, 15_000);
+  const near = q.trim() ? undefined : (await nearStoresFor({ street: s.street, number: s.number, city: s.city, zip: s.zip }, 15_000)) ?? undefined;
   const term = q.trim() || (near === undefined ? s.city ?? "" : "");
   const found = near ? [] : await db.store.findMany({ where: { active: true, partner: { active: true, cooperating: true }, ...(term ? { OR: [{ name: { contains: term, mode: "insensitive" } }, { city: { contains: term, mode: "insensitive" } }, { partner: { name: { contains: term, mode: "insensitive" } } }] } : {}) }, orderBy: [{ city: "asc" }, { name: "asc" }], take: 12, select: { id: true, partnerId: true, name: true, city: true } });
   const list = near ? near.map((x) => ({ ...x, km: x.km as number | null })) : found.map((x) => ({ ...x, partnerId: x.partnerId!, km: null as number | null }));

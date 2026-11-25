@@ -15,6 +15,8 @@ test("nextStatuses: ανά τρόπο παράδοσης", () => {
 
 test("nextAction: η επόμενη ενέργεια", () => {
   assert.deepEqual(nextAction({ status: "pending", fulfilment: "courier", paymentMethod: "cod", hasShipment: false }).kind, "status");
+  // «κατόπιν συνεννόησης»: δεν περιμένουμε online πληρωμή, καλούμε τον πελάτη
+  assert.equal(nextAction({ status: "pending", fulfilment: "appointment", paymentMethod: "later", hasShipment: false }).label, "Κάλεσε τον πελάτη");
   assert.equal(nextAction({ status: "pending", fulfilment: "courier", paymentMethod: "card", hasShipment: false }).kind, "none");
   assert.equal(nextAction({ status: "processing", fulfilment: "courier", paymentMethod: "card", hasShipment: false }).kind, "voucher");
   assert.equal(nextAction({ status: "processing", fulfilment: "courier", paymentMethod: "card", hasShipment: true }).kind, "none");

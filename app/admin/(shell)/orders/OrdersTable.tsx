@@ -74,7 +74,7 @@ export function OrdersTable({ rows, canWrite, exportBase, empty }: { rows: Order
                   <span className="ml-auto inline-flex items-center gap-1 min-w-0 shrink-0 max-w-[45%]">{r.fulfilment === "click-collect" ? <Store className="size-3.5 shrink-0 text-eu-blue" aria-hidden /> : <Truck className="size-3.5 shrink-0 text-eu-blue" aria-hidden />}<span className="truncate">{r.fulfilment === "click-collect" ? r.store ?? "Κατάστημα" : r.shipment?.voucher ?? (["pending", "paid", "processing"].includes(r.status) ? "Χωρίς voucher" : "Courier")}</span></span></>}
                 </span>
                 <span data-private className="col-start-2 col-span-2 @4xl:col-span-1 @4xl:col-start-auto grid min-w-0 leading-tight text-[length:var(--fs-13)]">
-                  <span className="font-bold text-eu-ink-2 truncate">{r.name}{r.invoice && <Badge tone="info" className="ml-1.5 align-middle" title="Ζητήθηκε τιμολόγιο">Τιμ.</Badge>}</span>
+                  <span className="font-bold text-eu-ink-2 truncate">{r.name}{r.invoice && <Badge tone="info" className="ml-1.5 align-middle" title="Ζητήθηκε τιμολόγιο">Τιμ.</Badge>}{r.paymentMethod === "later" && <Badge tone="warn" className="ml-1.5 align-middle" title="Κατόπιν συνεννόησης: δεν έχουν μπει μεταφορικά και δεν έχει πληρωθεί. Κάλεσε τον πελάτη.">Συνεννόηση</Badge>}</span>
                   <span className="text-eu-muted truncate text-[length:var(--fs-12)]">{[r.company, r.city].filter(Boolean).join(" · ") || r.email}</span>
                 </span>
                 <span className="col-start-2 col-span-2 @4xl:col-span-1 @4xl:col-start-auto flex items-center gap-2 min-w-0">

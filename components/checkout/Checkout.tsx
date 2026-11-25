@@ -102,9 +102,13 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   const commitAddr = () => setAddrQ((a) => (a.street === f.street.trim() && a.number === f.number.trim() && a.city === f.city.trim() ? a : { street: f.street.trim(), number: f.number.trim(), city: f.city.trim() }));
   const offline = lines.filter((l) => !l.product.fromDb);
   // περιοχή χωρίς συμφωνημένη τιμή αποστολής: παραγγελία χωρίς πληρωμή, τα μεταφορικά τα λέμε στο τηλέφωνο (ο server ξαναελέγχει)
-  const onRequest = noPriceArea(/^\d{5}$/.test(f.zip) ? f.zip : null);
+  // …ή μεγάλη συσκευή με διεύθυνση που δεν βρίσκει ο χάρτης: το λέει ο server στον υπολογισμό (κρατιέται εδώ, γιατί αλλάζει και την πληρωμή)
+  const [addrOnRequest, setAddrOnRequest] = useState<string | null>(null);
+  const onRequest = noPriceArea(/^\d{5}$/.test(f.zip) ? f.zip : null) ?? addrOnRequest;
   const payUse: Pay = onRequest && fulPick !== "click-collect" ? "later" : pay;
   const { quote, setQuote, loading } = useServerQuote(lines, hydrated, { coupon: couponCode, payment: payUse, delivery: fulPick, storeId: fulPick === "click-collect" ? storeId : null, zip: carrierDef(carrierPick)?.kind === "locker" ? locker?.zip ?? null : /^\d{5}$/.test(f.zip) ? f.zip : null, email: f.email || null, carrier: carrierPick, localStoreId, ...addrQ });
+  const srvAddrOnRequest = quote?.onRequestWhy === "address" ? quote.onRequest : null;
+  if (quote && srvAddrOnRequest !== addrOnRequest) setAddrOnRequest(srvAddrOnRequest);
   // μεγάλες συσκευές: ο server αποφασίζει (κατηγορία, βάρος, μέγεθος) — χωρίς courier, με ραντεβού ή παραλαβή
   const courierBlocked = !!quote && !quote.bulky.courier;
   // μεταφορική (εσωτερική, για λευκές / ογκώδεις): μόνο αν είναι ανοιχτή στις ρυθμίσεις και φεύγουν όλα έτσι

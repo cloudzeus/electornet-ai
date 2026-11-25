@@ -9,7 +9,7 @@ import { isCarrierRole, normalizeDelivery, type StepKey } from "@/lib/delivery/r
 import { carrierUsage, importCarriersFromSoftOne } from "@/lib/delivery/carrier-import";
 import { chooseCarrier, choosePartner, freightOptions, partnerOptions, markStep, rerouteOrder, resetPartnerCache, resetRateCache } from "@/lib/delivery/server";
 
-const RATE_CARRIERS = /^(acs|geniki|elta|boxnow|freight|carrier:[\w-]{8,40})$/;
+const RATE_CARRIERS = /^(asap|acs|geniki|elta|boxnow|freight|carrier:[\w-]{8,40})$/;
 
 /** Αποθήκευση τιμοκαταλόγου (πρόχειρο ή δημοσίευση). Η δημοσίευση αποσύρει τον προηγούμενο δημοσιευμένο του ίδιου μεταφορέα. */
 export async function saveRateTableAction(input: { id?: string | null; carrier: string; name: string; data: unknown; publish: boolean; validFrom?: string | null }) {
