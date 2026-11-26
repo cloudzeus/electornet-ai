@@ -73,7 +73,21 @@ export async function issueStaffOtp(staff: { id: string; email: string; name: st
   return { ok: true, challengeId: challenge.id, maskedEmail: maskEmail(staff.email), expiresAt: challenge.expiresAt };
 }
 
-export type VerifyResult = { ok: true; staffId: string } | { ok: false; message: string };
+/**
+ * Challenge χωρίς email, για σύνδεση από έμπιστη IP (`lib/auth/trusted-ip.ts`).
+ * Ο κωδικός μένει στον server και πάει κατευθείαν στο signIn. Το `sent: false`
+ * ξεχωρίζει αυτές τις συνδέσεις στο ιστορικό («admin-trusted-ip»).
+ */
+export async function issueTrustedChallenge(staff: { id: string; email: string }): Promise<{ challengeId: string; code: string }> {
+  const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+  const ev = await captureEvidence();
+  const c = await db.staffLoginChallenge.create({
+    data: { staffId: staff.id, email: staff.email, codeHash: await bcrypt.hash(code, 10), expiresAt: new Date(Date.now() + 60_000), sent: false, ip: ev.ip, ipHash: ev.ipHash, userAgent: ev.userAgent },
+  });
+  return { challengeId: c.id, code };
+}
+
+export type VerifyResult = { ok: true; staffId: string; viaEmail: boolean } | { ok: false; message: string };
 
 /** Επαληθεύει τον κωδικό ενός challenge και τον καίει. */
 export async function verifyStaffOtp(challengeId: string, code: string): Promise<VerifyResult> {
@@ -92,7 +106,7 @@ export async function verifyStaffOtp(challengeId: string, code: string): Promise
     return { ok: false, message: `Λάθος κωδικός. Απομένουν ${Math.max(0, OTP_MAX_ATTEMPTS - attempts)} προσπάθειες.` };
   }
   await db.staffLoginChallenge.update({ where: { id: c.id }, data: { usedAt: new Date() } });
-  return { ok: true, staffId: c.staffId };
+  return { ok: true, staffId: c.staffId, viaEmail: c.sent };
 }
 
 /** Καθαρισμός ληγμένων challenges (καλείται από το cron των backups/lookups). */

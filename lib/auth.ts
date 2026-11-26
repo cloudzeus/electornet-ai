@@ -42,7 +42,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const permissions = roles.includes("super-admin") ? ["*"] : [...new Set(staff.roles.flatMap((r) => r.role.permissions.map((p) => p.permission.key)))];
         if (!permissions.length) { await recordLogin({ staffId: staff.id, email: staff.email, success: false, method: "admin", reason: "no-access" }); return null; }
         await db.staff.update({ where: { id: staff.id }, data: { lastLoginAt: new Date() } });
-        await recordLogin({ staffId: staff.id, email: staff.email, success: true, method: "admin-otp" });
+        await recordLogin({ staffId: staff.id, email: staff.email, success: true, method: v.viaEmail ? "admin-otp" : "admin-trusted-ip" });
         return { id: staff.id, email: staff.email, name: staff.name, roles, permissions, storeId: staff.storeId };
       },
     }),

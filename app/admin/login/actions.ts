@@ -1,9 +1,11 @@
 "use server";
 import bcrypt from "bcryptjs";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { db } from "@/lib/db";
+import { signIn } from "@/lib/auth";
 import { recordLogin } from "@/lib/gdpr/consent";
-import { issueStaffOtp, maskEmail } from "@/lib/auth/otp";
+import { issueStaffOtp, issueTrustedChallenge, maskEmail } from "@/lib/auth/otp";
+import { isTrustedAdminIp } from "@/lib/auth/trusted-ip";
 import { LOGIN_LIMITS, loginBlocked } from "@/lib/auth/throttle";
 import { captureEvidence } from "@/lib/gdpr/evidence";
 
@@ -44,6 +46,11 @@ export async function requestOtp(_prev: Step1State, fd: FormData): Promise<Step1
   if (!staff.roles.length) {
     await recordLogin({ staffId: staff.id, email, success: false, method: "admin", reason: "no-access" });
     return { error: "Ο λογαριασμός δεν έχει πρόσβαση στη διαχείριση." };
+  }
+  // γνωστή διεύθυνση (ADMIN_TRUSTED_IPS): ο κωδικός πρόσβασης αρκεί — το signIn κάνει redirect στο /admin
+  if (isTrustedAdminIp((await headers()).get("x-forwarded-for"))) {
+    const t = await issueTrustedChallenge(staff);
+    await signIn("credentials", { challengeId: t.challengeId, code: t.code, redirectTo: "/admin" });
   }
   const r = await issueStaffOtp({ id: staff.id, email: staff.email, name: staff.name });
   if (!r.ok) return { error: r.message };
