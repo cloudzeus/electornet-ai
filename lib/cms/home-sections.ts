@@ -22,8 +22,8 @@ export interface HomeSection {
   /** εμφάνιση της ενότητας (φόντο, χρώματα κειμένων, περιθώρια — ανά συσκευή), ίδια πεδία με τα components */
   look?: Look;
 }
-/** Ποιες ομάδες του πίνακα «Εμφάνιση» ισχύουν σε μια ενότητα: hero και ticker έχουν δικά τους χρώματα (πεδία της ενότητας)· η διαφημιστική λωρίδα καμία. */
-export const sectionLookGroups = (id: HomeSectionId): ("bg" | "text" | "space")[] => (id === "ad-strip" ? [] : id === "hero" || id === "ticker" ? ["space"] : ["bg", "text", "space"]);
+/** Ποιες ομάδες του πίνακα «Εμφάνιση» ισχύουν σε μια ενότητα: hero και ticker έχουν δικά τους χρώματα (πεδία της ενότητας). */
+export const sectionLookGroups = (id: HomeSectionId): ("bg" | "text" | "space")[] => (id === "hero" || id === "ticker" ? ["space"] : ["bg", "text", "space"]);
 export interface HomeDoc { sections: HomeSection[]; blocks: BrandBlock[] }
 
 export type SectionField =
@@ -94,7 +94,7 @@ export const HOME_SECTIONS: SectionDef[] = [
   { id: "stores", label: "Εντοπισμός καταστήματος", help: "Το πιο κοντινό κατάστημα στον επισκέπτη, με χάρτη και ωράριο.", widget: { type: "store-finder", zoneNo: 10, props: {} }, how: ["Δείχνει μόνο του το πιο κοντινό κατάστημα στον επισκέπτη — δεν χρειάζεται ρύθμιση."], fields: [] },
   { id: "guides", label: "Οδηγοί αγοράς", help: "Οι έξυπνοι οδηγοί («Ποια τηλεόραση σού ταιριάζει;») και τα άρθρα οδηγών αγοράς.", widget: { type: "smart-guides", zoneNo: 11, props: {} }, extra: [{ type: "guides", zoneNo: 11, props: {}, visibility: { hideOnSaveData: true } }], how: ["Σύρε τους οδηγούς (ή βέλη) για τη σειρά τους στην αρχική.", "Το μάτι ορίζει ποιοι φαίνονται· αν κρύψεις όλους τους έξυπνους οδηγούς (ή όλα τα άρθρα), η αντίστοιχη ζώνη δεν εμφανίζεται.", "Στα άρθρα, το πρώτο ορατό εμφανίζεται μεγάλο."], fields: [{ key: "smart", kind: "order-toggle", source: "smart-guides", label: "Έξυπνοι οδηγοί (σκούρα ζώνη)" }, { key: "articles", kind: "order-toggle", source: "guides", label: "Άρθρα οδηγών αγοράς" }] },
   { id: "news", label: "Νέα & ανακοινώσεις", help: "Τα πιο πρόσφατα νέα.", widget: { type: "news-band", zoneNo: 12, props: { limit: 3 } }, how: ["Δείχνει μόνο του τα πιο πρόσφατα νέα· εδώ ορίζεις πόσα."], fields: [{ key: "limit", kind: "number", label: "Πλήθος νέων", min: 1, max: 6 }] },
-  { id: "ad-strip", label: "Διαφημιστική λωρίδα", help: "Η διαφημιστική θέση «home-strip» των Προσφορών: όποιο banner είναι ενεργό εκεί.", widget: null, how: ["Πάτα «Βάλε banner στη λωρίδα», διάλεξε προσφορά και σχέδιο, και τέλος.", "Για ημερομηνίες, προτεραιότητα ή αλλαγή σχεδίου ενός banner: «Άνοιγμα» δίπλα του."], fields: [{ key: "bg", kind: "color", label: "Φόντο της ζώνης", help: "Χρώμα πίσω από το banner, σε όλο το πλάτος της οθόνης. «Προεπιλογή» = χωρίς χρώμα." }], managedAt: { label: "Προσφορές → Διαφημιστικές θέσεις", href: "/admin/prosfores" } },
+  { id: "ad-strip", label: "Διαφημιστική λωρίδα", help: "Η διαφημιστική θέση «home-strip» των Προσφορών: όποιο banner είναι ενεργό εκεί.", widget: null, how: ["Πάτα «Βάλε banner στη λωρίδα», διάλεξε προσφορά και σχέδιο, και τέλος.", "Για ημερομηνίες, προτεραιότητα, αλλαγή σχεδίου ή τα κείμενα ενός banner (υπέρτιτλος, τίτλος, σύνδεσμος): «Άνοιγμα» δίπλα του.", "Φόντο της ζώνης, χρώματα των τίτλων και αποστάσεις: «Εμφάνιση», πιο κάτω."], fields: [], managedAt: { label: "Προσφορές → Διαφημιστικές θέσεις", href: "/admin/prosfores" } },
   { id: "newsletter", label: "Newsletter", help: "Εγγραφή στο newsletter, πριν το footer.", widget: { type: "newsletter", zoneNo: 13, props: {} }, how: ["Η φόρμα εγγραφής στο newsletter — δεν χρειάζεται ρύθμιση."], fields: [] },
 ];
 export const sectionDef = (id: string) => HOME_SECTIONS.find((s) => s.id === id);
@@ -113,6 +113,15 @@ export function normalizeHomeDoc(raw: unknown): HomeDoc {
     const s = x as HomeSection;
     if (!s || !sectionDef(s.id) || seen.has(s.id)) continue;
     seen.add(s.id);
+    // παλιό πεδίο «Φόντο της ζώνης» της διαφημιστικής λωρίδας → «Εμφάνιση», όπως στις άλλες ενότητες
+    if (s.id === "ad-strip" && s.props && "bg" in s.props) {
+      const { bg, ...props } = s.props;
+      const next: HomeSection = { ...s, props };
+      if (!Object.keys(props).length) delete next.props;
+      if (typeof bg === "string" && !s.look?.bg) next.look = { ...s.look, bg };
+      sections.push(next);
+      continue;
+    }
     sections.push(s);
   }
   for (const d of HOME_SECTIONS) if (!seen.has(d.id)) sections.push({ id: d.id });

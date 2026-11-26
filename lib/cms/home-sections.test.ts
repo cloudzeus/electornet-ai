@@ -55,3 +55,10 @@ test("αριθμοί υπηρεσιών: μετρούν μόνοι τους, χ�
   assert.equal(resolveFacts(Array.from({ length: 6 }, () => ({ value: 1, suffix: "", label: "z" })), c).length, 4);
   assert.deepEqual(resolveFacts([], c), []);
 });
+
+test("διαφημιστική λωρίδα: το παλιό «Φόντο της ζώνης» περνά στην «Εμφάνιση», χωρίς να πατά χρώμα που ορίστηκε εκεί", () => {
+  const strip = (raw: object) => normalizeHomeDoc({ sections: [{ id: "ad-strip", ...raw }] }).sections[0];
+  assert.deepEqual(strip({ props: { bg: "#000000" } }), { id: "ad-strip", look: { bg: "#000000" } });
+  assert.deepEqual(strip({ props: { bg: "#000000" }, look: { bg: "#122a58", mt: 16 } }), { id: "ad-strip", look: { bg: "#122a58", mt: 16 } });
+  assert.deepEqual(strip({ look: { titleColor: "#ffffff" } }), { id: "ad-strip", look: { titleColor: "#ffffff" } });
+});

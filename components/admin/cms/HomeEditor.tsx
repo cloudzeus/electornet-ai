@@ -444,7 +444,7 @@ function Inspector({ it, index, count, prev, canWrite, errors, empty, issues, fo
         {it.kind === "section"
           ? <SectionFields s={it.s} set={(props) => onChange({ ...it, s: { ...it.s, props: Object.keys(props).length ? props : undefined } }, `p:${it.key}`)} />
           : <BlockFields b={it.b} set={(nb) => onChange({ ...it, b: nb }, `b:${it.key}`)} ctx={blockCtx} />}
-        {it.kind === "section" && sectionLookGroups(it.s.id).length > 0 && <LookPanel value={it.s.look ?? {}} groups={sectionLookGroups(it.s.id)} what="της ενότητας" onChange={(l) => onChange({ ...it, s: { ...it.s, look: Object.keys(l).length ? l : undefined } }, `l:${it.key}`)} />}
+        {it.kind === "section" && sectionLookGroups(it.s.id).length > 0 && <LookPanel value={it.s.look ?? {}} groups={sectionLookGroups(it.s.id)} inner={it.s.id === "ad-strip"} what="της ενότητας" onChange={(l) => onChange({ ...it, s: { ...it.s, look: Object.keys(l).length ? l : undefined } }, `l:${it.key}`)} />}
       </div>
     </section>
   );

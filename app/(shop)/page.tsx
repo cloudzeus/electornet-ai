@@ -1,4 +1,3 @@
-import { sx } from "@/components/ui/sx";
 import { Fragment, type ReactNode } from "react";
 import { renderZone } from "@/lib/cms/render";
 import { getDevice } from "@/lib/device";
@@ -51,9 +50,9 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     Promise.all(doc.sections.map(async (s) => {
       if (!sectionActive(s, now, viewer)) return { s, el: null };
       if (s.id === "ad-strip") {
-        // φόντο της ζώνης (ρύθμιση της ενότητας): χρώμα σε όλο το πλάτος, το banner μένει στο πλάτος της σελίδας
-        const bg = typeof s.props?.bg === "string" && /^#[0-9a-f]{6}$/i.test(s.props.bg) ? sx({ background: s.props.bg }) : null;
-        return { s, el: bg ? <>{bg.node}<AdSlot slot="home-strip" className={`${bg.className} py-6`} inner="eu-canvas eu-gutter" /></> : <AdSlot slot="home-strip" className="eu-canvas eu-gutter py-6" /> };
+        // η «Εμφάνιση» μπαίνει πάνω στο ίδιο το banner, όχι στο περιτύλιγμα της ενότητας: χωρίς ενεργό banner δεν μένει άδεια χρωματιστή λωρίδα
+        const look = s.look ? lookClass(s.look) : null;
+        return { s, el: <>{look?.node}<AdSlot slot="home-strip" className={`${look?.className ?? ""} py-6`} inner="eu-canvas eu-gutter" /></> };
       }
       const w = sectionWidget(s);
       if (!w) return { s, el: null };
@@ -89,7 +88,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
  */
 function HomeSectionBox({ s, preview, children }: { s: HomeSection; preview: boolean; children: ReactNode }) {
   const has = Array.isArray(children) ? children.some(Boolean) : !!children;
-  const look = has && s.look && sectionLookGroups(s.id).length ? lookClass(s.look) : null;
+  const look = has && s.look && s.id !== "ad-strip" && sectionLookGroups(s.id).length ? lookClass(s.look) : null;
   const cls = `${look ? `eu-look ${look.className}` : ""} ${hideClass(s.hideOn)}`.trim();
   if (!preview && !cls) return children;
   return <div data-home-item={preview ? `sec:${s.id}` : undefined} className={cls || undefined}>{look?.node}{children}</div>;
