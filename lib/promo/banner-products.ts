@@ -75,6 +75,8 @@ export async function bannerProductsFresh(d: BannerDesign, promotionId: string |
  */
 const bannerCache = swrMap<BannerProduct[]>(60_000, { maxStaleMs: 5 * 60_000, max: 3000 });
 onCatalogReset(bannerCache.resetAll);
+/** Νέα φωτογραφία χωρίς φόντο με το χέρι: να φανεί αμέσως, όχι σε 1′. */
+export const resetBannerProducts = () => bannerCache.resetAll();
 export const bannerProducts = (d: BannerDesign, promotionId: string | null, scope?: BannerScope | string | null): Promise<BannerProduct[]> =>
   bannerCache(JSON.stringify([d.layout, d.slider, d.products, promotionId, scope ?? null]), () => bannerProductsFresh(d, promotionId, scope));
 

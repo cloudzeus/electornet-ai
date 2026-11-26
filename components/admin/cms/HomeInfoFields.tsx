@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ExternalLink, GalleryHorizontal, GripVertical, Package, PanelRightOpen, Sparkles, Tag, X, Zap } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ExternalLink, GalleryHorizontal, GripVertical, Package, PanelRightOpen, Scissors, Sparkles, Tag, X, Zap } from "lucide-react";
 import { useOptions } from "./brand/BlockEditors";
 import { ProductPickerDialog } from "./brand/ProductPicker";
 import { DateTime } from "./brand/fields";
+import { ProductCutoutDialog } from "./ProductCutout";
+import { productCutoutsAction } from "@/app/admin/(shell)/cms/home/actions";
 import type { PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
 import { sx } from "@/components/ui/sx";
 import { BANNER_TEMPLATES } from "@/lib/promo/banner-design";
@@ -78,6 +80,7 @@ const SRC: { v: NonNullable<Deals["source"]>; t: string; d: string; I: typeof Za
 /** «Προσφορές της εβδομάδας»: από πού έρχονται τα προϊόντα — με απλές κάρτες και τον αντίστοιχο έλεγχο. */
 export function DealsSourceField({ props, set }: { props: Record<string, unknown> | undefined; set: (patch: Record<string, unknown>) => void }) {
   const live = useContext(HomeLiveInfo);
+  const refresh = useContext(HomeRefresh);
   const { info, onInfo } = useContext(HomeProductInfo);
   const o = useOptions();
   const [picking, setPicking] = useState(false);
@@ -85,6 +88,16 @@ export function DealsSourceField({ props, set }: { props: Record<string, unknown
   const d = (props ?? {}) as Deals;
   const src = d.source ?? "auto";
   const ids = d.productIds ?? [];
+  // φωτογραφίες χωρίς φόντο: μετρούν μόνο όταν η ενότητα παίζει με σχέδιο banner (οι κανονικές κάρτες έχουν το δικό τους πλαίσιο)
+  const [cuts, setCuts] = useState<Record<string, string>>({});
+  const [cutting, setCutting] = useState<string | null>(null);
+  const cutKey = d.design && src === "products" ? ids.join(",") : "";
+  useEffect(() => {
+    if (!cutKey) return;
+    let on = true;
+    productCutoutsAction(cutKey.split(",")).then((r) => { if (on) setCuts(r); }, () => {});
+    return () => { on = false; };
+  }, [cutKey]);
   const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("el-GR", { day: "numeric", month: "short" }) : null);
   return (
     <div className="grid gap-3">
@@ -125,7 +138,9 @@ export function DealsSourceField({ props, set }: { props: Record<string, unknown
                   <span draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; setDrag(i); }} onDragEnd={() => setDrag(null)} aria-hidden title="Σύρε για αλλαγή σειράς" className="grid place-items-center w-7 self-stretch cursor-grab text-eu-muted"><GripVertical className="size-4" /></span>
                   <span className="w-5 shrink-0 font-extrabold text-eu-muted text-[length:var(--fs-13)] tabular-nums">{i + 1}</span>
                   <Thumb url={p?.image} className="size-11 shrink-0 rounded-md bg-white border border-eu-line bg-contain bg-center bg-no-repeat" />
-                  <span className="min-w-0 flex-1 grid py-1.5 text-[length:var(--fs-14)]"><span className="font-bold text-eu-ink leading-snug line-clamp-2">{p?.title ?? id}</span>{p?.price != null && <span className="text-eu-muted">{p.price.toLocaleString("el-GR", { style: "currency", currency: "EUR" })}</span>}</span>
+                  <span className="min-w-0 flex-1 grid py-1.5 text-[length:var(--fs-14)]"><span className="font-bold text-eu-ink leading-snug line-clamp-2">{p?.title ?? id}</span>{p?.price != null && <span className="text-eu-muted">{p.price.toLocaleString("el-GR", { style: "currency", currency: "EUR" })}</span>}
+                    {cutKey && <button type="button" onClick={() => setCutting(id)} className={`justify-self-start inline-flex items-center gap-1.5 min-h-11 font-bold text-[length:var(--fs-13)] underline-offset-4 hover:underline cursor-pointer ${cuts[id] ? "text-eu-green" : "text-eu-blue"}`}>{cuts[id] ? <><Check className="size-4" aria-hidden />Χωρίς φόντο · δες ή άλλαξε</> : <><Scissors className="size-4" aria-hidden />Αφαίρεση φόντου</>}</button>}
+                  </span>
                   <button type="button" disabled={i === 0} onClick={() => { const l = [...ids]; [l[i - 1], l[i]] = [l[i], l[i - 1]]; set({ productIds: l }); }} aria-label="Πιο πάνω" className="size-11 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface disabled:opacity-30"><ArrowUp className="size-4" aria-hidden /></button>
                   <button type="button" disabled={i === ids.length - 1} onClick={() => { const l = [...ids]; [l[i + 1], l[i]] = [l[i], l[i + 1]]; set({ productIds: l }); }} aria-label="Πιο κάτω" className="size-11 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface disabled:opacity-30"><ArrowDown className="size-4" aria-hidden /></button>
                   <button type="button" onClick={() => set({ productIds: ids.filter((x) => x !== id) })} aria-label={`Αφαίρεση: ${p?.title ?? id}`} className="size-11 shrink-0 grid place-items-center rounded-full text-eu-red hover:bg-eu-red/10"><X className="size-4" aria-hidden /></button>
@@ -134,6 +149,8 @@ export function DealsSourceField({ props, set }: { props: Record<string, unknown
             </ol>
           ) : <p className="m-0 rounded-xl bg-eu-amber/15 px-3 py-2 text-eu-ink-2 text-[length:var(--fs-14)]">Δεν έχεις διαλέξει προϊόντα ακόμη — μέχρι τότε η ενότητα δείχνει αυτόματα τις μεγαλύτερες εκπτώσεις (αν υπάρχουν).</p>}
           {ids.length > 0 && <span className="text-eu-muted text-[length:var(--fs-13)] -mt-1">Φαίνονται τα πρώτα όσα ορίζει το «Πλήθος προϊόντων», με αυτή τη σειρά. Σύρε από τη λαβή ή άλλαξε σειρά με τα βέλη.</span>}
+          {cutKey && <span data-help="home.deals-cutout" className="text-eu-muted text-[length:var(--fs-13)] -mt-1">Στο σχέδιο banner, όσα προϊόντα δεν γράφουν «Χωρίς φόντο» φαίνονται μέσα σε λευκό πλαίσιο. Πάτα «Αφαίρεση φόντου», δες το αποτέλεσμα και επιβεβαίωσε.</span>}
+          {cutting && <ProductCutoutDialog id={cutting} title={info[cutting]?.title ?? "προϊόν"} photo={info[cutting]?.image ?? null} saved={cuts[cutting] ?? null} onClose={() => setCutting(null)} onDone={(url) => { setCuts((c) => { const n = { ...c }; if (url) n[cutting] = url; else delete n[cutting]; return n; }); setCutting(null); refresh(); }} />}
           <DateTime label="Λήξη (για την αντίστροφη μέτρηση)" value={d.endsAt} onChange={(v) => set({ endsAt: v })} help="Κενό = την Κυριακή στις 23:59. Μετά τη λήξη η ενότητα δείχνει αυτόματα τις μεγαλύτερες εκπτώσεις." />
           {picking && <ProductPickerDialog brandId={null} brandName="Euronics" selected={ids} max={12} onClose={() => setPicking(false)} onDone={(sel, list) => { onInfo(list); set({ productIds: sel }); setPicking(false); }} />}
         </div>
@@ -145,7 +162,7 @@ export function DealsSourceField({ props, set }: { props: Record<string, unknown
           {(o?.ads.filter((a) => a.designed).length ?? 0) > 0 && <optgroup label="Banners που έχεις σχεδιάσει">{o!.ads.filter((a) => a.designed).map((a) => <option key={a.id} value={`b:${a.id}`}>{a.title}</option>)}</optgroup>}
           <optgroup label="Έτοιμα πρότυπα">{BANNER_TEMPLATES.map((t) => <option key={t.key} value={`t:${t.key}`}>{t.name}</option>)}</optgroup>
         </select>
-        <span className="text-eu-muted text-[length:var(--fs-13)]">{d.design ? "Τα προϊόντα της ενότητας φαίνονται με αυτό το σχέδιο banner. Το σχέδιο το αλλάζεις στις Προσφορές → Διαφημιστικές θέσεις." : "Τώρα η ενότητα δείχνει τις κανονικές κάρτες προϊόντων του site, όχι σχέδιο banner. Διάλεξε σχέδιο για να αλλάξει."}</span>
+        <span className="text-eu-muted text-[length:var(--fs-13)]">{d.design ? `Τα προϊόντα της ενότητας φαίνονται με αυτό το σχέδιο banner. Το σχέδιο το αλλάζεις στις Προσφορές → Διαφημιστικές θέσεις.${src === "products" ? " Για να φύγει το λευκό πλαίσιο μιας φωτογραφίας: «Αφαίρεση φόντου» κάτω από το προϊόν, στη λίστα πιο πάνω." : ""}` : "Τώρα η ενότητα δείχνει τις κανονικές κάρτες προϊόντων του site, όχι σχέδιο banner. Διάλεξε σχέδιο για να αλλάξει."}</span>
       </label>
     </div>
   );

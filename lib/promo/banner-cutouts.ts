@@ -1,7 +1,7 @@
 import "server-only";
 import sharp from "sharp";
 import { db } from "@/lib/db";
-import { ingest } from "@/lib/media/repo";
+import { destroy, ingest } from "@/lib/media/repo";
 import { removeBackground } from "@/lib/media/process";
 
 /**
@@ -38,29 +38,72 @@ async function keptEnough(orig: Buffer, cut: Buffer): Promise<boolean> {
   return content < N * N * 0.01 || kept / content >= 0.6;
 }
 
+const SRC = { id: true, title: true, media: { where: { hidden: false, kind: "image" }, orderBy: { sortNo: "asc" }, take: 1, select: { url: true } } } as const;
+const folderId = async () => ((await db.mediaFolder.findFirst({ where: { name: FOLDER, parentId: null } })) ?? (await db.mediaFolder.create({ data: { name: FOLDER } }))).id;
+
+/** Η κύρια φωτογραφία χωρίς φόντο, κομμένη γύρω από το προϊόν και έως 900 px (στο banner φαίνεται το πολύ ~300 px)· `clean` = πέρασε τη δικλείδα ποιότητας. */
+async function cutOne(src: string | undefined): Promise<{ png: Buffer; clean: boolean }> {
+  if (!src?.startsWith("https://")) throw new Error("χωρίς φωτογραφία");
+  const res = await fetch(src, { signal: AbortSignal.timeout(30_000) });
+  if (!res.ok) throw new Error(`λήψη ${res.status}`);
+  const orig = Buffer.from(await res.arrayBuffer());
+  const cut = await removeBackground(orig);
+  const clean = await keptEnough(orig, cut);
+  return { png: await sharp(cut).trim().resize({ width: 900, height: 900, fit: "inside", withoutEnlargement: true }).png().toBuffer(), clean };
+}
+
 /** Φτιάχνει όσες λείπουν. Επιστρέφει πόσες έγιναν και όσες απέτυχαν (το banner δουλεύει και χωρίς αυτές). */
 export async function ensureBannerCutouts(ids: string[], by: string | null): Promise<{ made: number; failed: string[] }> {
   const have = await bannerCutouts(ids);
   const todo = [...new Set(ids)].filter((id) => !have.has(id));
   if (!todo.length) return { made: 0, failed: [] };
-  const folder = (await db.mediaFolder.findFirst({ where: { name: FOLDER, parentId: null } })) ?? (await db.mediaFolder.create({ data: { name: FOLDER } }));
-  const products = await db.product.findMany({ where: { id: { in: todo } }, select: { id: true, title: true, media: { where: { hidden: false, kind: "image" }, orderBy: { sortNo: "asc" }, take: 1, select: { url: true } } } });
+  const folder = await folderId();
+  const products = await db.product.findMany({ where: { id: { in: todo } }, select: SRC });
   let made = 0;
   const failed: string[] = [];
   for (const p of products) {
     try {
-      const src = p.media[0]?.url;
-      if (!src?.startsWith("https://")) throw new Error("χωρίς φωτογραφία");
-      const res = await fetch(src, { signal: AbortSignal.timeout(30_000) });
-      if (!res.ok) throw new Error(`λήψη ${res.status}`);
-      // κομμένο γύρω από το προϊόν και έως 900 px: στο banner φαίνεται το πολύ ~300 px
-      const orig = Buffer.from(await res.arrayBuffer());
-      const cut = await removeBackground(orig);
-      if (!(await keptEnough(orig, cut))) throw new Error("η αφαίρεση φόντου έσβησε μέρος του προϊόντος — μένει η φωτογραφία του καταλόγου");
-      const png = await sharp(cut).trim().resize({ width: 900, height: 900, fit: "inside", withoutEnlargement: true }).png().toBuffer();
-      await ingest({ bytes: png, filename: fileOf(p.id), mime: "image/png", folderId: folder.id, createdBy: by, keepFormat: true, title: `${p.title} · χωρίς φόντο` });
+      const { png, clean } = await cutOne(p.media[0]?.url);
+      if (!clean) throw new Error("η αφαίρεση φόντου έσβησε μέρος του προϊόντος — μένει η φωτογραφία του καταλόγου");
+      await ingest({ bytes: png, filename: fileOf(p.id), mime: "image/png", folderId: folder, createdBy: by, keepFormat: true, title: `${p.title} · χωρίς φόντο` });
       made++;
     } catch (e) { failed.push(`${p.title}: ${e instanceof Error ? e.message : "σφάλμα"}`); }
   }
   return { made, failed };
+}
+
+/**
+ * Με το χέρι: ο διαχειριστής βλέπει το αποτέλεσμα και επιβεβαιώνει, άρα εδώ η δικλείδα ποιότητας μόνο προειδοποιεί (`clean`).
+ * Προεπισκόπηση και αποθήκευση δουλεύουν το ίδιο αποτέλεσμα, μία φορά (~2″ και ~0,9 GB η αφαίρεση).
+ */
+const manual = new Map<string, Promise<{ png: Buffer; clean: boolean; title: string; original: string | null }>>();
+export function manualCutout(productId: string) {
+  let p = manual.get(productId);
+  if (!p) {
+    p = (async () => {
+      const row = await db.product.findUnique({ where: { id: productId }, select: SRC });
+      if (!row) throw new Error("το προϊόν δεν βρέθηκε");
+      return { ...(await cutOne(row.media[0]?.url)), title: row.title, original: row.media[0]?.url ?? null };
+    })();
+    p.catch(() => manual.delete(productId));
+    manual.set(productId, p);
+    if (manual.size > 12) manual.delete(manual.keys().next().value!);
+  }
+  return p;
+}
+
+/** Αποθηκεύει ό,τι επιβεβαίωσε ο διαχειριστής, στη θέση της προηγούμενης φωτογραφίας χωρίς φόντο του προϊόντος (αν υπάρχει). */
+export async function saveManualCutout(productId: string, by: string | null): Promise<string> {
+  const c = await manualCutout(productId);
+  const prev = await db.mediaAsset.findFirst({ where: { filename: fileOf(productId) }, select: { id: true } });
+  const a = await ingest({ bytes: c.png, filename: fileOf(productId), mime: "image/png", folderId: await folderId(), createdBy: by, replaceId: prev?.id, keepFormat: true, title: `${c.title} · χωρίς φόντο` });
+  manual.delete(productId);
+  return a.url;
+}
+
+/** Το προϊόν γυρίζει στη φωτογραφία του καταλόγου (λευκό πλαίσιο στα banners). */
+export async function removeCutout(productId: string) {
+  const rows = await db.mediaAsset.findMany({ where: { filename: fileOf(productId) }, select: { id: true } });
+  if (rows.length) await destroy(rows.map((r) => r.id));
+  manual.delete(productId);
 }

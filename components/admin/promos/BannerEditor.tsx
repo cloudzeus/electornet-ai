@@ -4,7 +4,8 @@ import { SxStyleTag } from "@/components/ui/SxStyleTag";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type ReactNode } from "react";
-import { CalendarClock, Check, ChevronLeft, Eye, Image as ImageIcon, LayoutTemplate, Loader2, Monitor, MousePointerClick, PaintBucket, ShoppingBag, Smartphone, Type, X } from "lucide-react";
+import { CalendarClock, Check, ChevronLeft, Eye, Image as ImageIcon, LayoutTemplate, Loader2, Monitor, MousePointerClick, PaintBucket, Scissors, ShoppingBag, Smartphone, Type, X } from "lucide-react";
+import { ProductCutoutDialog } from "@/components/admin/cms/ProductCutout";
 import { SLOTS } from "@/lib/promo/landing-blocks";
 import { BANNER_ANIMS, BANNER_PRESETS, DEFAULT_BANNER_DESIGN, MAX_BANNER_PRODUCTS, BANNER_TEMPLATES, STICKER_POSITIONS, PER_ROW, POST_STYLES, PRICE_SHAPES, TILE_ANIMS, applyLook, bannerDesignIssue, type BannerDesign, type BannerProduct, type BannerTemplate } from "@/lib/promo/banner-design";
 import { savePlacementAction, type PlacementInput } from "@/app/admin/(shell)/prosfores/actions";
@@ -61,6 +62,7 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
   const [cut, setCut] = useState(0);
   const [cutMsg, setCutMsg] = useState<string | null>(null);
   const [cutting, setCutting] = useState(false);
+  const [cutOf, setCutOf] = useState<string | null>(null);
   const [products, setProducts] = useState<BannerProduct[]>([]);
   // το banner δεν έχει δικά του προϊόντα να δείξει → η προεπισκόπηση παίρνει δείγμα, για να μη μένει άδεια
   const [sample, setSample] = useState(false);
@@ -282,10 +284,13 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
                   {g.products.ids.length > 0 && <ul className="m-0 p-0 list-none grid gap-1.5">{g.products.ids.map((id) => { const p = products.find((x) => x.id === id); return (
                     <li key={id} className="flex items-center gap-2 rounded-xl border border-eu-line p-1.5">
                       {p?.image ? <img src={p.image} alt="" className="size-10 rounded-md object-contain bg-white shrink-0" /> : <span className="size-10 rounded-md bg-eu-surface shrink-0" />}
-                      <span className="min-w-0 flex-1 grid"><span className="font-bold text-eu-ink text-[length:var(--fs-13)] truncate">{p ? p.title : picked[id] ?? "Φόρτωση…"}</span>{p && <span className="text-eu-muted text-[length:var(--fs-12)] tabular-nums">{p.price.toLocaleString("el-GR")} € τώρα</span>}</span>
+                      <span className="min-w-0 flex-1 grid"><span className="font-bold text-eu-ink text-[length:var(--fs-13)] truncate">{p ? p.title : picked[id] ?? "Φόρτωση…"}</span>{p && <span className="text-eu-muted text-[length:var(--fs-12)] tabular-nums">{p.price.toLocaleString("el-GR")} € τώρα</span>}
+                        {p?.image && g.products.cutout && <button type="button" data-help="banner.cutout-one" onClick={() => setCutOf(id)} className={`justify-self-start inline-flex items-center gap-1.5 min-h-11 font-bold text-[length:var(--fs-13)] underline-offset-4 hover:underline cursor-pointer ${p.cutout ? "text-eu-green" : "text-eu-blue"}`}>{p.cutout ? <><Check className="size-4" aria-hidden />Χωρίς φόντο · δες ή άλλαξε</> : <><Scissors className="size-4" aria-hidden />Αφαίρεση φόντου</>}</button>}
+                      </span>
                       <button type="button" onClick={() => setP({ ids: g.products.ids.filter((x) => x !== id) })} aria-label="Αφαίρεση" className="size-11 md:size-9 grid place-items-center rounded-full hover:bg-eu-surface"><X className="size-4" aria-hidden /></button>
                     </li>
                   ); })}</ul>}
+                  {cutOf && (() => { const p = products.find((x) => x.id === cutOf); return <ProductCutoutDialog id={cutOf} title={p?.title ?? "προϊόν"} photo={p && !p.cutout ? p.image : null} saved={p?.cutout ? p.image : null} onClose={() => setCutOf(null)} onDone={() => { setCutOf(null); setCut((n) => n + 1); }} />; })()}
                   <button type="button" onClick={() => setBrowse((x) => !x)} aria-expanded={browse} className="rounded-xl border border-dashed border-eu-ink-3/50 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:border-eu-navy hover:text-eu-navy">{browse ? "Κλείσιμο καταλόγου" : g.products.ids.length >= MAX_BANNER_PRODUCTS ? `Έχεις ${MAX_BANNER_PRODUCTS} — αφαίρεσε ένα για να αλλάξεις` : "+ Προϊόν από τον κατάλογο"}</button>
                 </div>
               )}
@@ -361,7 +366,7 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
           )}
           {g && g.products.source !== "none" && g.products.cutout && products.some((p) => p.image && !p.cutout) && (
             <p data-help="banner.cutout" className="m-0 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-eu-chip px-3 py-2 text-eu-navy text-[length:var(--fs-14)]">
-              <span className="flex-1 basis-64"><b>{products.filter((p) => p.image && !p.cutout).length === 1 ? "1 προϊόν έχει" : `${products.filter((p) => p.image && !p.cutout).length} προϊόντα έχουν`} ακόμη τη φωτογραφία με το φόντο της</b> (το λευκό πλαίσιο). Το φόντο φεύγει μόνο του όταν αποθηκεύσεις το banner, ή τώρα με το κουμπί: περίπου 2 δευτερόλεπτα το καθένα.{cutMsg && <span className="block font-bold">{cutMsg}</span>}</span>
+              <span className="flex-1 basis-64"><b>{products.filter((p) => p.image && !p.cutout).length === 1 ? "1 προϊόν έχει" : `${products.filter((p) => p.image && !p.cutout).length} προϊόντα έχουν`} ακόμη τη φωτογραφία με το φόντο της</b> (το λευκό πλαίσιο). Το φόντο φεύγει μόνο του όταν αποθηκεύσεις το banner, ή τώρα με το κουμπί: περίπου 2 δευτερόλεπτα το καθένα. Για να δεις το αποτέλεσμα πριν το κρατήσεις (ή αν κάποιο δεν βγει καθαρό), πάτα «Αφαίρεση φόντου» κάτω από το προϊόν, στην καρτέλα «Προϊόντα».{cutMsg && <span className="block font-bold">{cutMsg}</span>}</span>
               <button type="button" disabled={cutting} onClick={() => { setCutting(true); setCutMsg(null); void bannerCutoutsNowAction(products.filter((p) => p.image && !p.cutout).map((p) => p.id)).then((r) => { setCutMsg(r.made ? `Έγινε σε ${r.made}.${r.failed ? ` Σε ${r.failed} δεν βγήκε καθαρό και έμεινε η αρχική φωτογραφία.` : ""}` : "Δεν βγήκε καθαρό αποτέλεσμα: μένει η αρχική φωτογραφία."); setCut((n) => n + 1); }).catch(() => setCutMsg("Δεν έγινε. Δοκίμασε ξανά.")).finally(() => setCutting(false)); }} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-blue disabled:opacity-50 cursor-pointer">{cutting ? "Αφαιρώ το φόντο…" : "Αφαίρεση φόντου τώρα"}</button>
             </p>
           )}

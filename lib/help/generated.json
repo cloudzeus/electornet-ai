@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-26T08:17:08.776Z",
+ "generatedAt": "2026-11-26T08:38:05.903Z",
  "routes": [
   {
    "route": "/admin",
@@ -2225,6 +2225,11 @@
    ],
    "changes": [
     {
+     "hash": "770e9bf",
+     "date": "2026-11-26T10:20:24+02:00",
+     "text": "Αρχική: η διαφημιστική λωρίδα παίρνει τον πίνακα «Εμφάνιση» (φόντο, χρώματα τίτλων, περιθώρια, κενά μέσα στη ζώνη)"
+    },
+    {
      "hash": "d1d96dd",
      "date": "2026-11-24T20:25:20+02:00",
      "text": "Εμφάνιση ζώνης: αντιγραφή και επικόλληση από ζώνη σε ζώνη"
@@ -2268,14 +2273,9 @@
      "hash": "39e2740",
      "date": "2026-11-18T15:07:41+02:00",
      "text": "Ζώνες: μία φόρμα (banner προσφοράς / εικόνα / μόνο κείμενα), λίστα προϊόντων ανά ζώνη, banner στη λωρίδα με παράθυρο"
-    },
-    {
-     "hash": "95678c5",
-     "date": "2026-11-18T14:08:22+02:00",
-     "text": "Ζώνες: προσφορά σε τρία βήματα, banner-εικόνα ανά συσκευή, σταθερή προεπισκόπηση"
     }
    ],
-   "updatedAt": "2026-11-24T20:25:20+02:00",
+   "updatedAt": "2026-11-26T10:20:24+02:00",
    "shots": {
     "desktop": "/api/help-shot/cms.home-d.jpg",
     "mobile": "/api/help-shot/cms.home-m.jpg"
@@ -4151,6 +4151,7 @@
     "banner.form",
     "banner.templates",
     "banner.tiles",
+    "banner.cutout-one",
     "banner.preview",
     "banner.view",
     "banner.cutout",
@@ -5307,6 +5308,12 @@
  ],
  "recent": [
   {
+   "hash": "770e9bf",
+   "date": "2026-11-26T10:20:24+02:00",
+   "text": "Αρχική: η διαφημιστική λωρίδα παίρνει τον πίνακα «Εμφάνιση» (φόντο, χρώματα τίτλων, περιθώρια, κενά μέσα στη ζώνη)",
+   "routes": []
+  },
+  {
    "hash": "664f75e",
    "date": "2026-11-25T15:08:10+02:00",
    "text": "Τιμοκατάλογοι: χωρίς επιλογή «ASAP Couriers»",
@@ -5580,12 +5587,6 @@
    "hash": "52484ac",
    "date": "2026-11-23T15:24:46+02:00",
    "text": "Μενού κινητού: κλείνει μόλις επιλεγεί κατηγορία",
-   "routes": []
-  },
-  {
-   "hash": "3bfc5c2",
-   "date": "2026-11-23T15:24:46+02:00",
-   "text": "Κατηγορίες: έφυγε από τα FAQ η χαμηλότερη τιμή 30 ημερών",
    "routes": []
   }
  ],
@@ -6801,6 +6802,9 @@
   "home-facts": [
    "components/admin/cms/FactsField.tsx"
   ],
+  "home.deals-cutout": [
+   "components/admin/cms/HomeInfoFields.tsx"
+  ],
   "home.deals-look": [
    "components/admin/cms/HomeInfoFields.tsx"
   ],
@@ -6824,6 +6828,9 @@
   ],
   "look.copy": [
    "components/admin/cms/LookPanel.tsx"
+  ],
+  "home.deals-cutout-dialog": [
+   "components/admin/cms/ProductCutout.tsx"
   ],
   "home.strip-banner": [
    "components/admin/cms/StripBanner.tsx"
@@ -7078,6 +7085,9 @@
    "components/admin/promos/BannerEditor.tsx"
   ],
   "banner.tiles": [
+   "components/admin/promos/BannerEditor.tsx"
+  ],
+  "banner.cutout-one": [
    "components/admin/promos/BannerEditor.tsx"
   ],
   "banner.preview": [
