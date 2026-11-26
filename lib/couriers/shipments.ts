@@ -1,5 +1,5 @@
 import "server-only";
-import { floorLabel } from "@/lib/orders/model";
+import { floorLabel, streetOnly } from "@/lib/orders/model";
 import { db } from "@/lib/db";
 import { shippingLimits } from "@/lib/shipping/bulky-server";
 import { PDFDocument } from "pdf-lib";
@@ -62,7 +62,7 @@ export async function shipmentDraft(orderId: string): Promise<ShipmentDraft | nu
   if (o.lines.some((l) => limits.get(l.variant.productId)?.courier === false)) blockers.push("Περιέχει μεγάλη συσκευή (μόνο από κατάστημα).");
   return {
     orderId: o.id, number: o.number, carrier: s.carrier ?? "geniki",
-    name: `${s.firstName ?? ""} ${s.lastName ?? ""}`.trim(), address: [s.street, s.number].filter(Boolean).join(" ") + (s.floor ? `, ${s.floor}ος` : ""),
+    name: `${s.firstName ?? ""} ${s.lastName ?? ""}`.trim(), address: [streetOnly(s.street, s.number), s.number].filter(Boolean).join(" ") + (s.floor ? `, ${s.floor}ος` : ""),
     city: s.city ?? "", zip: zip5(s.zip), phone: e164(s.phone), email: s.email ?? o.customer?.email ?? o.guestEmail ?? null,
     pieces: Math.max(1, o.lines.reduce((a, l) => a + l.qty, 0)), weightKg: Math.max(0.5, Math.round(kg * 10) / 10), weightKnown: known, cod, comments: "", blockers,
   };
@@ -93,7 +93,7 @@ export async function createShipment(orderId: string, input: { weightKg: number;
       const notes = [floorLabel(s.floor), input.comments ?? "", s.notes ?? ""].filter((x) => x.trim()).join(" · ");
       const v = await asapCreateShipment(c, {
         order: d.number, pieces, weightKg, cod: d.cod,
-        recipient: { name: d.name, phone: d.phone, street: s.street ?? d.address, number: s.number ?? null, zip: d.zip, city: d.city, notes },
+        recipient: { name: d.name, phone: d.phone, street: s.street ? streetOnly(s.street, s.number) : d.address, number: s.number ?? null, zip: d.zip, city: d.city, notes },
       });
       made = { env: "live", jobId: v.shipmentId, voucher: v.voucher, subVouchers: v.parcels.filter((x) => x !== v.voucher), services: d.cod > 0 ? "cod" : null };
     } else if (carrier === "elta") {

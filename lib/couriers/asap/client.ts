@@ -1,6 +1,6 @@
 import "server-only";
 import { getSetting } from "@/lib/settings/store";
-import { ASAP_API, asapSign, geoQuery, shipmentBody, stateFromReason, type AsapAddress, type AsapShipmentInput, type AsapState } from "./api";
+import { ASAP_API, asapSign, geoQuery, labelBase64, reasonText, shipmentBody, stateFromReason, trackEvents, type AsapAddress, type AsapShipmentInput, type AsapState } from "./api";
 
 /**
  * Client του LastMily (ASAP Couriers). Στοιχεία από Ρυθμίσεις → Αποστολές & courier → ASAP Couriers (LastMily):
@@ -79,18 +79,17 @@ export async function asapCreateShipment(c: AsapConfig, i: Omit<AsapShipmentInpu
 export async function asapLabels(c: AsapConfig, shipmentIds: string[]): Promise<Buffer> {
   const out = await call<Buffer>(c, "POST", "/shipper/voucher-print", { body: { shipment_ids: shipmentIds.map(Number), returnPdf: true }, raw: true });
   if (out.subarray(0, 4).toString("latin1") === "%PDF") return out;
-  // κάποιες εκδόσεις επιστρέφουν JSON με base64
-  const j = JSON.parse(out.toString("utf8")) as { items?: (string | { pdf?: string; base64?: string })[] };
-  const b64 = (j.items ?? []).map((x) => (typeof x === "string" ? x : x.pdf ?? x.base64 ?? "")).find(Boolean);
+  // συνήθως JSON με το PDF σε base64
+  let b64: string | null = null;
+  try { b64 = labelBase64(JSON.parse(out.toString("utf8"))); } catch { /* ούτε PDF ούτε JSON */ }
   if (!b64) throw new AsapError("ASAP: δεν επέστρεψε ετικέτες.");
-  return Buffer.from(b64.replace(/^data:[^,]+,/, ""), "base64");
+  return Buffer.from(b64, "base64");
 }
 
 export interface AsapTrack { state: AsapState | null; deliveredAt: string | null; checkpoints: { code: string; text: string; at: string | null; shop: string | null }[] }
 export async function asapTrack(c: AsapConfig, barcode: string): Promise<AsapTrack> {
-  const j = await call<{ items?: { reason?: number; description?: string; fulfillment_datetime?: string; partner_status_message?: string }[] }>(c, "GET", "/fulfillment-events", { query: { barcode } });
-  const items = [...(j.items ?? [])].sort((a, b) => String(a.fulfillment_datetime ?? "").localeCompare(String(b.fulfillment_datetime ?? "")));
-  const checkpoints = items.map((x) => ({ code: String(x.reason ?? ""), text: x.partner_status_message || x.description || String(x.reason ?? ""), at: x.fulfillment_datetime ?? null, shop: null }));
+  const items = trackEvents(await call<unknown>(c, "GET", "/fulfillment-events", { query: { barcode } })).sort((a, b) => String(a.fulfillment_datetime ?? "").localeCompare(String(b.fulfillment_datetime ?? "")));
+  const checkpoints = items.map((x) => ({ code: String(x.reason ?? ""), text: x.partner_status_message || x.description || reasonText(x.reason), at: x.fulfillment_datetime ?? null, shop: null }));
   const last = items.at(-1);
   const state = stateFromReason(last?.reason);
   return { state, deliveredAt: state === "delivered" ? last?.fulfillment_datetime ?? null : null, checkpoints };

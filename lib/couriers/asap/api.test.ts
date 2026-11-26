@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { asapSign, phoneParts, shipmentBody, stateFromReason, geoQuery } from "./api";
+import { asapSign, phoneParts, shipmentBody, stateFromReason, geoQuery, labelBase64, trackEvents, reasonText } from "./api";
 
 test("υπογραφή LastMily: HMAC-SHA256(client_id + x-time [+ base64(σώμα)]) σε hex — όπως το παράδειγμα Python της τεκμηρίωσης", () => {
   assert.equal(asapSign({ clientId: "abc123", secret: "priv_secret", time: "1700000000" }), "b665b62318b930568dba0a8c29f090015c8a5beb69ae062aa1eb0b9cd20ada27");
@@ -53,4 +53,26 @@ test("καταστάσεις LastMily → δικές μας", () => {
 
 test("αναζήτηση διεύθυνσης για συντεταγμένες: οδός αριθμός, ΤΚ πόλη", () => {
   assert.equal(geoQuery({ street: "Τσιμισκή", number: "73", zip: "121 35", city: "Περιστέρι" }), "Τσιμισκή 73, 12135 Περιστέρι");
+});
+
+test("ετικέτες: το PDF βρίσκεται στο items[0].voucherPrint.document (πραγματική απάντηση LastMily)", () => {
+  assert.equal(labelBase64({ items: [{ voucherPrint: { stopPointsRequested: 2, stopPointsPrinted: 2, company_id: 1127, document: "JVBERi0x" } }], Etag: "x" }), "JVBERi0x");
+  assert.equal(labelBase64({ items: ["data:application/pdf;base64,JVBERi0x"] }), "JVBERi0x");
+  assert.equal(labelBase64({ items: [{ pdf: "JVBERi0x" }] }), "JVBERi0x");
+  assert.equal(labelBase64({ items: [] }), null);
+  assert.equal(labelBase64(null), null);
+});
+
+test("πορεία: τα γεγονότα βρίσκονται στο items.fulfillment_events (πραγματική απάντηση LastMily)", () => {
+  const ev = [{ reason: 200, fulfillment_datetime: "2026-11-26T09:44:40+00:00", description: null }];
+  assert.deepEqual(trackEvents({ items: { fulfillment_events: ev }, Etag: "x" }), ev);
+  assert.deepEqual(trackEvents({ items: ev }), ev);
+  assert.deepEqual(trackEvents({ items: {} }), []);
+  assert.deepEqual(trackEvents(null), []);
+});
+
+test("σημείο χωρίς περιγραφή: κείμενο από τον κωδικό, όχι σκέτο «200»", () => {
+  assert.equal(reasonText(200), "Καταχωρήθηκε στην ASAP, περιμένει παραλαβή");
+  assert.equal(reasonText(450), "Σε διανομή");
+  assert.equal(reasonText(700), "Παραδόθηκε");
 });

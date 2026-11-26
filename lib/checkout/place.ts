@@ -24,6 +24,7 @@ import { startKlarnaPayment } from "@/lib/payments/klarna-order";
 import { bankTransfer } from "@/lib/payments/bank-transfer";
 import { payLabel } from "@/lib/account/labels";
 import { publicOrigin } from "@/lib/account/oauth-flow";
+import { streetOnly } from "@/lib/orders/model";
 
 /**
  * Ολοκλήρωση παραγγελίας. Ο server ξαναϋπολογίζει ΤΑ ΠΑΝΤΑ από την αρχή (τιμές, προσφορές, κουπόνι, μεταφορικά) — ο
@@ -88,6 +89,8 @@ export async function placeOrder(input: PlaceInput) {
   // online τρόπος χωρίς πάροχο (Viva/Klarna αρύθμιστα) = παραγγελία που «πληρώθηκε» χωρίς πληρωμή — δεν καταχωρείται
   if (!viva && !klarna && !input.dryRun && !["cod", "bank", "store", "later"].includes(input.payment))
     return { ok: false as const, error: "Η online πληρωμή δεν είναι διαθέσιμη αυτή τη στιγμή. Διάλεξε άλλον τρόπο πληρωμής." };
+  // ο αριθμός γραμμένος και μέσα στην οδό («Πλαπούτα 115» + «115») φεύγει από την οδό πριν αποθηκευτεί η διεύθυνση
+  if (input.address?.street) input = { ...input, address: { ...input.address, street: streetOnly(input.address.street, input.address.number) } };
   const me = await getCustomerSession();
   const email = (me?.email ?? input.contact.email).trim().toLowerCase();
   const cart = await currentCart(false);

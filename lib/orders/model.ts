@@ -104,6 +104,16 @@ export function orderSteps(status: string, fulfilment: string): { label: string;
 
 /** Ονοματεπώνυμο / email / τηλέφωνο από το στιγμιότυπο αποστολής της παραγγελίας. */
 export type ShipTo = { firstName?: string; lastName?: string; email?: string; phone?: string; street?: string; number?: string; floor?: string; city?: string; zip?: string; region?: string; notes?: string; /** ώρες που βολεύουν τον πελάτη για να τον καλέσει το κατάστημα (από το ταμείο) */ slots?: string[]; carrier?: string; carrierName?: string; locker?: { id?: string; name?: string; address?: string; zip?: string } };
+/**
+ * Η οδός χωρίς τον αριθμό, όταν ο πελάτης τον έγραψε ΚΑΙ στο πεδίο της οδού («Πλαπούτα 115» + αριθμός «115»): αλλιώς ο
+ * αριθμός τυπώνεται δύο φορές στην ετικέτα του courier και στο παραστατικό. Αφαιρείται μόνο αν είναι η τελευταία λέξη.
+ */
+export function streetOnly(street: string | null | undefined, number: string | null | undefined): string {
+  const st = (street ?? "").trim(), n = (number ?? "").trim();
+  if (!n) return st;
+  const cut = st.replace(new RegExp(`[\\s,]+${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s,.]*$`, "i"), "").trim();
+  return cut || st;
+}
 export const nameOf = (s: ShipTo) => `${s.firstName ?? ""} ${s.lastName ?? ""}`.trim();
 export const addressOf = (s: ShipTo) => s.locker ? `Θυρίδα BOX NOW: ${[s.locker.name, s.locker.address, s.locker.zip].filter(Boolean).join(", ")}` : [[s.street, s.number].filter(Boolean).join(" ") + (s.floor ? `, ${s.floor}ος` : ""), [s.zip, s.city].filter(Boolean).join(" ")].filter((x) => x.trim()).join(", ");
 

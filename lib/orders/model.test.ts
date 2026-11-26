@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canTransition, nextAction, nextStatuses, orderSteps, searchKind, addressOf, payable, payUntil } from "./model";
+import { canTransition, nextAction, nextStatuses, orderSteps, searchKind, addressOf, payable, payUntil, streetOnly } from "./model";
 
 test("nextStatuses: ανά τρόπο παράδοσης", () => {
   assert.deepEqual(nextStatuses("processing", "courier"), ["shipped", "cancelled"]);
@@ -61,4 +61,15 @@ test("payUntil: 24 ώρες μετά την καταχώρηση, σε ώρα Ε
 test("όροφος: ό,τι κι αν έγραψε ο πελάτης, βγαίνει μία φορά το «ος όροφος»", async () => {
   const { floorLabel } = await import("./model");
   assert.deepEqual(["3", "1ος", " 2 ", "Ισόγειο", "", null].map(floorLabel), ["3ος όροφος", "1ος όροφος", "2ος όροφος", "Ισόγειο", "", ""]);
+});
+
+test("οδός χωρίς τον αριθμό όταν ο πελάτης τον έγραψε και στα δύο πεδία", () => {
+  assert.equal(streetOnly("Πλαπουτα 115", "115"), "Πλαπουτα");
+  assert.equal(streetOnly("Πλαπούτα 115, ", "115"), "Πλαπούτα");
+  assert.equal(streetOnly("28ης Οκτωβρίου 28", "28"), "28ης Οκτωβρίου");
+  assert.equal(streetOnly("25ης Μαρτίου ", "23"), "25ης Μαρτίου"); // άλλος αριθμός: μένει
+  assert.equal(streetOnly("Οδός 115", "15"), "Οδός 115"); // όχι μέρος μεγαλύτερου αριθμού
+  assert.equal(streetOnly("Αγίου Δημητρίου 12Α", "12α"), "Αγίου Δημητρίου");
+  assert.equal(streetOnly("115", "115"), "115"); // δεν αδειάζει την οδό
+  assert.equal(streetOnly("Ερμού", null), "Ερμού");
 });

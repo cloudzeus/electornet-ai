@@ -86,3 +86,29 @@ export function stateFromReason(reason: number | null | undefined): AsapState | 
   if ((r >= 800 && r < 900) || (r >= 1800 && r < 1900)) return "cancelled";
   return null;
 }
+
+/**
+ * Η απάντηση του /shipper/voucher-print: το PDF σε base64. Πραγματικό σχήμα (26/11/2026):
+ * items[0].voucherPrint.document — ένα έγγραφο για όλες τις αποστολές. Δεκτά και τα παλιότερα (σκέτο string, pdf, base64).
+ */
+export function labelBase64(json: unknown): string | null {
+  const items = (json as { items?: unknown } | null)?.items;
+  for (const x of Array.isArray(items) ? items : []) {
+    const o = x as { voucherPrint?: { document?: string }; document?: string; pdf?: string; base64?: string };
+    const b = typeof x === "string" ? x : o?.voucherPrint?.document ?? o?.document ?? o?.pdf ?? o?.base64;
+    if (b) return b.replace(/^data:[^,]+,/, "");
+  }
+  return null;
+}
+
+const STATE_TEXT: Record<AsapState, string> = { "out-for-delivery": "Σε διανομή", delivered: "Παραδόθηκε", attempted: "Προσπάθεια παράδοσης χωρίς επιτυχία", cancelled: "Ακυρώθηκε", "on-hold": "Σε αναμονή" };
+/** Κείμενο για ένα σημείο όταν ο LastMily δεν στέλνει περιγραφή (συνήθως στέλνει μόνο τον κωδικό reason). */
+export const reasonText = (reason: number | null | undefined) => { const s = stateFromReason(reason); return s ? STATE_TEXT[s] : "Καταχωρήθηκε στην ASAP, περιμένει παραλαβή"; };
+
+export interface AsapEvent { reason?: number; description?: string | null; fulfillment_datetime?: string; partner_status_message?: string | null }
+/** Τα γεγονότα του /fulfillment-events: items.fulfillment_events[] (πραγματικό σχήμα) ή σκέτος πίνακας items. */
+export function trackEvents(json: unknown): AsapEvent[] {
+  const items = (json as { items?: unknown } | null)?.items;
+  const list = Array.isArray(items) ? items : (items as { fulfillment_events?: unknown } | null)?.fulfillment_events;
+  return Array.isArray(list) ? (list as AsapEvent[]) : [];
+}
