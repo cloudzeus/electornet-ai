@@ -2,7 +2,8 @@ import "server-only";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings/store";
-import { composeSaldoc, orderDocFilter, DEFAULT_RETAIL_TRDR, S1_SERVICE_MTRL, type SaldocDoc, type SaldocLine, type SaldocSettings } from "./order-doc-core";
+import { mailS1Error, setS1Source, withS1Scope } from "./log";
+import { composeSaldoc, erpDocNo, orderDocFilter, DEFAULT_RETAIL_TRDR, S1_SERVICE_MTRL, type ErpLogEntry, type SaldocDoc, type SaldocLine, type SaldocSettings } from "./order-doc-core";
 
 /**
  * Το παραστατικό SoftOne μιας παραγγελίας, από τα στοιχεία της όπως αποθηκεύτηκαν (γραμμές, εκπτώσεις, ΦΠΑ είδους,
@@ -131,14 +132,21 @@ async function findocOf(number: string): Promise<number | null> {
  * Τιμολόγιο σε ΑΦΜ χωρίς γνωστή καρτέλα: ο ΑΦΜ ψάχνεται στο SoftOne· αν δεν υπάρχει, η καρτέλα πελάτη ανοίγει ΜΕΤΑ τον
  * υπολογισμό (που γίνεται με τον πελάτη λιανικής) και ΠΡΙΝ το παραστατικό — ώστε λάθος παραστατικό να μην αφήνει καρτέλα.
  * Μετά την εγγραφή το παραστατικό διαβάζεται πίσω (`success:true` ≠ αποθηκεύτηκε) και συγκρίνεται το σύνολό του.
+ * Κρατιούνται ο αριθμός του όπως φαίνεται στο ERP (`docNo`, «PES 83») και η απάντηση του SoftOne σε κάθε βήμα (`log`).
  */
-export async function sendSaldoc(orderId: string, staffId?: string | null): Promise<{ ok: boolean; message: string; findoc?: number }> {
+export function sendSaldoc(orderId: string, staffId?: string | null): Promise<{ ok: boolean; message: string; findoc?: number; docNo?: string | null }> {
+  // οι κλήσεις SoftOne της αποστολής γράφονται στην καταγραφή με τον αριθμό της παραγγελίας· το email σφάλματος το στέλνει το fail(), με όλα τα βήματα
+  return withS1Scope({ source: "Αποστολή παραγγελίας", mail: false }, () => sendSaldocRun(orderId, staffId));
+}
+
+async function sendSaldocRun(orderId: string, staffId?: string | null): Promise<{ ok: boolean; message: string; findoc?: number; docNo?: string | null }> {
   const block = await orderSendBlock();
   if (block) return { ok: false, message: block };
 
-  const o = await db.order.findUnique({ where: { id: orderId }, select: { number: true, invoice: true, erpSync: { select: { status: true, erpDocId: true } } } });
+  const o = await db.order.findUnique({ where: { id: orderId }, select: { number: true, invoice: true, erpSync: { select: { status: true, erpDocId: true, docNo: true, log: true } } } });
   if (!o) return { ok: false, message: "Η παραγγελία δεν βρέθηκε." };
-  if (o.erpSync?.status === "sent") return { ok: true, message: `Είχε σταλεί ήδη — παραστατικό ${o.erpSync.erpDocId ?? "—"}.`, findoc: Number(o.erpSync.erpDocId) || undefined };
+  setS1Source(`Αποστολή παραγγελίας ${o.number}`);
+  if (o.erpSync?.status === "sent") return { ok: true, message: `Είχε σταλεί ήδη — παραστατικό ${o.erpSync.docNo ?? o.erpSync.erpDocId ?? "—"}.`, findoc: Number(o.erpSync.erpDocId) || undefined, docNo: o.erpSync.docNo };
 
   let doc = await saldocForOrder(orderId);
   if (!doc) return { ok: false, message: "Η παραγγελία δεν βρέθηκε." };
@@ -153,22 +161,40 @@ export async function sendSaldoc(orderId: string, staffId?: string | null): Prom
     const created = await db.erpSync.create({ data: { orderId, status: "queued", attempts: 1, payload } }).catch(() => null);
     if (!created) return { ok: false, message: "Η αποστολή είναι σε εξέλιξη — δοκιμάστε σε λίγο." };
   }
+  // ό,τι απάντησε το SoftOne σε κάθε βήμα — μένει στην παραγγελία (κάρτα «SoftOne»), για να βρίσκεται η αιτία χωρίς logs διακομιστή
+  const log: ErpLogEntry[] = [];
+  const note = (step: string, ok: boolean, res: unknown) => { log.push({ at: new Date().toISOString(), step, ok, text: (typeof res === "string" ? res : JSON.stringify(res ?? null)).slice(0, 2000) }); };
+  const keepLog = () => [...(Array.isArray(o.erpSync?.log) ? (o.erpSync.log as unknown as ErpLogEntry[]) : []), ...log].slice(-40) as unknown as Prisma.InputJsonValue;
   const fail = async (message: string) => {
-    await db.erpSync.update({ where: { orderId }, data: { status: "failed", lastError: message } }).catch(() => null);
+    await db.erpSync.update({ where: { orderId }, data: { status: "failed", lastError: message, log: keepLog() } }).catch(() => null);
+    // email στον τεχνικό υπεύθυνο με ό,τι χρειάζεται για να βρεθεί η αιτία: το μήνυμα, κάθε βήμα με την απάντησή του, το παραστατικό που πήγαινε να γραφτεί
+    const bad = [...log].reverse().find((x) => !x.ok);
+    void mailS1Error(
+      { at: new Date().toISOString(), service: "Αποστολή παραγγελίας", object: o.number, key: null, write: true, full: true, ok: false, errorCode: null, error: message, http: null, ms: 0, source: `Αποστολή παραγγελίας ${o.number}`, request: doc?.data ?? null, response: bad?.text ?? "", bytes: bad?.text.length ?? 0 },
+      { extra: [["Παραγγελία", o.number], ["Βήμα που απέτυχε", bad?.step ?? "πριν από την πρώτη κλήση"], ["Από", staffId ? "χειροκίνητη αποστολή από τη διαχείριση" : "αυτόματη αποστολή"]], blocks: [["Όλα τα βήματα αυτής της προσπάθειας", log.map((x) => `${x.ok ? "OK    " : "ΣΦΑΛΜΑ"} ${x.at}  ${x.step}\n       ${x.text}`).join("\n") || "(κανένα)"]] },
+    );
     return { ok: false, message };
   };
-  const succeed = async (findoc: number, message: string) => {
-    await db.erpSync.update({ where: { orderId }, data: { status: "sent", erpDocId: String(findoc), lastError: null } }).catch(() => null);
+  const succeed = async (findoc: number, docNo: string | null, message: string) => {
+    await db.erpSync.update({ where: { orderId }, data: { status: "sent", erpDocId: String(findoc), docNo, lastError: null, log: keepLog() } }).catch(() => null);
     const { audit } = await import("@/lib/rbac/audit");
-    await audit(staffId ?? null, "order.erp-send", "Order", orderId, null, { findoc, fincode: o.number, total: expected });
+    await audit(staffId ?? null, "order.erp-send", "Order", orderId, null, { findoc, docNo, fincode: o.number, total: expected });
     void import("@/lib/orders/staff-mail").then((m) => m.sendStaffOrderMail(orderId, "erp")).catch(() => null);
-    return { ok: true, message, findoc };
+    return { ok: true, message, findoc, docNo };
+  };
+  // το παραστατικό όπως αποθηκεύτηκε: ο αριθμός του μέσα στο ERP (κωδικός + αύξων της σειράς) και το σύνολό του
+  const readBack = async (findoc: number) => {
+    const back = await s1Call("getData", { object: "SALDOC", key: String(findoc), locateinfo: "SALDOC:FINCODE,SERIESNUM,SERIES,TRNDATE,NUM01,SUMAMNT" }).catch((e: Error) => ({ success: false, error: e.message }));
+    const h = (back?.data?.SALDOC?.[0] ?? {}) as Record<string, unknown>;
+    note("Ανάγνωση του παραστατικού (getData SALDOC)", !!back?.success, back?.success ? { FINDOC: findoc, ...h } : back);
+    return { docNo: erpDocNo(h.FINCODE, h.SERIESNUM), sum: Math.round(Number(h.SUMAMNT ?? NaN) * 100) / 100 };
   };
 
   // διπλοεγγραφή: αν δεν μπορεί να ελεγχθεί (σφάλμα δικτύου ή αριθμός που δεν μπαίνει σε φίλτρο) δεν στέλνουμε στα τυφλά
   const existing = await findocOf(o.number).catch(() => null);
+  note("Έλεγχος διπλοεγγραφής (GetTable FINDOC)", existing != null, existing == null ? "Το SoftOne δεν απάντησε." : existing ? `Υπάρχει ήδη: FINDOC ${existing}.` : "Δεν υπάρχει παραστατικό με αυτόν τον αριθμό παραγγελίας.");
   if (existing == null) return fail("Δεν ήταν δυνατός ο έλεγχος αν η παραγγελία υπάρχει ήδη στο SoftOne — δεν στάλθηκε. Δοκιμάστε ξανά.");
-  if (existing) return succeed(existing, `Υπήρχε ήδη στο SoftOne ως παραστατικό ${existing} — δεν στάλθηκε δεύτερη φορά.`);
+  if (existing) { const b = await readBack(existing); return succeed(existing, b.docNo, `Υπήρχε ήδη στο SoftOne ως παραστατικό ${b.docNo ?? `FINDOC ${existing}`} — δεν στάλθηκε δεύτερη φορά.`); }
 
   // τιμολόγιο σε ΑΦΜ χωρίς γνωστή καρτέλα: η καρτέλα που βρέθηκε ή άνοιξε μένει στην παραγγελία, ώστε να μην ξαναψαχτεί
   const keepCard = async (trdr: string): Promise<SaldocDoc> => {
@@ -181,16 +207,19 @@ export async function sendSaldoc(orderId: string, staffId?: string | null): Prom
   if (card) {
     const { findErpCustomerByAfm } = await import("./customers");
     const found = await findErpCustomerByAfm(card.afm).catch(() => undefined);
+    note(`Αναζήτηση καρτέλας πελάτη για ΑΦΜ ${card.afm} (GetTable TRDR)`, found !== undefined, found === undefined ? "Το SoftOne δεν απάντησε." : found ? `Βρέθηκε καρτέλα TRDR ${found}.` : "Δεν υπάρχει καρτέλα.");
     if (found === undefined) return fail(`Δεν ήταν δυνατός ο έλεγχος αν ο ΑΦΜ ${card.afm} έχει ήδη καρτέλα πελάτη στο SoftOne — δεν στάλθηκε. Δοκιμάστε ξανά.`);
     if (found) { doc = await keepCard(found); card = null; }
   }
 
   // πρώτα υπολογισμός χωρίς αποθήκευση: παραστατικό που το SoftOne το βγάζει με άλλο σύνολο (π.χ. 0 €) δεν γράφεται ποτέ στο ERP
   const pre = await checkDoc(card ? await withRetailTrdr(doc) : doc).catch((e: Error) => ({ ok: false, message: `Δεν ήταν δυνατός ο έλεγχος του συνόλου στο SoftOne (${e.message}).` }));
+  note("Υπολογισμός χωρίς αποθήκευση (calculate SALDOC)", pre.ok, pre.message);
   if (!pre.ok) return fail(`Δεν στάλθηκε. ${pre.message}`);
 
   if (card) {
     const made = await (await import("./customers")).createInvoiceCustomer(card);
+    note(`Νέα καρτέλα πελάτη για ΑΦΜ ${card.afm} (setData CUSTOMER)`, made.ok, made);
     if (!made.ok) return fail(`Δεν στάλθηκε: η καρτέλα πελάτη για ΑΦΜ ${card.afm} δεν άνοιξε στο SoftOne (${made.error}).`);
     const { audit } = await import("@/lib/rbac/audit");
     await audit(staffId ?? null, "order.erp-customer", "Order", orderId, null, { trdr: made.trdr, code: made.code, afm: card.afm });
@@ -200,17 +229,17 @@ export async function sendSaldoc(orderId: string, staffId?: string | null): Prom
   if (!doc.data.SALDOC[0].TRDR) return fail("Δεν στάλθηκε: το παραστατικό έμεινε χωρίς πελάτη.");
 
   const r = await s1Call("setData", { OBJECT: "SALDOC", KEY: "", data: doc.data }).catch((e: Error) => ({ success: false, error: e.message }));
+  note("Εγγραφή του παραστατικού (setData SALDOC)", !!r?.success, r);
   if (!r?.success) return fail(`Το SoftOne αρνήθηκε το παραστατικό: ${r?.error ?? r?.errorcode ?? "άγνωστο σφάλμα"}`);
 
   // «επιτυχία» ≠ αποθηκεύτηκε: το παραστατικό διαβάζεται πίσω και με τον αριθμό μας, αν το setData δεν επέστρεψε id
   const findoc = Number(r.id) || (await findocOf(o.number).catch(() => 0)) || 0;
   if (!findoc) return fail("Το SoftOne απάντησε «επιτυχία» αλλά το παραστατικό δεν βρίσκεται — έλεγξε στο ERP πριν ξαναστείλεις.");
-  const back = await s1Call("getData", { object: "SALDOC", key: String(findoc), locateinfo: "SALDOC:FINCODE,SUMAMNT" }).catch(() => null);
-  const h = (back?.data?.SALDOC?.[0] ?? {}) as Record<string, unknown>;
-  const sum = Math.round(Number(h.SUMAMNT ?? NaN) * 100) / 100;
+  const { docNo, sum } = await readBack(findoc);
+  const name = docNo ?? `FINDOC ${findoc}`;
   const eurS = (n: number) => n.toLocaleString("el-GR", { style: "currency", currency: "EUR" });
-  if (Number.isFinite(sum) && sum !== doc.totals.expected) return succeed(findoc, `Στάλθηκε ως παραστατικό ${findoc}, αλλά το σύνολό του είναι ${eurS(sum)} ενώ η παραγγελία ${eurS(doc.totals.expected)} — έλεγξέ το στο ERP.${cardNote}`);
-  return succeed(findoc, `Στάλθηκε στο SoftOne ως παραστατικό ${findoc}${Number.isFinite(sum) ? ` (${eurS(sum)})` : ""}.${cardNote}`);
+  if (Number.isFinite(sum) && sum !== doc.totals.expected) return succeed(findoc, docNo, `Στάλθηκε ως παραστατικό ${name}, αλλά το σύνολό του είναι ${eurS(sum)} ενώ η παραγγελία ${eurS(doc.totals.expected)} — έλεγξέ το στο ERP.${cardNote}`);
+  return succeed(findoc, docNo, `Στάλθηκε στο SoftOne ως παραστατικό ${name}${Number.isFinite(sum) ? ` (${eurS(sum)})` : ""}.${cardNote}`);
 }
 
 /** Αυτόματη αποστολή μόλις η παραγγελία είναι πληρωμένη/καταχωρημένη, όταν ο διακόπτης είναι σε «Αποστολή». Σιωπηλή: η αποτυχία μένει στο ErpSync. */

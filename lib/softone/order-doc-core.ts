@@ -153,6 +153,20 @@ export function softoneTotals(lines: NetLine[], headerDisc = 0, charges: NetLine
  * FINCODE «PES», τον κωδικό της σειράς). Το παλιό site έγραφε τον αριθμό της παραγγελίας του στο NUM01 (8697) και εκεί
  * τον ψάχνει το προσωπικό. null όταν ο αριθμός δεν έχει ψηφία ή δεν χωρά ακέραια σε αριθμητικό πεδίο (πάνω από 15 ψηφία).
  */
+/**
+ * Ο αριθμός με τον οποίο βρίσκεται το παραστατικό ΜΕΣΑ στο SoftOne: κωδικός + αύξων αριθμός της σειράς («PES 83»). Το FINDOC
+ * είναι εσωτερικό id και δεν φαίνεται στις οθόνες του ERP· το FINCODE της σειράς 7005 είναι σκέτο «PES» σε όλα τα παραστατικά.
+ * Όπου το FINCODE έχει ήδη μέσα τον αύξοντα («ΑΠΛ0000083») μένει όπως είναι.
+ */
+export function erpDocNo(fincode: unknown, seriesnum: unknown): string | null {
+  const c = String(fincode ?? "").trim(), n = String(seriesnum ?? "").trim().replace(/^0+/, "");
+  if (!n) return c || null;
+  return !c ? n : c.endsWith(n) ? c : `${c} ${n}`;
+}
+
+/** Μία απάντηση του SoftOne σε ένα βήμα της αποστολής (ErpSync.log). */
+export interface ErpLogEntry { at: string; step: string; ok: boolean; text: string }
+
 export function orderNum01(number: string): number | null {
   const d = number.replace(/\D/g, "");
   return d.length >= 1 && d.length <= 15 && Number(d) > 0 ? Number(d) : null;

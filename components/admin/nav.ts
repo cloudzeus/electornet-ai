@@ -115,6 +115,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/softone/chain", label: "Πορεία παραστατικού", icon: GitBranch, perm: "orders.read", feature: "softone" },
       { href: "/admin/softone/brand/logos", label: "Λογότυπα μαρκών", icon: BadgeCheck, perm: "settings.integrations.write", feature: "softone" },
       { href: "/admin/softone/sync", label: "Συγχρονισμοί & ιστορικό", icon: RefreshCw, perm: "settings.integrations.write", feature: "softone" },
+      { href: "/admin/softone/log", label: "Καταγραφή κλήσεων", icon: ScrollText, perm: "settings.integrations.write", feature: "softone" },
       { href: "/admin/softone/catalog", label: "Κατάλογος & CCC", icon: Package, perm: "catalog.products.read", feature: "softone" },
       { href: "/admin/softone/customers", label: "Πελάτες ERP", icon: Users, perm: "settings.integrations.write", feature: "softone" },
       { href: "/admin/softone/orders", label: "Παραγγελίες προς ERP", icon: ShoppingBag, perm: "settings.integrations.write", soon: true, feature: "softone" },

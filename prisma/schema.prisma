@@ -1899,6 +1899,10 @@ model ErpSync {
   /// Το παραστατικό όπως θα σταλεί στο SoftOne (SALDOC + ITELINES) — αποθηκεύεται πάντα, ακόμη και σε «μόνο προεπισκόπηση»
   payload   Json?
   erpDocId  String?
+  /// Ο αριθμός με τον οποίο το βρίσκει κανείς μέσα στο SoftOne: κωδικός + αύξων της σειράς («PES 83»). Το erpDocId είναι το εσωτερικό FINDOC
+  docNo     String?
+  /// Τι απάντησε το SoftOne σε κάθε βήμα κάθε αποστολής: [{ at, step, ok, text }], τα τελευταία 40
+  log       Json?
   lastError String?  @db.Text
   updatedAt DateTime @updatedAt
 }
@@ -2457,6 +2461,33 @@ model CategoryOp {
   finishedAt  DateTime?
 
   @@index([status, createdAt])
+}
+
+/// Κάθε κλήση προς το SoftOne (επίσημα services και iSite): τι ζητήθηκε, τι απάντησε, πόσο κράτησε. Γράφεται από το
+/// lib/softone.ts για ΟΛΕΣ τις κλήσεις· η απάντηση κρατιέται ολόκληρη σε εγγραφές, υπολογισμούς και σφάλματα, και η αρχή της στις αναγνώσεις.
+model S1Log {
+  id        String   @id @default(cuid())
+  at        DateTime @default(now())
+  service   String // Login | authenticate | getData | setData | GetTable | iSite/setItemSpecs …
+  object    String? // OBJECT / TABLE / SqlName
+  key       String?
+  write     Boolean  @default(false)
+  ok        Boolean
+  errorCode Int?
+  error     String?  @db.Text
+  http      Int?
+  ms        Int
+  /// ποια λειτουργία έκανε την κλήση (π.χ. «Αποστολή παραγγελίας EUR-…»)· κενό = δεν δηλώθηκε
+  source    String?
+  /// το αίτημα όπως στάλθηκε, χωρίς clientID και κωδικό
+  request   Json?
+  response  String?  @db.Text
+  /// μέγεθος της απάντησης σε χαρακτήρες (η στήλη response μπορεί να είναι κομμένη)
+  bytes     Int      @default(0)
+
+  @@index([at])
+  @@index([ok, at])
+  @@index([write, at])
 }
 
 model S1SyncRun {

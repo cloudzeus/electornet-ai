@@ -49,7 +49,7 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
       payment: { select: { method: true, instalments: true, status: true, psp: true, pspRef: true } },
       lines: { orderBy: { id: "asc" }, select: { title: true, qty: true, unitPrice: true, listPrice: true, discPrice: true, discCoupon: true, discPayment: true, lineTotal: true, erpCode: true, isGift: true, promotions: true, setParts: true, variant: { select: { productId: true } }, addons: { select: { price: true, service: { select: { title: true, slug: true } } } } } },
       shipments: { orderBy: { createdAt: "asc" }, select: { id: true, carrier: true, env: true, voucher: true, subVouchers: true, pieces: true, weightKg: true, codAmount: true, status: true, liveUrl: true } },
-      erpSync: { select: { status: true, erpDocId: true, lastError: true } },
+      erpSync: { select: { status: true, erpDocId: true, docNo: true, lastError: true } },
       erpStages: { orderBy: { seenAt: "asc" }, select: { docNo: true, docDate: true, fprms: true } },
       route: { select: { mode: true, reason: true, cost: true, partner: { select: { name: true } }, agency: { select: { name: true } }, carrier: { select: { name: true } } } },
     },
@@ -111,7 +111,7 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
     : "Πληρωμή: η παραγγελία είναι εξοφλημένη. Δεν εισπράττεται τίποτα στην παράδοση.";
   const erpSent = o.erpSync?.status === "sent";
   const erpStep = !o.erpSync ? null
-    : erpSent ? `SoftOne: η παραγγελία έχει καταχωρηθεί (FINDOC ${o.erpSync.erpDocId ?? "—"}). Δεν χρειάζεται κάτι.`
+    : erpSent ? `SoftOne: η παραγγελία έχει καταχωρηθεί (παραστατικό ${o.erpSync.docNo ?? `FINDOC ${o.erpSync.erpDocId ?? "—"}`}). Δεν χρειάζεται κάτι.`
     : doc?.needs.length ? "SoftOne: η παραγγελία ΔΕΝ έχει καταχωρηθεί, γιατί λείπουν στοιχεία (ενότητα «SoftOne» πιο κάτω). Συμπλήρωσέ τα και στείλ' τη με τον σύνδεσμο «Αποστολή στο SoftOne»."
     : "SoftOne: η παραγγελία δεν έχει καταχωρηθεί ακόμη. Αν δεν έρθει σε λίγα λεπτά email «Καταχωρήθηκε στο SoftOne», στείλ' τη εσύ με τον σύνδεσμο «Αποστολή στο SoftOne» (ενότητα «SoftOne»).";
   const steps: string[] = hold ? [] : [
@@ -235,7 +235,7 @@ export async function staffOrderData(orderId: string, event: StaffEvent): Promis
     erp: {
       rows: [
         ["Κατάσταση", o.erpSync ? `${ERP_STATUS[o.erpSync.status]?.label ?? o.erpSync.status}${o.erpSync.lastError ? ` — ${o.erpSync.lastError}` : ""}` : "Δεν στέλνεται στο SoftOne (ανενεργό στις ρυθμίσεις)"],
-        ["Παραστατικό παραγγελίας", `${o.erpSync?.erpDocId ? `FINDOC ${o.erpSync.erpDocId}` : "δεν έχει καταχωρηθεί ακόμη"} · σειρά ${head.SERIES ?? "—"}, αριθμός ${o.number}`],
+        ["Παραστατικό παραγγελίας", `${o.erpSync?.docNo ?? (o.erpSync?.erpDocId ? `FINDOC ${o.erpSync.erpDocId}` : "δεν έχει καταχωρηθεί ακόμη")} · σειρά ${head.SERIES ?? "—"}, αριθμός παραγγελίας ${o.number}`],
         ["Πελάτης", erpCustomer],
       ],
       links: erpLinks, docs, needs: doc?.needs ?? [], remarks: head.REMARKS ?? null,

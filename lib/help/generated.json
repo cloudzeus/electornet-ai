@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-26T08:38:05.903Z",
+ "generatedAt": "2026-11-26T10:47:52.369Z",
  "routes": [
   {
    "route": "/admin",
@@ -2225,6 +2225,11 @@
    ],
    "changes": [
     {
+     "hash": "d5e6465",
+     "date": "2026-11-26T10:54:25+02:00",
+     "text": "Banners: «Αφαίρεση φόντου» ανά προϊόν με προεπισκόπηση πριν/μετά και επιβεβαίωση"
+    },
+    {
      "hash": "770e9bf",
      "date": "2026-11-26T10:20:24+02:00",
      "text": "Αρχική: η διαφημιστική λωρίδα παίρνει τον πίνακα «Εμφάνιση» (φόντο, χρώματα τίτλων, περιθώρια, κενά μέσα στη ζώνη)"
@@ -2268,14 +2273,9 @@
      "hash": "70b17aa",
      "date": "2026-11-21T11:17:50+02:00",
      "text": "Μεταφορικά 3.0: δωρεάν όπου υπάρχει κατάστημα, χωρίς ελάχιστο ποσό"
-    },
-    {
-     "hash": "39e2740",
-     "date": "2026-11-18T15:07:41+02:00",
-     "text": "Ζώνες: μία φόρμα (banner προσφοράς / εικόνα / μόνο κείμενα), λίστα προϊόντων ανά ζώνη, banner στη λωρίδα με παράθυρο"
     }
    ],
-   "updatedAt": "2026-11-26T10:20:24+02:00",
+   "updatedAt": "2026-11-26T10:54:25+02:00",
    "shots": {
     "desktop": "/api/help-shot/cms.home-d.jpg",
     "mobile": "/api/help-shot/cms.home-m.jpg"
@@ -4160,6 +4160,11 @@
    ],
    "changes": [
     {
+     "hash": "d5e6465",
+     "date": "2026-11-26T10:54:25+02:00",
+     "text": "Banners: «Αφαίρεση φόντου» ανά προϊόν με προεπισκόπηση πριν/μετά και επιβεβαίωση"
+    },
+    {
      "hash": "5e2dac5",
      "date": "2026-11-18T16:07:13+02:00",
      "text": "Προσφορές: η διαγραμμένη τιμή φαίνεται παντού δίπλα στην τιμή προσφοράς"
@@ -4203,14 +4208,9 @@
      "hash": "1ef95d0",
      "date": "2026-11-13T19:21:32+02:00",
      "text": "Slider banner: η κίνηση πέρασε στο ίδιο το banner (αποκάλυψη σαν κουρτίνα, λάμψη, και εφέ στη μάρκα, τον τίτλο και την τιμή) αντί για τη φωτογραφία του προϊόντος"
-    },
-    {
-     "hash": "870c21d",
-     "date": "2026-11-13T18:20:41+02:00",
-     "text": "Banners: slider προϊόντων (ένα τη φορά, αλλάζει μόνο του με κίνηση, βέλη, τελείες, παύση)"
     }
    ],
-   "updatedAt": "2026-11-18T16:07:13+02:00",
+   "updatedAt": "2026-11-26T10:54:25+02:00",
    "shots": {}
   },
   {
@@ -4774,6 +4774,34 @@
    "shots": {}
   },
   {
+   "route": "/admin/softone/log",
+   "slug": "softone.log",
+   "file": "app/admin/(shell)/softone/log/page.tsx",
+   "title": "Καταγραφή κλήσεων SoftOne",
+   "doc": "Κάθε κλήση προς το SoftOne (σύνδεση, αναγνώσεις, εγγραφές, iSite), νεότερη πρώτα, με το αίτημα και την απάντηση. Γράφεται από το lib/softone.ts για όλες τις κλήσεις· ένα σφάλμα φεύγει και με email στον τεχνικό υπεύθυνο (lib/softone/log.ts).",
+   "perm": "settings.integrations.write",
+   "nav": {
+    "group": "SoftOne ERP",
+    "label": "Καταγραφή κλήσεων"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "s1log.stats",
+    "s1log.detail",
+    "s1log.filters",
+    "s1log.list"
+   ],
+   "changes": [
+    {
+     "hash": "fcb9c98",
+     "date": "2026-11-11T12:57:14+02:00",
+     "text": "SoftOne iSite: χαρακτηριστικά ανά είδος και υποκατηγορίες web γράφονται μέσω του custom JS iSite"
+    }
+   ],
+   "updatedAt": "2026-11-11T12:57:14+02:00",
+   "shots": {}
+  },
+  {
    "route": "/admin/softone/sync",
    "slug": "softone.sync",
    "file": "app/admin/(shell)/softone/sync/page.tsx",
@@ -5308,6 +5336,15 @@
  ],
  "recent": [
   {
+   "hash": "d5e6465",
+   "date": "2026-11-26T10:54:25+02:00",
+   "text": "Banners: «Αφαίρεση φόντου» ανά προϊόν με προεπισκόπηση πριν/μετά και επιβεβαίωση",
+   "routes": [
+    "/admin",
+    "/admin/cms/home"
+   ]
+  },
+  {
    "hash": "770e9bf",
    "date": "2026-11-26T10:20:24+02:00",
    "text": "Αρχική: η διαφημιστική λωρίδα παίρνει τον πίνακα «Εμφάνιση» (φόντο, χρώματα τίτλων, περιθώρια, κενά μέσα στη ζώνη)",
@@ -5582,12 +5619,6 @@
     "/admin/synergates",
     "/admin/synergates/endiaferon"
    ]
-  },
-  {
-   "hash": "52484ac",
-   "date": "2026-11-23T15:24:46+02:00",
-   "text": "Μενού κινητού: κλείνει μόλις επιλεγεί κατηγορία",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -6967,6 +6998,12 @@
   "extra.fields": [
    "components/admin/extra/ExtraFields.tsx"
   ],
+  "order.erp.docno": [
+   "components/admin/orders/ErpDoc.tsx"
+  ],
+  "order.erp.log": [
+   "components/admin/orders/ErpDoc.tsx"
+  ],
   "orders.stages.toggle": [
    "components/admin/orders/StageSettings.tsx"
   ],
@@ -7317,6 +7354,18 @@
   ],
   "settings.rail": [
    "components/admin/settings/SettingsRail.tsx"
+  ],
+  "s1log.stats": [
+   "components/admin/softone/S1LogView.tsx"
+  ],
+  "s1log.detail": [
+   "components/admin/softone/S1LogView.tsx"
+  ],
+  "s1log.filters": [
+   "components/admin/softone/S1LogView.tsx"
+  ],
+  "s1log.list": [
+   "components/admin/softone/S1LogView.tsx"
   ],
   "live-tracking": [
    "components/shipping/ShipmentTracker.tsx"

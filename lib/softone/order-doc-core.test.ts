@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { composeSaldoc, orderDocFilter, orderNum01, softoneTotals, type SaldocOrder, type SaldocSettings } from "./order-doc-core";
+import { composeSaldoc, orderDocFilter, orderNum01, softoneTotals, type SaldocOrder, type SaldocSettings, erpDocNo } from "./order-doc-core";
 
 const S: SaldocSettings = { series: "7005", retailTrdr: "200" };
 const base: SaldocOrder = {
@@ -236,4 +236,12 @@ test("μήκη πεδίων MTRDOC: ποτέ πάνω από τα όρια το�
 test("κάθε γραμμή έχει LINENUM από 9000001, με τη σειρά (αλλιώς το SoftOne μπερδεύει τις γραμμές όταν ανοίγει μόνο του ένα σετ)", () => {
   const d = composeSaldoc({ ...base, lines: [1, 2, 3].map((i) => ({ erpCode: String(i), title: `x${i}`, qty: 1, listPrice: 10, discPrice: 0, discCoupon: 0, discPayment: 0, vatRate: 24 })), total: 30 }, S);
   assert.deepEqual(d.data.ITELINES.map((l) => l.LINENUM), [9000001, 9000002, 9000003]);
+});
+
+test("αριθμός παραστατικού όπως φαίνεται στο SoftOne: κωδικός + αύξων της σειράς, όχι το FINDOC", () => {
+  assert.equal(erpDocNo("PES", "83"), "PES 83"); // σειρά 7005: το FINCODE είναι σκέτο «PES» σε όλα
+  assert.equal(erpDocNo("ΑΠΛ0000083", "83"), "ΑΠΛ0000083"); // ο αύξων είναι ήδη μέσα
+  assert.equal(erpDocNo("PES", null), "PES");
+  assert.equal(erpDocNo("", 83), "83");
+  assert.equal(erpDocNo(undefined, undefined), null);
 });

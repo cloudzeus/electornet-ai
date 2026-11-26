@@ -2,6 +2,7 @@ import "server-only";
 import iconv from "iconv-lite";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings/store";
+import { recordS1 } from "@/lib/softone/log";
 
 /**
  * SoftOne ERP client over the official s1services (softone.gr/ws).
@@ -39,17 +40,30 @@ export async function getS1Config(): Promise<S1Config | null> {
 
 const baseUrl = (c: S1Config) => (/^https?:\/\//.test(c.url) ? c.url.replace(/\/$/, "") : `https://${c.url}.oncloud.gr/s1services`);
 
+// Κάθε κλήση προς το SoftOne περνά από εδώ και καταγράφεται (lib/softone/log.ts): αίτημα, απάντηση, διάρκεια, σφάλμα.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function s1Fetch(c: S1Config, body: object, path = ""): Promise<any> {
-  // Η διεύθυνση μπορεί να έχει query (π.χ. «?refresh»): η διαδρομή του JS μπαίνει πριν από αυτό.
-  const u = new URL(baseUrl(c));
-  const res = await fetch(`${u.origin}${u.pathname.replace(/\/$/, "")}${path}${u.search}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store", signal: AbortSignal.timeout(20000) });
-  const buffer = await res.arrayBuffer();
-  // Όταν η υπηρεσία web services του SoftOne δεν τρέχει, ο server απαντά 404/5xx με άδειο σώμα:
-  // το λέμε καθαρά, αντί να σκάσει το JSON.parse με «Unexpected end of JSON input».
-  if (!buffer.byteLength) throw new Error(`Οι web services του SoftOne απάντησαν HTTP ${res.status} χωρίς περιεχόμενο — η υπηρεσία δεν τρέχει στον server. Χρειάζεται έλεγχος ή επανεκκίνηση από τον πάροχο του SoftOne cloud.`);
-  const text = iconv.decode(Buffer.from(buffer), "win1253");
-  try { return JSON.parse(text); } catch { throw new Error(`Το SoftOne απάντησε HTTP ${res.status} με μη έγκυρο JSON: ${text.slice(0, 120)}`); }
+  const t0 = Date.now(), b = body as Record<string, unknown>;
+  let http: number | null = null, text = "";
+  try {
+    // Η διεύθυνση μπορεί να έχει query (π.χ. «?refresh»): η διαδρομή του JS μπαίνει πριν από αυτό.
+    const u = new URL(baseUrl(c));
+    const res = await fetch(`${u.origin}${u.pathname.replace(/\/$/, "")}${path}${u.search}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store", signal: AbortSignal.timeout(20000) });
+    http = res.status;
+    const buffer = await res.arrayBuffer();
+    // Όταν η υπηρεσία web services του SoftOne δεν τρέχει, ο server απαντά 404/5xx με άδειο σώμα:
+    // το λέμε καθαρά, αντί να σκάσει το JSON.parse με «Unexpected end of JSON input».
+    if (!buffer.byteLength) throw new Error(`Οι web services του SoftOne απάντησαν HTTP ${res.status} χωρίς περιεχόμενο — η υπηρεσία δεν τρέχει στον server. Χρειάζεται έλεγχος ή επανεκκίνηση από τον πάροχο του SoftOne cloud.`);
+    text = iconv.decode(Buffer.from(buffer), "win1253");
+    let data: unknown;
+    try { data = JSON.parse(text); } catch { throw new Error(`Το SoftOne απάντησε HTTP ${res.status} με μη έγκυρο JSON: ${text.slice(0, 120)}`); }
+    recordS1({ body: b, path, http, ms: Date.now() - t0, text, data });
+    return data;
+  } catch (e) {
+    // ό,τι πετάχτηκε πριν διαβαστεί έγκυρη απάντηση (δίκτυο, timeout, άδειο σώμα, μη έγκυρο JSON)· το recordS1 δεν πετάει ποτέ
+    recordS1({ body: b, path, http, ms: Date.now() - t0, text, thrown: e instanceof Error ? e.message : String(e) });
+    throw e;
+  }
 }
 
 const SESSION_KEY = "softone.session";

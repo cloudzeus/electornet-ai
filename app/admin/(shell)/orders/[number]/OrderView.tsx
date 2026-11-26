@@ -9,6 +9,7 @@ import type { shipmentDraft } from "@/lib/couriers/shipments";
 import { payLabel } from "@/lib/account/labels";
 import { payTimeline, payTrouble, type TimelineRow } from "@/lib/payments/events-core";
 import { CopyValue } from "@/components/admin/settings/ui";
+import { ErpDocNo, ErpLog } from "@/components/admin/orders/ErpDoc";
 import { ShipmentTracker } from "@/components/shipping/ShipmentTracker";
 import { Badge, ErpBadge, OrderStatusBadge, PaymentBadge, ReturnBadge, dateTime, eur } from "@/components/admin/orders/ui";
 import { CreateVoucher } from "../../apostoles/vouchers/VoucherControls";
@@ -290,7 +291,7 @@ export function OrderView({ o, draft, erp, canWrite, canRefund, pay }: { o: Orde
               </div>
             )}
             {o.erpSync && <dl className="m-0 grid gap-1">
-              {o.erpSync.erpDocId && <Row k="Παραστατικό"><span className="font-mono">{o.erpSync.erpDocId}</span></Row>}
+              {o.erpSync.erpDocId && <ErpDocNo docNo={o.erpSync.docNo} findoc={o.erpSync.erpDocId} orderNumber={o.number} />}
               <Row k="Προσπάθειες">{o.erpSync.attempts}</Row>
               {erp && <Row k="Σύνολο στο SoftOne"><span className={`tabular-nums font-bold ${erp.gross === erp.expected ? "text-eu-green" : "text-eu-amber"}`}>{eur(erp.gross)}{erp.gross === erp.expected ? " ✓" : ` (παραγγελία ${eur(erp.expected)})`}</span></Row>}
               {erp && erp.needs.length > 0 && <div className="grid gap-1 rounded-lg bg-eu-amber/10 border border-eu-amber/30 px-3 py-2 text-[length:var(--fs-12)]"><span className="font-bold text-eu-ink">Λείπουν για να σταλεί ({erp.needs.length})</span><ul className="m-0 pl-4 grid gap-0.5 text-eu-ink-2">{erp.needs.map((x) => <li key={x}>{x}</li>)}</ul></div>}
@@ -302,6 +303,7 @@ export function OrderView({ o, draft, erp, canWrite, canRefund, pay }: { o: Orde
                   <ErpSend orderId={o.id} number={o.number} total={eur(Number(o.total))} blocked={erpBlock} />
                 </div>
               )}
+              <ErpLog log={o.erpSync.log} failed={o.erpSync.status === "failed"} />
               {o.erpSync.payload ? <Link href={`/admin/prosfores/anafores/paraggelia/${o.id}`} className="text-eu-blue font-bold text-[length:var(--fs-12)] hover:underline print:hidden">Προσχέδιο παραστατικού →</Link> : null}
             </dl>}
           </Card>
