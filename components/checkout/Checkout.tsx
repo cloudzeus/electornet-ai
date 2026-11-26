@@ -299,9 +299,8 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
     ...(freight ? [{ key: "freight", icon: Container, t: freight.local ? "Από κατάστημα Euronics κοντά σου" : freight.central ? "Με μεταφορική από το κεντρικό κατάστημα" : "Με μεταφορική", sub: freightOk ? (freight.central ? `${freight.eta} · δεν υπάρχει συνεργαζόμενο κατάστημα σε ${freight.localMaxKm} χλμ από εσένα${freight.devices > 1 && freight.fee > 0 ? ` · ${freight.devices} συσκευές × ${free(freight.unitFee)}` : ""}` : localStores.length ? (localPick ? `${localPick.name}, ${localPick.city} · ${km(localPick.km)} · ${freight.eta}` : `Διάλεξε κατάστημα · δωρεάν έως ${freight.localFreeKm} χλμ από το κατάστημα`) : `${freight.eta} · ${freight.local ? "σου το φέρνει συνεργάτης μας της περιοχής σου" : freight.devices > 1 && freight.fee > 0 ? `${freight.devices} συσκευές × ${free(freight.unitFee)}` : "για ογκώδεις συσκευές"}`) : freight.reason ?? "Δεν είναι διαθέσιμη για αυτό το καλάθι", price: !freightOk ? "—" : localStores.length && !localPick ? (localStores.some((x) => x.fee === 0) ? "Δωρεάν" : `από ${free(Math.min(...localStores.map((x) => x.fee)))}`) : free(freight.fee), on: ful === "freight", disabled: !freightOk, pick: () => setFul("freight") }] : []),
     ...(storeDelivery && !quote?.storeArea ? [storeDelivery] : []),
   ];
-  const payments: { v: Pay; icon: typeof Truck; t: string; sub: string; disabled?: boolean; mark?: React.ReactNode }[] = onRequest && ful !== "click-collect" ? [
-    { v: "later", icon: Phone, t: "Κατόπιν συνεννόησης", sub: "Δεν πληρώνεις τώρα: σε καλούμε για τα μεταφορικά και τον τρόπο πληρωμής" },
-  ] : viva ? [
+  // οι τρόποι που δέχεται το κατάστημα· σε περιοχή «κατόπιν συνεννόησης» το βήμα «Πληρωμή» δίνει μόνο αυτό (βλ. payments)
+  const allPayments: { v: Pay; icon: typeof Truck; t: string; sub: string; disabled?: boolean; mark?: React.ReactNode }[] = viva ? [
     ...VIVA_OPTS.filter((o) => vivaPays.includes(o.v)).map((o) => (o.v === "card" ? { ...o, sub: `Visa · Mastercard · Amex${maxInst > 1 ? ` · έως ${maxInst} άτοκες` : ""}` } : o)),
     ...(klarnaDirect ? [KLARNA_OPT] : []),
     ...(bankSub ? [{ v: "bank" as Pay, icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: bankSub }] : []),
@@ -313,7 +312,13 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
     ...(!cod ? [] : [{ v: "cod" as Pay, icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Δεν ισχύει άνω των 500 € — διάλεξε κάρτα ή κατάθεση", disabled: total > 500 }]),
     ...(storePay && ful === "click-collect" ? [{ v: "store" as Pay, icon: StoreIcon, t: "Στο κατάστημα", sub: "Μετρητά ή κάρτα κατά την παραλαβή" }] : []),
   ];
+  const payments: typeof allPayments = onRequest && ful !== "click-collect" ? [
+    { v: "later", icon: Phone, t: "Κατόπιν συνεννόησης", sub: "Δεν πληρώνεις τώρα: σε καλούμε για τα μεταφορικά και τον τρόπο πληρωμής" },
+  ] : allPayments;
 
+  // ό,τι δεν είναι κουμπί wallet πάνω πάνω (κάρτα, κατάθεση, αντικαταβολή): ίδια λίστα με το βήμα «Πληρωμή», χωρίς τα wallets
+  const WALLETS: Pay[] = ["apple", "google", "paypal", "iris", "later"];
+  const moreWays = allPayments.filter((o) => !o.disabled && !WALLETS.includes(o.v) && !(viva && o.v === "store"));
   return (
     <div className="eu-canvas eu-gutter pb-28 @3xl:pb-12">
       <Stepper step={step} />
@@ -321,12 +326,12 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
         <div className="min-w-0 grid gap-4 eu-container">
           {step === 2 && (
             <>
-              {viva && <section className="bg-white rounded-2xl border border-eu-line p-5 @md:p-6 grid gap-3" aria-labelledby="express">
+              {(viva || moreWays.length > 0) && <section className="bg-white rounded-2xl border border-eu-line p-5 @md:p-6 grid gap-3" aria-labelledby="express">
                 <div className="flex items-center justify-between gap-3">
                   <h1 id="express" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)]">
-                    {c.grigori_oloklirosi}
+                    {viva ? c.grigori_oloklirosi : "Τρόποι πληρωμής"}
                   </h1>
-                  <span className="text-eu-muted text-[length:var(--fs-14)] hidden @sm:inline">{c.dieythynsi_pliromi_apo_to}</span>
+                  {viva && <span className="text-eu-muted text-[length:var(--fs-14)] hidden @sm:inline">{c.dieythynsi_pliromi_apo_to}</span>}
                 </div>
                 {viva ? (
                   <div className="grid grid-cols-2 @md:grid-cols-4 gap-2">
@@ -338,6 +343,23 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                     ))}
                   </div>
                 ) : null}
+                {/* κάρτα και κατάθεση φαίνονται από την αρχή (πριν, μόνο στο τελευταίο βήμα): αλλιώς ο πελάτης βλέπει μόνο wallets και νομίζει ότι δεν δεχόμαστε κάρτα */}
+                {moreWays.length > 0 && (
+                  <div className="grid gap-2">
+                    {viva && <p className="m-0 text-eu-ink-2 font-semibold text-[length:var(--fs-15)]">Πληρώνεις επίσης με</p>}
+                    <div className="grid grid-cols-1 @md:grid-cols-2 gap-2">
+                      {moreWays.map((o) => (
+                        <button key={o.v} type="button" aria-pressed={pay === o.v} onClick={() => { setPay(o.v); document.getElementById("fld-firstName")?.focus(); }}
+                          className={`rounded-xl border-2 px-3.5 py-2.5 min-h-12 text-left grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2.5 ${pay === o.v ? "border-eu-blue bg-eu-chip" : "border-eu-line bg-white hover:border-eu-blue"}`}>
+                          <o.icon className="size-5 text-eu-blue row-span-2" aria-hidden />
+                          <span className="font-bold text-eu-ink text-[length:var(--fs-15)]">{o.t}</span>
+                          <span className="text-eu-muted text-[length:var(--fs-14)]">{o.sub}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Τον τρόπο τον επιβεβαιώνεις στο βήμα «Πληρωμή», αφού συμπληρώσεις τα στοιχεία σου</p>
+                  </div>
+                )}
                 <div className="flex items-center gap-3 text-eu-muted text-[length:var(--fs-14)]">
                   <span className="flex-1 h-px bg-eu-line" /> {c.i_symplirose_ta_stoicheia} <span className="flex-1 h-px bg-eu-line" />
                 </div>
