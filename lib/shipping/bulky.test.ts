@@ -14,9 +14,10 @@ test("βάρος από τα χαρακτηριστικά: πρώτα της σ�
 test("μεγάλες συσκευές: κατηγορία, βάρος, μέγεθος, επιλογή διαχειριστή", () => {
   const r = DEFAULT_RULES;
   assert.equal(decideShipping({ categoryPath: ["psygeiokatapsyktes", "psygeia", "leykes-syskeyes"], weightKg: null, dimsCm: null }, r).courier, false);
-  assert.equal(decideShipping({ categoryPath: ["mikra-psygeia-mini-bars", "psygeia"], weightKg: 18, dimsCm: [50, 45, 50] }, r).courier, true);
+  // λίστα κατηγοριών Euronics (courier-eligibility.json, PMS 27/11/2026): τηλεοράσεις και μίνι ψυγεία ΠΑΝΤΑ χωρίς courier, ανεξάρτητα βάρους/διαστάσεων
+  assert.equal(decideShipping({ categoryPath: ["mikra-psygeia-mini-bars", "psygeia"], weightKg: 18, dimsCm: [50, 45, 50] }, r).courier, false);
   assert.equal(decideShipping({ categoryPath: ["tileoraseis"], weightKg: 22, dimsCm: [166, 9, 96] }, r).courier, false);
-  assert.equal(decideShipping({ categoryPath: ["tileoraseis"], weightKg: 18, dimsCm: [145, 9, 83] }, r).courier, true);
+  assert.equal(decideShipping({ categoryPath: ["tileoraseis"], weightKg: 18, dimsCm: [145, 9, 83] }, r).courier, false);
   assert.equal(decideShipping({ categoryPath: ["foyrnoi"], weightKg: 34, dimsCm: null }, r).courier, false);
   assert.equal(decideShipping({ categoryPath: ["psygeiokatapsyktes", "psygeia"], weightKg: 70, dimsCm: null }, { ...r, categories: { psygeiokatapsyktes: "courier" } }).courier, true);
   assert.equal(decideShipping({ categoryPath: ["kinita-smartphones"], weightKg: 0.4, dimsCm: [16, 8, 1] }, { ...r, categories: { "kinita-smartphones": "store" } }).courier, false);

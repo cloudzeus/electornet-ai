@@ -3,17 +3,26 @@
  * Σειρά απόφασης:
  *  1. ρητή επιλογή του διαχειριστή στην κατηγορία (ή στην πιο κοντινή γονική): «courier», «freight» (μεταφορική —
  *     εσωτερική διαδικασία, χωρίς voucher) ή «store» (μόνο από κατάστημα)
- *  2. προεπιλογή του καταστήματος για τις μεγάλες συσκευές (ψυγεία, πλυντήρια, κουζίνες, κλιματιστικά…)
- *  3. βάρος συσκευασίας / μέγεθος πάνω από τα όρια → μόνο από κατάστημα (παράδοση με ραντεβού ή παραλαβή)
+ *  2. η επίσημη λίστα κατηγοριών της Euronics (courier-eligibility.json — αρχείο Euronics_Courier_Κατηγορίες.xlsx,
+ *     PMS task «Ερώτημα κου Γκόγκολου - sos | Πρόβλημα χρεώσεων | Λάθος κατηγοριοποίηση», 27/11/2026): 206 κατηγορίες,
+ *     π.χ. τηλεοράσεις/λευκές συσκευές = όχι courier, ανεξάρτητα από βάρος/διαστάσεις
+ *  3. παλιά, μικρότερη προεπιλογή (DEFAULT_STORE_ONLY) — μόνο για κατηγορίες εκτός της λίστας Euronics
+ *  4. βάρος συσκευασίας / μέγεθος πάνω από τα όρια → μόνο από κατάστημα (παράδοση με ραντεβού ή παραλαβή)
  * Θυρίδα BOX NOW: επιπλέον ≤ 20 κιλά και να χωράει στο μεγάλο ντουλάπι 36 × 45 × 60 cm.
  */
+import COURIER_ELIGIBILITY from "./courier-eligibility.json";
+
 export type ShipChoice = "courier" | "freight" | "store";
 export const isShipChoice = (v: unknown): v is ShipChoice => v === "courier" || v === "freight" || v === "store";
 export interface BulkyRules { categories: Record<string, ShipChoice>; maxKg: number; maxSideCm: number; lockerMaxKg: number; lockerBox: [number, number, number] }
 
-/** Οι μεγάλες συσκευές που πηγαίνουν από το κατάστημα, εκτός αν ο διαχειριστής ορίσει αλλιώς (slug → υποδέντρο). */
+/** Η επίσημη λίστα κατηγοριών Euronics (βλ. πάνω) — slug → courier/store. */
+const EURONICS_CATEGORIES: Record<string, ShipChoice> = Object.fromEntries(
+  Object.entries(COURIER_ELIGIBILITY as Record<string, boolean>).map(([slug, courierOk]) => [slug, courierOk ? "courier" : "store"]),
+);
+/** Παλιά, μικρότερη προεπιλογή — ισχύει μόνο για κατηγορίες που δεν καλύπτει η λίστα Euronics (slug → υποδέντρο). */
 export const DEFAULT_STORE_ONLY: Record<string, ShipChoice> = {
-  psygeia: "store", "mikra-psygeia-mini-bars": "courier",
+  psygeia: "store",
   "plyntiria-stegnotiria": "store", koyzines: "store",
   "klimatistika-inverter": "store", imiepaggelmatika: "store",
   "iliakoi-thermosifones": "store",
@@ -41,7 +50,9 @@ export function shippingWeight(specs: { key: string; value: string }[]): number 
 }
 
 export function decideShipping(f: ShipFacts, rules: BulkyRules): ShipVerdict {
-  const own = f.categoryPath.map((s) => rules.categories[s]).find(Boolean) ?? f.categoryPath.map((s) => DEFAULT_STORE_ONLY[s]).find(Boolean);
+  const own = f.categoryPath.map((s) => rules.categories[s]).find(Boolean)
+    ?? f.categoryPath.map((s) => EURONICS_CATEGORIES[s]).find(Boolean)
+    ?? f.categoryPath.map((s) => DEFAULT_STORE_ONLY[s]).find(Boolean);
   const longest = f.dimsCm ? Math.max(...f.dimsCm) : null;
   let courier = true, reason: string | null = null;
   if (own === "store") { courier = false; reason = "Μεγάλη συσκευή: παράδοση με ραντεβού από το κατάστημα ή παραλαβή"; }
