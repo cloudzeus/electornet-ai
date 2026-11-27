@@ -48,7 +48,8 @@ export const JOBS: JobDef[] = [
     },
   },
   {
-    key: "order-erp-stages", label: "Πορεία παραγγελιών στο SoftOne → ενημέρωση πελάτη (Παραγγελίες → Ρυθμίσεις ενημέρωσης)", schedule: { everyMin: 15 }, group: "order-erp-stages", maxMin: 12,
+    // κάθε 2 ώρες σε ώρες γραφείου (εντολή 27/11/2026): οι μετασχηματισμοί γίνονται από το προσωπικό μέσα στη μέρα
+    key: "order-erp-stages", label: "Πορεία παραγγελιών στο SoftOne → κατάσταση παραγγελίας και ενημέρωση πελάτη (Παραγγελίες → Ρυθμίσεις ενημέρωσης)", schedule: { window: [9, 17], stepMin: 120 }, group: "order-erp-stages", maxMin: 30,
     run: async () => (await import("@/lib/orders/erp-stages")).runErpStages(),
   },
   {

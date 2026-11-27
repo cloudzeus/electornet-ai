@@ -1,5 +1,10 @@
 /**
- * Παραγγελία e-shop → παραστατικό πώλησης SoftOne (SALDOC + MTRDOC + ITELINES). Καθαρή σύνθεση, χωρίς δίκτυο.
+ * Παραγγελία e-shop → παραστατικό λιανικής SoftOne (RETAILDOC: κεφαλίδα SALDOC + MTRDOC + ITELINES). Καθαρή σύνθεση, χωρίς δίκτυο.
+ *
+ * Κύκλος Λιανικής (εύρημα 27/11/2026, ερώτημα Κουρμπέτη «Παραγγελίες»): οι παραγγελίες του eshop γράφονται στο αντικείμενο
+ * RETAILDOC «Παραστατικά λιανικής» (ίδιος πίνακας FINDOC, SOREDIR 10000), ΟΧΙ στο SALDOC «Παραστατικά πωλήσεων» (SOREDIR 0).
+ * Εκεί έγραφε το παλιό site (195 στις 195 από 1/10) και από εκεί το προσωπικό μετασχηματίζει τη 7005 σε 7007/7008/7009,
+ * 7049, 7141, 7180, 7315. Όσες γράψαμε ως SALDOC (22–27/11) δεν μετασχηματίστηκαν και το προσωπικό τις ξαναπέρασε με το χέρι.
  *
  * Ακολουθεί ό,τι στέλνει σήμερα το eshop της Euronics (getData σε 480 παραγγελίες της σειράς 7005, 16/10/2026· ξανά
  * 23/11/2026: 258 παραγγελίες από 1/9, όλες σειρά 7005 / τύπος 7005 «ΠΑΡΑΓΓΕΛΙΑ e-Shop», πελάτης 200, SHIPMENT κενό):
@@ -14,6 +19,8 @@
  */
 import { floorLabel } from "@/lib/orders/model";
 
+/** Το αντικείμενο του SoftOne για την παραγγελία: «Παραστατικά λιανικής» (ο κύκλος Λιανικής, βλ. πάνω). */
+export const ORDER_OBJECT = "RETAILDOC";
 /** Η σειρά όπου πέφτουν οι παραγγελίες του σημερινού eshop. Ισχύει όταν η ρύθμιση είναι κενή. */
 export const DEFAULT_SERIES = "7005";
 /** Ο γενικός πελάτης λιανικής όπου γράφονται όλες οι αποδείξεις του σημερινού eshop (258 στις 258, 23/11/2026). */
@@ -111,7 +118,7 @@ export interface SaldocOrder {
 export interface NewErpCustomer { afm: string; name: string; doy: string | null; activity: string | null; phone: string | null; email: string | null; order: string }
 
 export interface SaldocDoc {
-  OBJECT: "SALDOC";
+  OBJECT: typeof ORDER_OBJECT;
   data: { SALDOC: Record<string, unknown>[]; MTRDOC: Record<string, unknown>[]; ITELINES: Record<string, unknown>[]; /** επιβαρύνσεις (μεταφορικά) — λείπει όταν δεν υπάρχουν */ EXPANAL?: Record<string, unknown>[] };
   /** τι λείπει για να σταλεί (κενό = έτοιμο) */
   needs: string[];
@@ -161,11 +168,22 @@ export function softoneTotals(lines: NetLine[], headerDisc = 0, charges: NetLine
 export function erpDocNo(fincode: unknown, seriesnum: unknown): string | null {
   const c = String(fincode ?? "").trim(), n = String(seriesnum ?? "").trim().replace(/^0+/, "");
   if (!n) return c || null;
-  return !c ? n : c.endsWith(n) ? c : `${c} ${n}`;
+  // «PES 3029» (FINCODE με τον αριθμό του site) → μαζί και ο αύξων της σειράς, όπως φαίνεται στη λίστα του ERP
+  return !c ? n : c.endsWith(n) ? c : /\d/.test(c) ? `${c} (αύξων ${n})` : `${c} ${n}`;
 }
 
 /** Μία απάντηση του SoftOne σε ένα βήμα της αποστολής (ErpSync.log). */
 export interface ErpLogEntry { at: string; step: string; ok: boolean; text: string }
+
+/**
+ * Το FINCODE με τη μορφή που δίνει το προσωπικό στις παραγγελίες του site μέσα στον κύκλο Λιανικής: «PES» + τα 4 τελευταία
+ * ψηφία του αριθμού μας (EUR-20261127-3029 → «PES 3029», παραστατικά 85–104 της 7005, 26–27/11/2026). Ο αύξων (SERIESNUM)
+ * τον δίνει η σειρά. null όταν ο αριθμός έχει λιγότερα από 4 ψηφία.
+ */
+export function pesCode(number: string): string | null {
+  const d = number.replace(/\D/g, "");
+  return d.length >= 4 ? `PES ${d.slice(-4)}` : null;
+}
 
 export function orderNum01(number: string): number | null {
   const d = number.replace(/\D/g, "");
@@ -173,12 +191,32 @@ export function orderNum01(number: string): number | null {
 }
 
 /**
- * Φίλτρο GetTable για το παραστατικό μιας παραγγελίας: σειρά + NUM01 (βλ. orderNum01), SOSOURCE 1351 = πωλήσεις. Μόνο
- * αριθμοί μπαίνουν στο φίλτρο (είναι κείμενο SQL χωρίς παραμέτρους)· χωρίς αριθμό επιστρέφει null — τότε δεν ψάχνουμε.
+ * Φίλτρο GetTable για το παραστατικό μιας παραγγελίας, σε όποιο αντικείμενο κι αν γράφτηκε (SOSOURCE 1351 = πωλήσεις και
+ * λιανική): σειρά + NUM01 (βλ. orderNum01) — ή, για όσες πέρασε το προσωπικό με το χέρι, FINCODE «PES dddd» από 3 ημέρες πριν
+ * την παραγγελία και μετά (τα 4 ψηφία επαναλαμβάνονται σε άλλες μέρες). Έτσι στέλνεται μόνο ό,τι δεν έχει καταχωρηθεί.
+ * Μόνο ψηφία μπαίνουν στο φίλτρο (κείμενο SQL χωρίς παραμέτρους)· χωρίς αριθμό επιστρέφει null — τότε δεν ψάχνουμε.
  */
-export function orderDocFilter(number: string, series: string | null | undefined): string | null {
-  const n = orderNum01(number), s = (series ?? "").trim() || DEFAULT_SERIES;
-  return n && /^\d+$/.test(s) ? `SOSOURCE=1351 AND SERIES=${s} AND NUM01=${n}` : null;
+export function orderDocFilter(number: string, series: string | null | undefined, placedAt?: Date | null): string | null {
+  const n = orderNum01(number), s = (series ?? "").trim() || DEFAULT_SERIES, pes = pesCode(number);
+  if (!n || !/^\d+$/.test(s)) return null;
+  const since = placedAt && !Number.isNaN(placedAt.getTime()) ? new Date(placedAt.getTime() - 3 * 864e5).toISOString().slice(0, 10) : null;
+  const manual = pes && since ? ` OR (FINCODE='${pes}' AND TRNDATE>='${since}')` : "";
+  return `SOSOURCE=1351 AND SERIES=${s} AND ${manual ? `(NUM01=${n}${manual})` : `NUM01=${n}`}`;
+}
+
+/** Τα πεδία που χρειάζεται το pickOrderDoc από το GetTable FINDOC (με το orderDocFilter). */
+export const ORDER_DOC_FIELDS = ["FINDOC", "SOREDIR", "NUM01", "SUMAMNT"];
+
+/**
+ * Ποιο από τα παραστατικά που βρήκε το orderDocFilter είναι η παραγγελία. Σειρά προτίμησης: Παραστατικά λιανικής με τον
+ * αριθμό μας (NUM01) → χειροκίνητο «PES dddd» στα Παραστατικά λιανικής με το ίδιο ποσό (±5 λεπτά: το προσωπικό γράφει
+ * π.χ. 55,95 για 55,94) → ό,τι γράψαμε εμείς στα Παραστατικά πωλήσεων (22–27/11/2026, δεν μετασχηματίζονται). Το ποσό
+ * χρειάζεται γιατί τα 4 ψηφία μπορεί να ξαναβγούν σε άλλη παραγγελία. `rows` με τη σειρά του ORDER_DOC_FIELDS. 0 = καμία.
+ */
+export function pickOrderDoc(rows: string[][], order: { number: string; total: number | null }): number {
+  const n = String(orderNum01(order.number) ?? ""), r = rows.map(([findoc, redir, num01, sum]) => ({ findoc: Number(findoc) || 0, retail: redir === "10000", own: !!n && num01 === n, sum: Number(sum) }));
+  const sameSum = (x: { sum: number }) => order.total != null && Number.isFinite(x.sum) && Math.abs(x.sum - order.total) <= 0.05;
+  return (r.find((x) => x.retail && x.own) ?? r.find((x) => x.retail && !x.own && sameSum(x)) ?? r.find((x) => x.own))?.findoc ?? 0;
 }
 
 export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
@@ -293,11 +331,12 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
   ].filter((l) => l != null).join("\n");
 
   return {
-    OBJECT: "SALDOC",
+    OBJECT: ORDER_OBJECT,
     data: {
       SALDOC: [{
-        // το FINCODE το ξαναγράφει το SoftOne με τον κωδικό της σειράς· ο αριθμός μας μένει στο NUM01 και στο COMMENTS
-        SERIES: Number(series), TRDR: trdr ? Number(trdr) : null, FINCODE: o.number, ...(orderNum01(o.number) ? { NUM01: orderNum01(o.number) } : {}),
+        // FINCODE «PES dddd» όπως το γράφει το προσωπικό· αν το SoftOne το αντικαταστήσει, η αποστολή το ξαναγράφει μετά την
+        // εγγραφή. Ο πλήρης αριθμός μας μένει στο NUM01 και στο COMMENTS
+        SERIES: Number(series), TRDR: trdr ? Number(trdr) : null, FINCODE: pesCode(o.number) ?? o.number, ...(orderNum01(o.number) ? { NUM01: orderNum01(o.number) } : {}),
         // χωρίς κωδικό: ρητά κενό. Αν το πεδίο λείπει, το SoftOne βάζει μόνο του την προεπιλογή του πελάτη 200 («Μετρητά-
         // Πιστωτική κάρτα-Προκαταβολή»), που θα ήταν λάθος οδηγία (calculate 23/11/2026)
         PAYMENT: S1_PAYMENT[o.payment] ?? null,

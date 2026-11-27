@@ -59,7 +59,8 @@ async function notifyStatus(orderId: string, to: OrderStatus, reason: string | n
 /** Κωδικός παραλαβής: τα 4 τελευταία ψηφία της παραγγελίας (ίδιος στο email και στην καρτέλα). */
 export const pickupCode = (number: string) => `EU-${number.replace(/\D/g, "").slice(-4)}`;
 
-export async function changeStatus(orderId: string, to: OrderStatus, opts: { notify: boolean; reason?: string | null }, staff: Staff): Promise<Result> {
+/** `staff` null = αυτόματη αλλαγή (π.χ. από τους μετασχηματισμούς στο SoftOne)· γράφεται στο ιστορικό χωρίς χρήστη. */
+export async function changeStatus(orderId: string, to: OrderStatus, opts: { notify: boolean; reason?: string | null }, staff: Staff | null): Promise<Result> {
   const o = await db.order.findUnique({ where: { id: orderId }, select: { id: true, number: true, status: true, fulfilment: true, couponCode: true, pickupStoreId: true, payment: { select: { status: true } }, erpSync: { select: { status: true } } } });
   if (!o) return { ok: false, error: "Η παραγγελία δεν βρέθηκε." };
   if (!canTransition(o.status, to, o.fulfilment)) return { ok: false, error: `Δεν γίνεται από «${ORDER_STATUS[o.status as OrderStatus]?.label ?? o.status}» σε «${ORDER_STATUS[to].label}».` };
@@ -84,7 +85,7 @@ export async function changeStatus(orderId: string, to: OrderStatus, opts: { not
   const klarna = await import("@/lib/payments/klarna-order").then((m) => m.klarnaAfterStatus(o.id, to)).catch((e) => (e instanceof Error ? e.message : null));
   let mail: string | null = null;
   if (opts.notify && NOTIFY_ON[to]) mail = await notifyStatus(o.id, to, reason).catch((e) => (e instanceof Error ? e.message : "σφάλμα email"));
-  await audit(staff.id, "order.status", "Order", o.id, { status: o.status }, { status: to, reason, notify: opts.notify && !!NOTIFY_ON[to], ...(mail ? { mailError: mail } : {}) });
+  await audit(staff?.id ?? null, "order.status", "Order", o.id, { status: o.status }, { status: to, reason, ...(staff ? {} : { auto: true }), notify: opts.notify && !!NOTIFY_ON[to], ...(mail ? { mailError: mail } : {}) });
   const label = ORDER_STATUS[to].label;
   const msg = opts.notify && NOTIFY_ON[to] ? (mail ? `${label} — το email δεν στάλθηκε (${mail}).` : `${label} — ο πελάτης ενημερώθηκε με email.`) : `${label}.`;
   return { ok: true, message: klarna ? `${msg} ${klarna}` : msg };

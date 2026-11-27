@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getTable } from "./lookups";
 import { orderChain, type OrderChain } from "./order-chain";
 import { NEXT_SERIES } from "./transform-core";
+import { ORDER_OBJECT } from "./order-doc-core";
 
 export interface TransformLine { mtrlines: number; mtrl: number; code: string; name: string; qty: number; done: number; left: number; price: number }
 export type TransformPreview =
@@ -48,7 +49,8 @@ export async function transformPreviewIn(chain: OrderChain, findoc: number): Pro
     try {
       const { s1 } = await import("@/lib/softone");
       const r = await s1("calculate", {
-        OBJECT: "SALDOC", KEY: "", LOCATEINFO: "SALDOC:SUMAMNT,NETAMNT,VATAMNT;ITELINES:MTRL,QTY1",
+        // ο κύκλος της παραγγελίας eshop είναι τα Παραστατικά λιανικής (RETAILDOC)· η κεφαλίδα λέγεται SALDOC και εκεί
+        OBJECT: ORDER_OBJECT, KEY: "", LOCATEINFO: "SALDOC:SUMAMNT,NETAMNT,VATAMNT;ITELINES:MTRL,QTY1",
         data: { SALDOC: [{ SERIES: Number(targets[0].series), TRDR: Number(head[0][0]) }], ITELINES: open.map((l) => ({ MTRL: l.mtrl, QTY1: l.left, FINDOCS: findoc, MTRLINESS: l.mtrlines })) },
       });
       const h = (r?.data?.SALDOC?.[0] ?? {}) as Record<string, unknown>;

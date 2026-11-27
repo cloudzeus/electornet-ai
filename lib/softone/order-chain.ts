@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { getTable } from "./lookups";
 import { docChain, docRoot } from "./doc-chain";
-import { orderDocFilter } from "./order-doc-core";
+import { orderDocFilter, pickOrderDoc, ORDER_DOC_FIELDS } from "./order-doc-core";
 import { saldocSettings } from "./order-doc";
 
 export interface OrderChainNode {
@@ -13,13 +13,10 @@ export type OrderChain = { ok: true; root: number; /** το παραστατικ
 
 /** Η πορεία μιας παραγγελίας στο SoftOne: εύρεση του FINDOC της και όλων όσων προήλθαν από αυτό. Μόνο αναγνώσεις. */
 export async function orderChain(orderId: string): Promise<OrderChain> {
-  const o = await db.order.findUnique({ where: { id: orderId }, select: { number: true, erpSync: { select: { erpDocId: true } } } });
+  const o = await db.order.findUnique({ where: { id: orderId }, select: { number: true, createdAt: true, total: true, erpSync: { select: { erpDocId: true } } } });
   if (!o) return { ok: false, reason: "not-sent" };
   try {
-    let root = Number(o.erpSync?.erpDocId) || 0;
-    // χωρίς αποθηκευμένο FINDOC: η παραγγελία βρίσκεται από τη σειρά και το NUM01 της (το SoftOne δεν κρατά τον αριθμό μας στο FINCODE)
-    const filter = root ? null : orderDocFilter(o.number, (await saldocSettings()).series);
-    if (filter) root = Number((await getTable("FINDOC", ["FINDOC"], filter))[0]?.[0]) || 0;
+    const root = await orderRoot(o);
     if (!root) return { ok: false, reason: "not-sent" };
     return await chainFor(root);
   } catch (e) {
@@ -27,6 +24,21 @@ export async function orderChain(orderId: string): Promise<OrderChain> {
     return { ok: false, reason: "error" };
   }
 }
+
+/**
+ * Η αρχική παραγγελία στο SoftOne, απ' όπου ξεκινούν οι μετασχηματισμοί: το παραστατικό στα Παραστατικά λιανικής (δικό μας
+ * ή «PES dddd» του προσωπικού, βλ. pickOrderDoc) προηγείται του αποθηκευμένου FINDOC — οι παραγγελίες που γράψαμε στα
+ * Παραστατικά πωλήσεων (22–27/11/2026) δεν μετασχηματίζονται, το προσωπικό τις ξαναπέρασε με το χέρι. 0 = καμία.
+ */
+export async function orderRoot(o: { number: string; createdAt: Date; total: unknown; erpSync: { erpDocId: string | null } | null }): Promise<number> {
+  const stored = Number(o.erpSync?.erpDocId) || 0;
+  const filter = orderDocFilter(o.number, (await saldocSettings()).series, o.createdAt);
+  if (!filter) return stored;
+  const found = await findocOfRows(filter, o);
+  return found || stored;
+}
+const findocOfRows = async (filter: string, o: { number: string; total: unknown }) =>
+  pickOrderDoc(await getTable("FINDOC", ORDER_DOC_FIELDS, filter), { number: o.number, total: o.total == null ? null : Number(o.total) });
 
 /**
  * Η αλυσίδα ενός FINDOC με ονόματα σειράς/τύπου από τους δικούς μας πίνακες. Ξεκινά από την αρχική παραγγελία του

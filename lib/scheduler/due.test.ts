@@ -58,3 +58,17 @@ test("pickDue: σε παύση ή πριν από την ώρα της δεν ξ
   const rows = new Map([["unpaid", { enabled: false, lastStartAt: null }], ["cart", { enabled: true, lastStartAt: new Date(ago(3)) }], ["catalog", { enabled: true, lastStartAt: new Date(ago(31)) }]]);
   assert.deepEqual(keys(new Map(), rows), ["catalog", "backup"]);
 });
+
+test("παράθυρο 09–17 ανά 2 ώρες: 09, 11, 13, 15, 17 ώρα Αθήνας, ποτέ εκτός", () => {
+  const s: Schedule = { window: [9, 17], stepMin: 120 };
+  // 27/11/2026 χειμώνας: Αθήνα = UTC+2
+  assert.equal(isDue(s, null, t("2026-11-27T06:59:00Z")), false); // 08:59
+  assert.equal(isDue(s, null, t("2026-11-27T07:00:00Z")), true); // 09:00
+  assert.equal(isDue(s, t("2026-11-27T07:00:30Z"), t("2026-11-27T08:30:00Z")), false); // 10:30, έτρεξε στις 09:00
+  assert.equal(isDue(s, t("2026-11-27T07:00:30Z"), t("2026-11-27T09:00:00Z")), true); // 11:00
+  assert.equal(isDue(s, t("2026-11-27T13:00:30Z"), t("2026-11-27T15:00:00Z")), true); // 17:00, τελευταίο
+  assert.equal(isDue(s, t("2026-11-27T13:00:30Z"), t("2026-11-27T17:00:00Z")), false); // 19:00: χάθηκε το 17:00, όχι εκτός ωραρίου
+  assert.equal(isDue(s, t("2026-11-27T15:00:30Z"), t("2026-11-27T20:00:00Z")), false); // 22:00
+  assert.equal(nextRun(s, t("2026-11-27T15:00:30Z"), t("2026-11-27T16:00:00Z")).toISOString(), "2026-11-28T07:00:00.000Z"); // αύριο 09:00
+  assert.equal(nextRun(s, t("2026-11-27T07:00:30Z"), t("2026-11-27T08:00:00Z")).toISOString(), "2026-11-27T09:00:00.000Z"); // 11:00
+});

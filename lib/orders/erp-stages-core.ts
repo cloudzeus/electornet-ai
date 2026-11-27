@@ -1,7 +1,9 @@
 /**
  * Ενημέρωση πελάτη από τα στάδια της παραγγελίας στο SoftOne — καθαρή λογική (χωρίς I/O).
  * Ο διαχειριστής διαλέγει στις «Ρυθμίσεις ενημέρωσης» ποιοι τύποι παραστατικών στέλνουν email και με ποιο κείμενο.
+ * Από 27/11/2026 οι μετασχηματισμοί αλλάζουν και την κατάσταση της παραγγελίας στο site (statusFromDocs / statusPath).
  */
+import { nextStatuses, type OrderStatus } from "./model";
 export interface StageType { fprms: string; notify: boolean; title: string | null; message: string | null }
 export interface StageDoc { findoc: number; fprms: string | null; docNo: string; date: string }
 
@@ -85,4 +87,45 @@ export function decide(input: { root: number; docs: StageDoc[]; seen: { findoc: 
     notify.push(d);
   }
   return { fresh, notify };
+}
+
+/** Πόσο «μπροστά» είναι μια κατάσταση: το SoftOne πάει την παραγγελία μόνο προς τα μπρος, ποτέ πίσω. */
+const RANK: Record<string, number> = { pending: 0, paid: 1, processing: 2, shipped: 3, "ready-for-pickup": 3, delivered: 4 };
+
+/**
+ * Η κατάσταση του site που αντιστοιχεί στα παραστατικά της πορείας (ρίζα μαζί): ακύρωση (7009) → «Ακυρώθηκε»· βήμα 1
+ * (Πληρωμένη) → «Πληρώθηκε»· βήμα 2 (Παραγγελία, PKP, εκκρεμότητα) → «Σε επεξεργασία»· βήμα 3 (Δελτίο αποστολής, απόδειξη,
+ * τιμολόγιο) → «Στάλθηκε» μόνο με courier / μεταφορική. Παραλαβή από κατάστημα και ραντεβού μένουν «Σε επεξεργασία»:
+ * το «Έτοιμη για παραλαβή» / «Παραδόθηκε» τα βάζει το κατάστημα, γιατί το δελτίο δεν λέει ότι έφτασε στο κατάστημα.
+ * `driver` = το παραστατικό που το προκάλεσε (για το email). null όταν τίποτα δεν προχωρά την παραγγελία.
+ */
+export function statusFromDocs<T extends { fprms: string | null; date: string; findoc: number }>(docs: T[], fulfilment: string): { to: OrderStatus; driver: T } | null {
+  const top = currentStage(docs.map((d) => ({ ...d, at: d.date })));
+  if (!top) return null;
+  if (top.info.cancelled) return { to: "cancelled", driver: top };
+  const ship = fulfilment === "courier" || fulfilment === "freight";
+  const to: OrderStatus | null = top.info.step === 1 ? "paid" : top.info.step === 2 ? "processing" : top.info.step === 3 ? (ship ? "shipped" : "processing") : null;
+  return to ? { to, driver: top } : null;
+}
+
+/**
+ * Τα βήματα από την τωρινή κατάσταση ως τη ζητούμενη, μόνο με επιτρεπτές αλλαγές (nextStatuses) και μόνο προς τα μπρος.
+ * π.χ. Νέα → Στάλθηκε = [Σε επεξεργασία, Στάλθηκε]. Ακύρωση μόνο απευθείας. [] = τίποτα να γίνει (ή δεν γίνεται).
+ */
+export function statusPath(from: string, to: OrderStatus, fulfilment: string): OrderStatus[] {
+  if (from === to) return [];
+  if (to === "cancelled") return nextStatuses(from, fulfilment).includes("cancelled") ? ["cancelled"] : [];
+  if (!(from in RANK) || RANK[to] <= RANK[from]) return [];
+  // συντομότερη διαδρομή χωρίς ακύρωση / επιστροφή στη μέση
+  const prev = new Map<string, string>([[from, ""]]);
+  const queue = [from];
+  while (queue.length) {
+    const cur = queue.shift()!;
+    if (cur === to) break;
+    for (const n of nextStatuses(cur, fulfilment)) if (n in RANK && RANK[n] <= RANK[to] && !prev.has(n)) { prev.set(n, cur); queue.push(n); }
+  }
+  if (!prev.has(to)) return [];
+  const path: OrderStatus[] = [];
+  for (let c: string = to; c !== from; c = prev.get(c)!) path.unshift(c as OrderStatus);
+  return path;
 }

@@ -1,5 +1,12 @@
 /** Πότε είναι η σειρά μιας αυτόματης εργασίας. Καθαρές συναρτήσεις — χωρίς βάση, για tests. */
-export type Schedule = { everyMin: number } | { dailyAt: [hour: number, minute: number] };
+export type Schedule = { everyMin: number } | { dailyAt: [hour: number, minute: number] } | { window: [fromHour: number, toHour: number]; stepMin: number };
+
+/** Οι ώρες ενός παραθύρου: from, from+step, … έως και to (π.χ. 9–17 ανά 120′ → 09:00, 11:00, 13:00, 15:00, 17:00). */
+function slotsOf(s: { window: [number, number]; stepMin: number }, ref: Date): Date[] {
+  const out: Date[] = [];
+  for (let m = s.window[0] * 60; m <= s.window[1] * 60; m += s.stepMin) out.push(athensAt(ref, Math.floor(m / 60), m % 60));
+  return out;
+}
 
 const TZ = "Europe/Athens";
 
@@ -14,6 +21,11 @@ export function athensAt(ref: Date, hh: number, mm: number): Date {
 
 export function isDue(s: Schedule, last: Date | null, now: Date): boolean {
   if ("everyMin" in s) return !last || now.getTime() - last.getTime() >= s.everyMin * 60000;
+  if ("window" in s) {
+    // η τελευταία ώρα του παραθύρου που πέρασε· αν χάθηκε (server κάτω), τρέχει μέχρι την επόμενη — ποτέ έξω από το παράθυρο
+    const slot = slotsOf(s, now).filter((x) => x <= now).pop();
+    return !!slot && now.getTime() - slot.getTime() < s.stepMin * 60000 && (!last || last < slot);
+  }
   const slot = athensAt(now, s.dailyAt[0], s.dailyAt[1]);
   return now >= slot && (!last || last < slot);
 }
@@ -43,6 +55,10 @@ export function pickDue<J extends { key: string; group: string; maxMin: number; 
 
 export function nextRun(s: Schedule, last: Date | null, now: Date): Date {
   if ("everyMin" in s) return last ? new Date(Math.max(now.getTime(), last.getTime() + s.everyMin * 60000)) : now;
+  if ("window" in s) {
+    if (isDue(s, last, now)) return now;
+    return slotsOf(s, now).find((x) => x > now) ?? slotsOf(s, new Date(athensAt(now, 12, 0).getTime() + 864e5))[0];
+  }
   const today = athensAt(now, s.dailyAt[0], s.dailyAt[1]);
   if (isDue(s, last, now)) return now;
   return now < today ? today : athensAt(new Date(today.getTime() + 26 * 3600000), s.dailyAt[0], s.dailyAt[1]);
@@ -50,5 +66,6 @@ export function nextRun(s: Schedule, last: Date | null, now: Date): Date {
 
 export function describe(s: Schedule): string {
   if ("everyMin" in s) return s.everyMin % 60 === 0 ? `κάθε ${s.everyMin / 60} ώρ${s.everyMin === 60 ? "α" : "ες"}` : `κάθε ${s.everyMin}′`;
+  if ("window" in s) return `${describe({ everyMin: s.stepMin })}, ${String(s.window[0]).padStart(2, "0")}:00–${String(s.window[1]).padStart(2, "0")}:00`;
   return `καθημερινά ${String(s.dailyAt[0]).padStart(2, "0")}:${String(s.dailyAt[1]).padStart(2, "0")}`;
 }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { PLACEHOLDERS, STAGE_BY_FPRMS, currentStage, decide, fillMessage } from "./erp-stages-core";
+import { PLACEHOLDERS, STAGE_BY_FPRMS, currentStage, decide, fillMessage, statusFromDocs, statusPath } from "./erp-stages-core";
 
 const types = [
   { fprms: "7005", notify: true, title: "Λάβαμε", message: "x" }, // ρίζα — ποτέ
@@ -49,4 +49,32 @@ test("κάθε στάδιο έχει τίτλο και κείμενο με με�
     for (const m of s.message.matchAll(/\{([^{}]+)\}/g)) assert.ok(known.has(m[1].trim() as (typeof PLACEHOLDERS)[number]["key"]), `${fprms}: άγνωστη μεταβλητή {${m[1]}}`);
     assert.equal(fillMessage(s.message, { "όνομα": "Μαρία", "παραγγελία": "EUR-1", "παραστατικό": "e-ΑΛ1", "ημερομηνία": "14/11/2026" }).includes("{"), false, fprms);
   }
+});
+
+test("κατάσταση από τα παραστατικά: Πληρωμένη, Παραγγελία/PKP, Δελτίο/Απόδειξη, Ακύρωση", () => {
+  const d = (findoc: number, fprms: string, date = "2026-11-27") => ({ findoc, fprms, date });
+  assert.equal(statusFromDocs([d(1, "7005")], "courier"), null); // μόνο η ρίζα: τίποτα να αλλάξει
+  assert.equal(statusFromDocs([d(1, "7005"), d(2, "7007")], "courier")?.to, "paid");
+  assert.equal(statusFromDocs([d(1, "7005"), d(2, "7007"), d(3, "7049"), d(4, "7080")], "courier")?.to, "processing");
+  const sh = statusFromDocs([d(1, "7005"), d(2, "7049"), d(3, "7141", "2026-11-28")], "courier");
+  assert.equal(sh?.to, "shipped"); assert.equal(sh?.driver.findoc, 3);
+  assert.equal(statusFromDocs([d(1, "7005"), d(3, "7315")], "freight")?.to, "shipped");
+  // παραλαβή / ραντεβού: το δελτίο δεν σημαίνει «έτοιμη» ή «παραδόθηκε»
+  assert.equal(statusFromDocs([d(1, "7005"), d(3, "7141")], "click-collect")?.to, "processing");
+  assert.equal(statusFromDocs([d(1, "7005"), d(3, "7315")], "appointment")?.to, "processing");
+  assert.equal(statusFromDocs([d(1, "7005"), d(2, "7141"), d(5, "7009")], "courier")?.to, "cancelled"); // η ακύρωση υπερισχύει
+  assert.equal(statusFromDocs([d(1, "7005"), d(2, "9999")], "courier"), null); // άγνωστος τύπος
+});
+
+test("διαδρομή κατάστασης: μόνο επιτρεπτά βήματα, μόνο προς τα μπρος", () => {
+  assert.deepEqual(statusPath("pending", "shipped", "courier"), ["processing", "shipped"]);
+  assert.deepEqual(statusPath("pending", "paid", "courier"), ["paid"]);
+  assert.deepEqual(statusPath("paid", "processing", "click-collect"), ["processing"]);
+  assert.deepEqual(statusPath("shipped", "processing", "courier"), []); // ποτέ πίσω
+  assert.deepEqual(statusPath("processing", "paid", "courier"), []);
+  assert.deepEqual(statusPath("delivered", "shipped", "courier"), []);
+  assert.deepEqual(statusPath("processing", "processing", "courier"), []);
+  assert.deepEqual(statusPath("paid", "cancelled", "courier"), ["cancelled"]);
+  assert.deepEqual(statusPath("shipped", "cancelled", "courier"), []); // στάλθηκε: δεν ακυρώνεται αυτόματα
+  assert.deepEqual(statusPath("cancelled", "shipped", "courier"), []);
 });

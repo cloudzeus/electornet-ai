@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { composeSaldoc, orderDocFilter, orderNum01, softoneTotals, type SaldocOrder, type SaldocSettings, erpDocNo } from "./order-doc-core";
+import { composeSaldoc, orderDocFilter, orderNum01, pesCode, pickOrderDoc, softoneTotals, type SaldocOrder, type SaldocSettings, erpDocNo } from "./order-doc-core";
 
 const S: SaldocSettings = { series: "7005", retailTrdr: "200" };
 const base: SaldocOrder = {
@@ -18,9 +18,10 @@ test("τιμή χωρίς ΦΠΑ, όπως στο σημερινό eshop (249,90
   assert.deepEqual(d.needs, []);
 });
 
-test("κεφαλίδα: σειρά, λιανική 200, αριθμός στο FINCODE, κωδικός πληρωμής, ονοματεπώνυμο, email στις παρατηρήσεις· χωρίς SHIPMENT", () => {
-  const h = composeSaldoc(base, S).data.SALDOC[0];
-  assert.equal(h.SERIES, 7005); assert.equal(h.TRDR, 200); assert.equal(h.FINCODE, "EUR-20261016-0007"); assert.equal(h.NUM01, 202610160007);
+test("κεφαλίδα: Παραστατικά λιανικής, σειρά, λιανική 200, «PES dddd» στο FINCODE, κωδικός πληρωμής, ονοματεπώνυμο, email στις παρατηρήσεις· χωρίς SHIPMENT", () => {
+  const d0 = composeSaldoc(base, S), h = d0.data.SALDOC[0];
+  assert.equal(d0.OBJECT, "RETAILDOC"); // κύκλος Λιανικής, όχι Παραστατικά πωλήσεων (SALDOC)
+  assert.equal(h.SERIES, 7005); assert.equal(h.TRDR, 200); assert.equal(h.FINCODE, "PES 0007"); assert.equal(h.NUM01, 202610160007);
   assert.equal(h.PAYMENT, 1001); assert.ok(!("SHIPMENT" in h), "ο πίνακας «Τρόποι αποστολής» του SoftOne δεν στέλνεται");
   assert.equal(h.COMMENTS1, "Μαρία Παπά");
   assert.match(String(h.COMMENTS), /e-shop EUR-20261016-0007 · Courier ACS · Κάρτα/);
@@ -204,6 +205,13 @@ test("αριθμός παραγγελίας στο SoftOne: NUM01 από τα ψ
   assert.equal(orderDocFilter("EU'1 OR 1=1", null), "SOSOURCE=1351 AND SERIES=7005 AND NUM01=111");
   assert.equal(orderDocFilter("EUR-1", "7005 OR 1=1"), null);
   assert.equal(orderDocFilter("χωρίς ψηφία", null), null);
+  // με ημερομηνία: βρίσκει και όσες πέρασε το προσωπικό με το χέρι («PES 3029»), από 3 ημέρες πριν
+  assert.equal(orderDocFilter("EUR-20261127-3029", null, new Date("2026-11-27T08:00:00Z")),
+    "SOSOURCE=1351 AND SERIES=7005 AND (NUM01=202611273029 OR (FINCODE='PES 3029' AND TRNDATE>='2026-11-24'))");
+  assert.equal(orderDocFilter("EUR-20261127-3029", null, new Date("x")), "SOSOURCE=1351 AND SERIES=7005 AND NUM01=202611273029");
+  assert.equal(pesCode("EUR-20261127-3029"), "PES 3029");
+  assert.equal(pesCode("EU'1 OR 1=1"), null); // λιγότερα από 4 ψηφία
+  assert.equal(pesCode("A1'2;3--4"), "PES 1234"); // στο φίλτρο φτάνουν μόνο ψηφία
   assert.ok(!("NUM01" in composeSaldoc({ ...base, number: "ΧΩΡΙΣ-ΑΡΙΘΜΟ" }, S).data.SALDOC[0]));
 });
 
@@ -242,6 +250,19 @@ test("αριθμός παραστατικού όπως φαίνεται στο S
   assert.equal(erpDocNo("PES", "83"), "PES 83"); // σειρά 7005: το FINCODE είναι σκέτο «PES» σε όλα
   assert.equal(erpDocNo("ΑΠΛ0000083", "83"), "ΑΠΛ0000083"); // ο αύξων είναι ήδη μέσα
   assert.equal(erpDocNo("PES", null), "PES");
+  assert.equal(erpDocNo("PES 3029", "103"), "PES 3029 (αύξων 103)"); // κύκλος Λιανικής: αριθμός site + αύξων σειράς
   assert.equal(erpDocNo("", 83), "83");
   assert.equal(erpDocNo(undefined, undefined), null);
+});
+
+test("ποιο παραστατικό είναι η παραγγελία: λιανική με τον αριθμό μας → χειροκίνητο «PES» ίδιου ποσού → δικό μας στις πωλήσεις", () => {
+  const o = { number: "EUR-20261126-8883", total: 299 };
+  const own = "202611268883";
+  // [FINDOC, SOREDIR, NUM01, SUMAMNT]
+  assert.equal(pickOrderDoc([["10", "0", own, "299"], ["20", "10000", "0", "299"]], o), 20); // το προσωπικό την ξαναπέρασε
+  assert.equal(pickOrderDoc([["10", "0", own, "299"], ["30", "10000", own, "299"], ["20", "10000", "0", "299"]], o), 30); // δική μας στη λιανική
+  assert.equal(pickOrderDoc([["10", "0", own, "299"], ["20", "10000", "0", "129"]], o), 10); // ίδια 4 ψηφία, άλλο ποσό: άλλη παραγγελία
+  assert.equal(pickOrderDoc([["20", "10000", "0", "55.95"]], { number: "EUR-20261126-3481", total: 55.94 }), 20); // 1 λεπτό διαφορά
+  assert.equal(pickOrderDoc([["20", "10000", "0", "299"]], { ...o, total: null }), 0); // χωρίς ποσό δεν ταιριάζουμε χειροκίνητο
+  assert.equal(pickOrderDoc([], o), 0);
 });
