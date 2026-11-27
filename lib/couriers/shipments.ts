@@ -41,17 +41,23 @@ type ShipTo = { firstName?: string; lastName?: string; email?: string; phone?: s
 export interface ShipmentDraft {
   orderId: string; number: string; carrier: string | null; name: string; address: string; city: string; zip: string; phone: string; email: string | null;
   pieces: number; weightKg: number; weightKnown: boolean; cod: number; comments: string; blockers: string[];
+  /** διαστάσεις σε εκ. (μήκος, πλάτος, ύψος) όταν η παραγγελία είναι ένα τεμάχιο με γνωστές διαστάσεις */
+  dimsCm: [number, number, number] | null;
+  /** αξία προϊόντων με ΦΠΑ (χωρίς μεταφορικά) — ποσό ασφάλισης */
+  goodsValue: number;
 }
 
 /** Το προσχέδιο του voucher από την παραγγελία: παραλήπτης, τεμάχια, βάρος (από τα χαρακτηριστικά), αντικαταβολή. */
 export async function shipmentDraft(orderId: string): Promise<ShipmentDraft | null> {
-  const o = await db.order.findUnique({ where: { id: orderId }, select: { id: true, number: true, status: true, fulfilment: true, shipping: true, total: true, paymentMethod: true, guestEmail: true, customer: { select: { email: true } }, lines: { select: { qty: true, variant: { select: { productId: true } } } }, shipments: { where: { status: { in: ACTIVE } }, select: { id: true } } } });
+  const o = await db.order.findUnique({ where: { id: orderId }, select: { id: true, number: true, status: true, fulfilment: true, shipping: true, total: true, paymentMethod: true, guestEmail: true, customer: { select: { email: true } }, lines: { select: { qty: true, unitPrice: true, variant: { select: { productId: true } } } }, shipments: { where: { status: { in: ACTIVE } }, select: { id: true } } } });
   if (!o) return null;
   const s = (o.shipping ?? {}) as ShipTo;
   const limits = await shippingLimits(o.lines.map((l) => l.variant.productId));
   let kg = 0, known = true;
   for (const l of o.lines) { const w = limits.get(l.variant.productId)?.weightKg; if (w == null) known = false; kg += (w ?? DEFAULT_KG) * l.qty; }
   const cod = o.paymentMethod === "cod" ? Number(o.total) : 0;
+  const one = o.lines.length === 1 && o.lines[0].qty === 1 ? limits.get(o.lines[0].variant.productId)?.dimsCm ?? null : null;
+  const goodsValue = Math.round(o.lines.reduce((a, l) => a + Number(l.unitPrice) * l.qty, 0) * 100) / 100;
   const blockers: string[] = [];
   if (o.fulfilment !== "courier") blockers.push("Η παραγγελία δεν είναι για αποστολή με courier.");
   if (s.carrier && !isVoucherCarrier(s.carrier)) blockers.push(`Ο courier που διάλεξε ο πελάτης (${carrierDef(s.carrier)?.name ?? s.carrier}) δεν έχει ακόμη έκδοση voucher από εδώ.`);
@@ -65,6 +71,7 @@ export async function shipmentDraft(orderId: string): Promise<ShipmentDraft | nu
     name: `${s.firstName ?? ""} ${s.lastName ?? ""}`.trim(), address: [streetOnly(s.street, s.number), s.number].filter(Boolean).join(" ") + (s.floor ? `, ${s.floor}ος` : ""),
     city: s.city ?? "", zip: zip5(s.zip), phone: e164(s.phone), email: s.email ?? o.customer?.email ?? o.guestEmail ?? null,
     pieces: Math.max(1, o.lines.reduce((a, l) => a + l.qty, 0)), weightKg: Math.max(0.5, Math.round(kg * 10) / 10), weightKnown: known, cod, comments: "", blockers,
+    dimsCm: one, goodsValue,
   };
 }
 
@@ -101,7 +108,11 @@ export async function createShipment(orderId: string, input: { weightKg: number;
       if (!c) return { ok: false as const, error: "Λείπουν τα στοιχεία της ΕΛΤΑ Courier (ELTA_PELATIS, ELTA_USER, ELTA_PASS στο .env ή Ρυθμίσεις → Αποστολές & courier)." };
       const v = await eltaCreateVoucher(c, {
         receiver: { name: d.name, address: d.address, area: d.city, zip: d.zip, phone: d.phone, email: d.email, remarks: input.comments ?? "" },
-        pieces, weightKg, cod: d.cod, refs: [d.number], pickup: c.pickup ? { date: receivedDate() } : null,
+        pieces, weightKg, cod: d.cod, refs: [d.number],
+        // shortcut: διαστάσεις μόνο για ένα τεμάχιο — για πολλά δεν ξέρουμε πώς πακετάρονται, η ΕΛΤΑ μετρά με το βάρος
+        dims: pieces === 1 && d.dimsCm ? { x: d.dimsCm[0], y: d.dimsCm[1], z: d.dimsCm[2] } : null,
+        insurance: c.insurance ? d.goodsValue : 0,
+        pickup: c.pickup ? { date: receivedDate() } : null,
       });
       made = { env: c.env === "production" ? "live" : "test", jobId: v.pickupOrder, voucher: v.voucher, subVouchers: v.children, services: d.cod > 0 ? "cod" : null };
     } else {

@@ -8,7 +8,7 @@ import { AUTH_HEADER, cancelBody, createVoucherBody, eltaDate, credsBody, eltaHo
  * προτεραιότητα) ή από Ρυθμίσεις → Αποστολές & courier → ΕΛΤΑ Courier· περιβάλλον, αποστολέας και παραλαβή από τις Ρυθμίσεις.
  * Το api_Key του authorization κρατιέται μέχρι τη λήξη του· σε σφάλμα «κλειδί» νέα σύνδεση και μία επανάληψη.
  */
-export interface EltaConfig extends EltaCreds { env: EltaEnv; sender: EltaParty; pickup: boolean }
+export interface EltaConfig extends EltaCreds { env: EltaEnv; sender: EltaParty; pickup: boolean; insurance: boolean }
 
 export class EltaError extends Error { constructor(message: string, public code: string | null = null) { super(message); } }
 
@@ -28,6 +28,7 @@ export async function eltaConfig(): Promise<EltaConfig | null> {
       phone: str(data.eltaSenderPhone) || str(site.phone), email: str(site.email) || null,
     },
     pickup: data.eltaPickup === true,
+    insurance: data.eltaNoInsurance !== true, // ασφάλιση με την αξία των προϊόντων, εκτός αν κλείσει στις Ρυθμίσεις
   };
   return c.customerCode && c.user && c.password ? c : null;
 }
