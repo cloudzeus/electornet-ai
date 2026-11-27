@@ -50,19 +50,20 @@ const priceMem = new Map<string, { at: number; ttl: number; p: Promise<Priced>; 
 let depotMem: { at: number; v: { lat: number; lon: number } } | null = null;
 const TIMEOUT = 15_000;
 
-function livePrice(addr: { street: string; number: string; city: string; zip: string }, pkg: { weightKg: number; dims: [number, number, number] }, zones: string[], /** το σημείο παράδοσης, όταν δεν το βρίσκει η ASAP από τη διεύθυνση */ point?: () => Promise<{ lat: number; lon: number } | null>) {
-  const key = JSON.stringify([addr.zip, Math.round(pkg.weightKg * 10), pkg.dims.map((d) => Math.round(d)), zones]);
+function livePrice(addr: { street: string; number: string; city: string; zip: string }, pkg: { weightKg: number; dims: [number, number, number] }, zones: string[], /** το σημείο παράδοσης, όταν δεν το βρίσκει η ASAP από τη διεύθυνση */ point?: () => Promise<{ lat: number; lon: number } | null>, /** σημείο παραλαβής (κατάστημα)· χωρίς αυτό η αποθήκη μας */ from?: { lat: number; lon: number }) {
+  const key = JSON.stringify([addr.zip, Math.round(pkg.weightKg * 10), pkg.dims.map((d) => Math.round(d)), zones, from ? [from.lat.toFixed(4), from.lon.toFixed(4)] : null]);
   const hit = priceMem.get(key);
   if (hit && (!hit.done || Date.now() - hit.at < hit.ttl)) return hit;
   const run = async (): Promise<Priced> => {
     const c = await asapConfig();
     if (!c) return { v: null, err: "ASAP χωρίς στοιχεία σύνδεσης" };
     try {
-      if (!depotMem || Date.now() - depotMem.at > 86_400_000) { const d = await asapDepot(c, TIMEOUT); if (d) depotMem = { at: Date.now(), v: d }; }
-      if (!depotMem) return { v: null, err: "χωρίς αποθήκη παραλαβής" };
+      if (!from && (!depotMem || Date.now() - depotMem.at > 86_400_000)) { const d = await asapDepot(c, TIMEOUT); if (d) depotMem = { at: Date.now(), v: d }; }
+      const origin = from ?? depotMem?.v;
+      if (!origin) return { v: null, err: "χωρίς αποθήκη παραλαβής" };
       const to = point ? await point() : await asapGeocode(c, { street: addr.street, number: addr.number, zip: addr.zip, city: addr.city }, TIMEOUT);
       if (!to) return { v: null, err: "η διεύθυνση δεν βρέθηκε" };
-      const v = pickAsapPrice(await asapPriceQuote(c, depotMem.v, to, pkg, TIMEOUT), zones);
+      const v = pickAsapPrice(await asapPriceQuote(c, origin, to, pkg, TIMEOUT), zones);
       return { v, err: v ? undefined : "εκτός ζώνης ή χωρίς τιμή" };
     } catch (e) { return { v: null, err: e instanceof Error ? e.message : "σφάλμα ASAP" }; }
   };
@@ -109,10 +110,13 @@ export async function atticaOffer(lines: { productId: string; qty: number; title
  * Τη χρεώνει το ταμείο στον courier χωρίς δικό του τιμοκατάλογο και τη δείχνει το email του προσωπικού.
  * Η ASAP απαντά σε ~5″ (μετά 30′ στη μνήμη ανά Τ.Κ. και βάρος): «pending» = δεν πρόλαβε μέσα στο waitMs, null = χωρίς τιμή.
  */
-export async function asapCostQuote(zipRaw: string | null | undefined, pkg: { weightKg: number; dims: [number, number, number] }, waitMs = 20_000): Promise<{ fee: number; zone: string } | "pending" | null> {
+export async function asapCostQuote(zipRaw: string | null | undefined, pkg: { weightKg: number; dims: [number, number, number] }, waitMs = 20_000, /** courier από κατάστημα: το σημείο του· χωρίς αυτό από τα κεντρικά (αποθήκη ASAP) */ from?: { lat: number; lng: number } | null): Promise<{ fee: number; zone: string } | "pending" | null> {
   const zip = (zipRaw ?? "").replace(/\s/g, "");
   if (!/^\d{5}$/.test(zip)) return null;
-  const e = livePrice({ street: "", number: "", city: "", zip }, pkg, ["*"], () => zipPoint(zip).then((p) => p && { lat: p.lat, lon: p.lng }));
+  const e = livePrice({ street: "", number: "", city: "", zip }, pkg, ["*"], () => zipPoint(zip).then((p) => p && { lat: p.lat, lon: p.lng }), from ? { lat: from.lat, lon: from.lng } : undefined);
   const r = e.done ?? (await Promise.race([e.p, new Promise<null>((ok) => setTimeout(() => ok(null), waitMs))]));
-  return r ? r.v : "pending";
+  if (!r) return "pending";
+  // το συμβόλαιο της ASAP έχει τιμοκατάλογο μόνο με παραλαβή από την αποθήκη μας (27/11/2026: από Ξυλόκαστρο μόνο «Επιστροφές»):
+  // χωρίς τιμή από το κατάστημα ισχύει η τιμή από τα κεντρικά
+  return !r.v && from ? asapCostQuote(zipRaw, pkg, waitMs, null) : r.v;
 }

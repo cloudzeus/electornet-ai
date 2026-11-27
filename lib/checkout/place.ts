@@ -108,7 +108,9 @@ export async function placeOrder(input: PlaceInput) {
   if (onRequestHome && input.payment !== "later") return { ok: false as const, error: "Η παραγγελία αυτή καταχωρείται χωρίς πληρωμή — θα σε καλέσουμε για τα μεταφορικά και τον τρόπο πληρωμής.", quote: publicQuote(q) };
   if (input.payment === "later" && !onRequestHome) return { ok: false as const, error: "Διάλεξε τρόπο πληρωμής.", quote: publicQuote(q) };
   // ό,τι πάει με courier σε περιοχή χωρίς κατάστημα: δεν υπάρχει δωρεάν παράδοση «από κατάστημα» (ο server δεν εμπιστεύεται το ταμείο)
-  if (input.fulfilment === "appointment" && !q.storeDelivery) return { ok: false as const, error: "Στην περιοχή σου δεν έχουμε κατάστημα για δωρεάν παράδοση στο σπίτι. Διάλεξε αποστολή με courier ή παραλαβή από κατάστημα.", quote: publicQuote(q) };
+  if (input.fulfilment === "appointment" && !q.storeDelivery) return { ok: false as const, error: `Δεν έχουμε κατάστημα έως ${q.home.freeKm} χλμ από τη διεύθυνσή σου για δωρεάν παράδοση στο σπίτι. Διάλεξε αποστολή με courier ή παραλαβή από κατάστημα.`, quote: publicQuote(q) };
+  // έως το δωρεάν όριο από το κατάστημα δεν στέλνουμε courier (Euronics 27/11/2026)· το Express της Αττικής μένει επιλογή επί πληρωμή
+  if (input.fulfilment === "courier" && q.storeArea && !q.attica.attica) return { ok: false as const, error: `Το κατάστημα ${q.home.store ? `Euronics ${q.home.store.city} ` : ""}απέχει έως ${q.home.freeKm} χλμ: σου φέρνει δωρεάν την παραγγελία. Διάλεξε «Παράδοση από το κατάστημα» ή παραλαβή από κατάστημα.`, quote: publicQuote(q) };
   // ογκώδη εκτός Αττικής με συνεργαζόμενο κατάστημα κοντά: στο σπίτι τα φέρνει το κατάστημα που διάλεξε ο πελάτης (υποχρεωτικό)
   if (q.freight?.localStores.length && !q.attica.attica) {
     if (input.fulfilment === "appointment") return { ok: false as const, error: "Για αυτό το καλάθι διάλεξε παράδοση από κατάστημα Euronics ή παραλαβή από κατάστημα.", quote: publicQuote(q) };
@@ -129,7 +131,10 @@ export async function placeOrder(input: PlaceInput) {
   const lockerAt = input.fulfilment === "courier" && carrierDef(q.carrier)?.kind === "locker" ? input.locker ?? null : null;
   const carrier = isExpress ? { carrier: "asap", carrierName: "ASAP Express", service: "asap-express", expressFee: q.shipping / 100, expressZone: q.attica.express?.state === "ok" ? q.attica.express.zone : null }
     : q.attica.attica && input.fulfilment === "appointment" ? { carrierName: "Κανονική παράδοση euronics", service: "euronics-standard" }
-    : input.fulfilment === "courier" && q.carrier ? { carrier: q.carrier, carrierName: carrierDef(q.carrier)!.name, ...(carrierDef(q.carrier)!.kind === "locker" && input.locker ? { locker: input.locker } : {}) }
+    : input.fulfilment === "courier" && q.carrier ? { carrier: q.carrier, carrierName: carrierDef(q.carrier)!.name, ...(carrierDef(q.carrier)!.kind === "locker" && input.locker ? { locker: input.locker } : {}),
+        // από πού φεύγει το δέμα: κατάστημα πέρα από το δωρεάν όριο ή τα κεντρικά
+        courierFrom: q.home.mode === "courier-store" && q.home.store ? { store: q.home.store } : q.home.mode ? { central: true } : null }
+    : input.fulfilment === "appointment" && q.storeArea && q.home.store ? { carrierName: `Κατάστημα ${q.home.store.name}`, localStore: q.home.store }
     : input.fulfilment === "freight" ? (q.freight?.localStore ? { carrierName: `Κατάστημα ${q.freight.localStore.name}`, localStore: q.freight.localStore } : q.freight?.central ? { carrierName: "Μεταφορική από το κεντρικό κατάστημα", central: true } : { carrierName: "Μεταφορική" }) : {};
   if (!q.lines.length) return { ok: false as const, error: "Τα προϊόντα του καλαθιού δεν είναι πια διαθέσιμα." };
   // προϊόντα καμπάνιας πριν την «έναρξη αγορών»: δεν περνά παραγγελία, ό,τι κι αν έχει ο browser στο καλάθι

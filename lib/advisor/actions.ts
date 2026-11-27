@@ -12,7 +12,7 @@ import { addItems } from "@/lib/wishlist/repo";
 const eur = (cents: number) => Math.round(cents) / 100;
 
 export interface ShippingAnswer {
-  place: string | null; zip: string | null; goodsEur: number; /** δωρεάν μεταφορικά: έχουμε κατάστημα στην περιοχή του Τ.Κ. */ storeArea: boolean;
+  place: string | null; zip: string | null; goodsEur: number; /** δωρεάν μεταφορικά: κατάστημα έως 15 χλμ οδικώς από τον Τ.Κ. */ storeArea: boolean;
   options: { name: string; feeEur: number; eta: string; available: boolean; reason: string | null }[];
   bulky: string | null; note: string | null;
 }

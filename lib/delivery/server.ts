@@ -39,7 +39,7 @@ export const resetPartnerCache = () => { partnerMem = null; };
  * από κατάστημα, εκτός Αττικής). [] = κανένα κοντά · undefined = ακόμη υπολογίζεται (ή λείπει Τ.Κ. / πόλη) · null = ο χάρτης
  * δεν βρήκε τη διεύθυνση ή την απόσταση (5′ στη μνήμη: το ταμείο το κάνει «κατόπιν συνεννόησης») — ποτέ ευθεία.
  */
-export interface LocalStore { id: string; partnerId: string; name: string; /** η διεύθυνση του καταστήματος: αυτή διαβάζει ο πελάτης, όχι το επώνυμο του συνεργάτη */ address: string; city: string; km: number }
+export interface LocalStore { id: string; partnerId: string; name: string; /** η διεύθυνση του καταστήματος: αυτή διαβάζει ο πελάτης, όχι το επώνυμο του συνεργάτη */ address: string; city: string; km: number; /** αφετηρία για την τιμή courier από το κατάστημα */ lat: number; lng: number }
 let coopMem: { at: number; v: { id: string; partnerId: string; name: string; address: string; city: string; lat: number; lng: number }[] } | null = null;
 async function coopStores() {
   if (coopMem && Date.now() - coopMem.at < 60_000) return coopMem.v;
@@ -54,7 +54,7 @@ const nearKey = (a: { street?: string | null; number?: string | null; city?: str
 export const nearStoresFound = (a: Parameters<typeof nearKey>[0]) => nearMem.get(nearKey(a))?.found;
 export async function nearStoresFor(a: { street?: string | null; number?: string | null; city?: string | null; zip?: string | null }, budgetMs = 2500): Promise<LocalStore[] | null | undefined> {
   const zip = (a.zip ?? "").trim(), city = (a.city ?? "").trim(), street = [a.street, a.number].map((x) => (x ?? "").trim()).filter(Boolean).join(" ");
-  if (!/^\d{5}$/.test(zip) || !city) return undefined;
+  if (!/^\d{5}$/.test(zip)) return undefined; // χωρίς πόλη: από το σημείο του Τ.Κ.
   const key = nearKey(a);
   let hit = nearMem.get(key);
   // έτοιμο αποτέλεσμα: 30′ · όσο τρέχει ο υπολογισμός μοιράζεται · «δεν βρέθηκε»: 5′, μετά ξαναδοκιμάζεται
@@ -62,13 +62,13 @@ export async function nearStoresFor(a: { street?: string | null; number?: string
     if (nearMem.size > 2000) nearMem.clear();
     const run = async (): Promise<LocalStore[] | null> => {
       // Nominatim: 1 αίτημα το δευτερόλεπτο — πρώτα η οδός, αλλιώς ο οικισμός του Τ.Κ.
-      let pt = street ? await geocodeAddress(`${street}, ${zip} ${city}, Ελλάδα`, { timeoutMs: 6000, preferPlace: true }).catch(() => null) : null;
+      let pt = street && city ? await geocodeAddress(`${street}, ${zip} ${city}, Ελλάδα`, { timeoutMs: 6000, preferPlace: true }).catch(() => null) : null;
       entry.found = pt || !street ? "ok" : "area"; // χωρίς οδό ο Τ.Κ. είναι ό,τι περιμένουμε
       // αλλιώς το σημείο του Τ.Κ. (η αναζήτηση «Τ.Κ. πόλη» αποτυγχάνει σε μεγάλες πόλεις)
-      if (!pt) { if (street) await new Promise((r) => setTimeout(r, 1100)); const z = await zipPoint(zip); pt = z && { ...z, label: zip, score: 0 }; }
+      if (!pt) { if (street && city) await new Promise((r) => setTimeout(r, 1100)); const z = await zipPoint(zip); pt = z && { ...z, label: zip, score: 0 }; }
       if (!pt) { entry.found = "none"; return null; }
       const r = await rankByRoad(pt, await coopStores());
-      return r?.map((x) => ({ id: x.item.id, partnerId: x.item.partnerId, name: x.item.name, address: x.item.address, city: x.item.city, km: x.km })) ?? null;
+      return r?.map((x) => ({ id: x.item.id, partnerId: x.item.partnerId, name: x.item.name, address: x.item.address, city: x.item.city, km: x.km, lat: x.item.lat, lng: x.item.lng })) ?? null;
     };
     const entry: NonNullable<typeof hit> = { at: Date.now(), p: Promise.resolve(null) };
     entry.p = run().catch(() => null);
@@ -130,7 +130,7 @@ async function createRoute(o: OrderForRoute, bulky: boolean) {
   let candidates = o.fulfilment === "freight" || o.fulfilment === "appointment" ? await partnerCandidates(o.lines) : [];
   // ο πελάτης διάλεξε παράδοση από το κοντινό του συνεργαζόμενο κατάστημα (παράδοση στο σπίτι από κατάστημα): αυτός ο συνεργάτης αναλαμβάνει όλη την παραγγελία
   const local = (o.shipping as { localStore?: { partnerId?: string } } | null)?.localStore?.partnerId;
-  if (o.fulfilment === "freight" && local) {
+  if ((o.fulfilment === "freight" || o.fulfilment === "appointment") && local) {
     const p = await db.partner.findUnique({ where: { id: local }, select: { id: true, name: true, agencyId: true } });
     if (p) candidates = [{ ...p, hasStock: candidates.find((c) => c.id === p.id)?.hasStock ?? false, delivery: { zips: [zipOf(o)], homeDelivery: true, bulkyOk: true, installs: true, eta: "" } }];
   }
