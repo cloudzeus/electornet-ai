@@ -182,7 +182,8 @@ async function sendSaldocRun(orderId: string, staffId?: string | null): Promise<
     await db.erpSync.update({ where: { orderId }, data: { status: "sent", erpDocId: String(findoc), docNo, lastError: null, log: keepLog() } }).catch(() => null);
     const { audit } = await import("@/lib/rbac/audit");
     await audit(staffId ?? null, "order.erp-send", "Order", orderId, null, { findoc, docNo, fincode: o.number, total: expected });
-    void import("@/lib/orders/staff-mail").then((m) => m.sendStaffOrderMail(orderId, "erp")).catch(() => null);
+    // μόνο σε χειροκίνητη αποστολή (staffId) — η αυτόματη ήδη έστειλε το email «new» μόλις μπήκε η παραγγελία/πληρώθηκε (TKT-2026-0005: μία φορά ανά παραγγελία)
+    if (staffId) void import("@/lib/orders/staff-mail").then((m) => m.sendStaffOrderMail(orderId, "erp")).catch(() => null);
     return { ok: true, message, findoc, docNo };
   };
   // το παραστατικό όπως αποθηκεύτηκε: ο αριθμός του μέσα στο ERP (κωδικός + αύξων της σειράς) και το σύνολό του

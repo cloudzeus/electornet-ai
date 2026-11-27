@@ -1,6 +1,5 @@
 import "server-only";
 import { maxInstalments } from "@/lib/format";
-import { randomInt } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getCustomerSession } from "@/lib/account/session";
@@ -161,8 +160,12 @@ export async function placeOrder(input: PlaceInput) {
         const row = await tx.service.upsert({ where: { slug }, update: {}, create: { slug, no: services.indexOf(s) + 1, title: s.title, blurb: s.blurb ?? s.title, priceFrom: s.priceFrom != null ? new Prisma.Decimal(s.priceFrom) : null, addonAt: (s.addonAt ?? []) as Prisma.InputJsonValue } });
         svcIds.set(slug, row.id);
       }
+      // αύξουσα σειρά ανά ημέρα (όχι τυχαίος αριθμός) — TKT-2026-0005
+      const dayPrefix = `EUR-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-`;
       for (let i = 0; i < 5 && !number; i++) {
-        const n = `EUR-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(randomInt(1000, 9999))}`;
+        const last = await tx.order.findFirst({ where: { number: { startsWith: dayPrefix } }, orderBy: { number: "desc" }, select: { number: true } });
+        const next = (last ? parseInt(last.number.slice(dayPrefix.length), 10) : 0) + i + 1;
+        const n = `${dayPrefix}${String(next).padStart(4, "0")}`;
         if (!(await tx.order.findUnique({ where: { number: n }, select: { id: true } }))) number = n;
       }
       if (!number) throw new Abort("Δεν δημιουργήθηκε αριθμός παραγγελίας. Δοκίμασε ξανά.");
