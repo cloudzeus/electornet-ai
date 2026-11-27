@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { carrierOffers, pickCarrier, isAtticaZip, noPriceArea, pricedArea, storeAreaZip } from "./carriers";
+import { carrierOffers, pickCarrier, isAtticaZip, noPriceArea, pricedArea, pricedAreaRate, storeAreaZip } from "./carriers";
 
 test("μόνο οι ενεργοί, με δικό τους κόστος ή το προεπιλεγμένο", () => {
   const o = carrierOffers({ eltaOn: true, eltaFee: 3.5, boxnowOn: true, boxnowPartnerId: "123", acsOn: false }, null);
@@ -77,10 +77,23 @@ test("δωρεάν στις περιοχές με κατάστημα: ίδιος
 test("ο συμφωνημένος τιμοκατάλογος χρεώνεται ακόμη κι όπου έχουμε κατάστημα", () => {
   assert.equal(pricedArea("63074"), "Χαλκιδική"); // έχουμε κατάστημα, αλλά ισχύει ο κατάλογος
   assert.equal(pricedArea("85200"), "Κάλυμνος");
-  assert.equal(pricedArea("18020"), "Πόρος και Γαλατάς");
   assert.equal(pricedArea("45221"), "Ιωάννινα (όλος ο νομός)");
   assert.equal(pricedArea("72200"), "Ιεράπετρα και τα γύρω χωριά");
   assert.equal(pricedArea("11527"), null);
   assert.equal(pricedArea("54622"), null);
   assert.equal(pricedArea(null), null);
+});
+
+test("Πόρος/Γαλατάς: κοινός Τ.Κ. 18020, ο έλεγχος γίνεται με τον οικισμό (πολιτική 26/11/2026, §2)", () => {
+  assert.equal(pricedArea("18020", "Πόρος"), "Πόρος");
+  assert.equal(pricedArea("18020", "Γαλατάς"), null); // ο Γαλατάς ΔΕΝ είναι ειδική περιοχή
+  assert.equal(pricedArea("18020"), null); // χωρίς οικισμό δεν ξέρουμε ποιος από τους δύο είναι
+});
+
+test("πίνακας τιμών Α–Ε ανά ειδική περιοχή (πολιτική 26/11/2026, §2)", () => {
+  assert.deepEqual(pricedAreaRate("63074"), { name: "Χαλκιδική", prices: { A: 300, B: 900, G: 5000, D: 5000, E: 5000 }, excludeCourierGDE: true });
+  assert.deepEqual(pricedAreaRate("85900"), { name: "Αστυπάλαια", prices: { A: 300, B: 10000, G: 10000, D: 10000, E: 10000 }, excludeCourierGDE: true });
+  assert.equal(pricedAreaRate("18020", "Πόρος")!.prices.B, 3000);
+  assert.equal(pricedAreaRate("18020", "Γαλατάς"), null);
+  assert.equal(pricedAreaRate("11527"), null);
 });

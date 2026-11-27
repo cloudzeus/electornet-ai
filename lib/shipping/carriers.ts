@@ -5,7 +5,9 @@
  */
 import NO_PRICE_AREAS from "./no-price-areas.json";
 import PRICED_AREAS from "./priced-areas.json";
+import PRICED_AREA_PRICES from "./priced-area-prices.json";
 import { ISLAND_PREFIXES } from "@/lib/delivery/rates";
+import { type ShipClass, SHIP_CLASSES } from "./ship-class";
 
 export type CarrierId = "acs" | "geniki" | "elta" | "asap" | "boxnow";
 /** address = στη διεύθυνση του πελάτη · locker = σε αυτόματο θυρίδα (ο πελάτης διαλέγει θυρίδα) */
@@ -57,11 +59,30 @@ export const isAtticaZip = (zip: string | null | undefined) => /^1\d{4}$/.test(z
  * τιμές ανά κλάση Α–Ε). Χρεώνονται πάντα, ακόμη κι αν τυχαίνει να έχουμε κατάστημα στον Τ.Κ. — έτσι το επιβεβαίωσε η
  * Euronics για Χαλκιδική, Κάλυμνο, Σκόπελο, Ιθάκη, Σκύρο και Σπέτσες (19/11/2026). Τα `zips` είναι προθέματα Τ.Κ.
  */
-export const pricedArea = (zip: string | null | undefined): string | null => {
+const normSettle = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+/**
+ * Πόρος/Γαλατάς έχουν κοινό Τ.Κ. 18020: ο Πόρος μπαίνει στη λίστα μόνο όταν ο οικισμός (το πεδίο «πόλη») περιέχει
+ * «Πόρος» — ο Γαλατάς ΔΕΝ είναι ειδική περιοχή (πολιτική 26/11/2026, §2, υποσημείωση) και χρεώνεται με τον βασικό
+ * πίνακα, σαν κάθε άλλη διεύθυνση εκτός περιοχής καταστήματος.
+ */
+export const pricedArea = (zip: string | null | undefined, city?: string | null): string | null => {
   const z = (zip ?? "").trim();
   if (!/^\d{5}$/.test(z)) return null;
-  return PRICED_AREAS.find((a) => a.zips.some((p) => z.startsWith(p)))?.name ?? null;
+  const c = normSettle(city ?? "");
+  return (PRICED_AREAS as { name: string; zips: string[]; settle?: string[] }[])
+    .find((a) => a.zips.some((p) => z.startsWith(p)) && (!a.settle?.length || a.settle.some((s) => c.includes(s))))?.name ?? null;
 };
+
+export interface PricedAreaRate { name: string; prices: Record<ShipClass, number>; excludeCourierGDE: boolean }
+/** Ο πίνακας τιμών Α–Ε της ειδικής περιοχής (§2), σε λεπτά. null = όχι ειδική περιοχή → ισχύει ο βασικός πίνακας. */
+export function pricedAreaRate(zip: string | null | undefined, city?: string | null): PricedAreaRate | null {
+  const name = pricedArea(zip, city);
+  if (!name) return null;
+  const row = (PRICED_AREA_PRICES as Record<string, { prices: number[]; excludeCourierGDE: boolean }>)[name];
+  if (!row) return null;
+  const prices = Object.fromEntries(SHIP_CLASSES.map((c, i) => [c, Math.round(row.prices[i] * 100)])) as Record<ShipClass, number>;
+  return { name, prices, excludeCourierGDE: row.excludeCourierGDE };
+}
 
 /**
  * «Ανεξάρτητα ποσού έχουμε δωρεάν μεταφορικά σε περιοχές με καταστήματα» (Euronics, σημείωση στο έγγραφο 2.0, 20/11/2026).

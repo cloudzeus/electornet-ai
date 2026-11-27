@@ -29,7 +29,7 @@ export async function saveBulkyRules(raw: unknown, userId: string) {
   return { before, after };
 }
 
-export type ShipLimit = ShipVerdict & { weightKg: number | null; dimsCm: [number, number, number] | null };
+export type ShipLimit = ShipVerdict & { weightKg: number | null; dimsCm: [number, number, number] | null; categoryPath: string[] };
 /** Τα στοιχεία ενός προϊόντος που κρίνουν την αποστολή (χωρίς τους κανόνες): κατηγορία με τις γονικές, βάρος, διαστάσεις. */
 export type ShipFactsRow = { id: string; categoryId: string; path: string[]; weightKg: number | null; dimsCm: [number, number, number] | null };
 
@@ -75,7 +75,7 @@ export async function shippingFacts(productIds: string[]): Promise<ShipFactsRow[
 /** Courier / θυρίδα ανά προϊόν με τους τρέχοντες (ή δοκιμαστικούς) κανόνες. */
 export async function shippingLimits(productIds: string[], rulesOverride?: BulkyRules): Promise<Map<string, ShipLimit>> {
   const [rules, facts] = await Promise.all([rulesOverride ?? getBulkyRules(), shippingFacts(productIds)]);
-  return new Map(facts.map((f) => [f.id, { ...decideShipping({ categoryPath: f.path, weightKg: f.weightKg, dimsCm: f.dimsCm }, rules), weightKg: f.weightKg, dimsCm: f.dimsCm }]));
+  return new Map(facts.map((f) => [f.id, { ...decideShipping({ categoryPath: f.path, weightKg: f.weightKg, dimsCm: f.dimsCm }, rules), weightKg: f.weightKg, dimsCm: f.dimsCm, categoryPath: f.path }]));
 }
 
 /** Τα στοιχεία όλων των ενεργών προϊόντων (5′ στη μνήμη) — για την επίπτωση των κανόνων σε πραγματικό χρόνο. */
