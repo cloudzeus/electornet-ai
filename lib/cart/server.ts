@@ -321,20 +321,22 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   const zipTxt = `Τ.Κ. ${(input.zip ?? "").trim() || "—"}`;
   const cr = carrier ? rated(carrier.id) : null;
   const byTable = (r: NonNullable<typeof cr>) => `τιμοκατάλογος, ζώνη «${r.zone.name}» × χρεώσιμο βάρος ${dec(r.kg)} κιλά${r.remote ? " + επιβάρυνση δυσπρόσιτης περιοχής" : ""}: ${e2(r.fee)}${r.cost != null ? ` (δικό μας κόστος ${e2(r.cost)})` : ""}`;
+  // παραπομπή στην πολιτική μεταφορικών (ΕΝΗΜΕΡΩΣΗ ESHOP ΜΕΤΑΦΟΡΙΚΑ ΝΟΕΜΒΡΙΟΣ 2026, 26/11/2026) ανά ενότητα, για το email του προσωπικού
+  const pdfRef = (section: string) => ` [Πολιτική μεταφορικών eshop, 26/11/2026, §${section}]`;
   const shippingWhy: string[] = !out.length ? [] : [
     input.delivery === "click-collect" ? "Παραλαβή από κατάστημα: χωρίς μεταφορικά."
     : zipNeeded ? "Δεν δόθηκε Τ.Κ.: καμία χρέωση μεταφορικών."
-    : whyOnRequest ? whyOnRequest
-    : onRequest ? `${zipTxt} (${onRequest}): περιοχή χωρίς συμφωνημένη τιμή αποστολής. Τα μεταφορικά ορίζονται στο τηλέφωνο και ΔΕΝ έχουν μπει στο σύνολο.`
-    : attica.attica ? (isExpress ? `${zipTxt} (Αττική): ASAP Express, τιμή της ASAP για αυτή τη διεύθυνση ${e2(express!.fee)} (ζώνη ${express!.zone}).` : `${zipTxt} (Αττική): «Κανονική παράδοση euronics», δωρεάν (κατάστημα έως ${lr.freeKm} χλμ οδικώς).`)
-    : viaFreight ? (near ? `Συσκευή που δεν πάει με courier, εκτός Αττικής: την παραδίδει το κατάστημα ${near.name} (${near.address}, ${near.city}), ${dec(near.km)} χλμ. οδικώς. Δωρεάν έως ${lr.freeKm} χλμ.${near.fee ? ` Πιο μακριά, πίνακας Α–Ε${pricedRate ? ` της ειδικής περιοχής (${pricedRate.name})` : ""} του καλαθιού: ${e2(near.fee)}.` : ""}`
-      : `Μεταφορική${central ? ` από το κεντρικό (κανένα συνεργαζόμενο κατάστημα μέσα σε ${lr.maxKm} χλμ.)` : ""}: πίνακας Α–Ε${pricedRate ? ` της ειδικής περιοχής (${pricedRate.name})` : ""} του καλαθιού: ${e2(freight!.fee)}.`)
-    : storeArea && homeStore ? `${zipTxt}: το κατάστημα ${homeStore.name} (${homeStore.address}, ${homeStore.city}) απέχει ${dec(homeStore.km)} χλμ οδικώς, έως ${lr.freeKm}: παράδοση από το κατάστημα, δωρεάν.`
-    : (delivery && delivery !== "courier") || !bulky.courier ? "Παράδοση euronics με ραντεβού: χωρίς χρέωση μεταφορικών."
+    : whyOnRequest ? whyOnRequest + pdfRef("4")
+    : onRequest ? `${zipTxt} (${onRequest}): περιοχή χωρίς συμφωνημένη τιμή αποστολής. Τα μεταφορικά ορίζονται στο τηλέφωνο και ΔΕΝ έχουν μπει στο σύνολο.${pdfRef("4")}`
+    : attica.attica ? (isExpress ? `${zipTxt} (Αττική): ASAP Express, τιμή της ASAP για αυτή τη διεύθυνση ${e2(express!.fee)} (ζώνη ${express!.zone}).${pdfRef("5")}` : `${zipTxt} (Αττική): «Κανονική παράδοση euronics», δωρεάν (κατάστημα έως ${lr.freeKm} χλμ οδικώς).${pdfRef("1")}`)
+    : viaFreight ? (near ? `Συσκευή που δεν πάει με courier, εκτός Αττικής: την παραδίδει το κατάστημα ${near.name} (${near.address}, ${near.city}), ${dec(near.km)} χλμ. οδικώς. Δωρεάν έως ${lr.freeKm} χλμ.${near.fee ? ` Πιο μακριά, πίνακας Α–Ε${pricedRate ? ` της ειδικής περιοχής (${pricedRate.name})` : ""} του καλαθιού: ${e2(near.fee)}.` : ""}${pdfRef(pricedRate ? "2" : "1-3")}`
+      : `Μεταφορική${central ? ` από το κεντρικό (κανένα συνεργαζόμενο κατάστημα μέσα σε ${lr.maxKm} χλμ.)` : ""}: πίνακας Α–Ε${pricedRate ? ` της ειδικής περιοχής (${pricedRate.name})` : ""} του καλαθιού: ${e2(freight!.fee)}.${pdfRef(pricedRate ? "2" : "1-3")}`)
+    : storeArea && homeStore ? `${zipTxt}: το κατάστημα ${homeStore.name} (${homeStore.address}, ${homeStore.city}) απέχει ${dec(homeStore.km)} χλμ οδικώς, έως ${lr.freeKm}: παράδοση από το κατάστημα, δωρεάν.${pdfRef("1")}`
+    : (delivery && delivery !== "courier") || !bulky.courier ? `Παράδοση euronics με ραντεβού: χωρίς χρέωση μεταφορικών.${pdfRef("1")}`
     : carrier ? `${courierFrom ? `Courier από το κατάστημα ${courierFrom.name} (${courierFrom.city}, ${dec(courierFrom.km)} χλμ οδικώς${priced ? `, περιοχή τιμοκαταλόγου «${priced}»` : ""})` : `Courier από τα κεντρικά (κανένα κατάστημα μέσα σε ${lr.courierKm} χλμ οδικώς${mode == null ? ", ή άγνωστη απόσταση" : ""})`}. ` + ( (cr ? `${carrier.name}, ${byTable(cr)}.`
       : asapFee && viaAsap(carrier) ? `${carrier.name}: τιμή από το ASAP price calculator, ζώνη «${asapFee.zone}» × χρεώσιμο βάρος ${dec(shipKg)} κιλά: ${e2(carrier.fee)} με ΦΠΑ (δεν υπάρχει δημοσιευμένος τιμοκατάλογος ${carrier.name}).`
-      : `${carrier.name}: σταθερή τιμή των ρυθμίσεων ${e2(carrier.fee)}${askAsap && viaAsap(carrier) ? " (το ASAP price calculator δεν έδωσε τιμή για αυτόν τον Τ.Κ.)" : ""}.`))
-    : `Γενικό κόστος αποστολής των ρυθμίσεων: ${e2(rules.fee)}.`,
+      : `${carrier.name}: σταθερή τιμή των ρυθμίσεων ${e2(carrier.fee)}${askAsap && viaAsap(carrier) ? " (το ASAP price calculator δεν έδωσε τιμή για αυτόν τον Τ.Κ.)" : ""}.`)) + pdfRef("5")
+    : `Γενικό κόστος αποστολής των ρυθμίσεων: ${e2(rules.fee)}.${pdfRef("5")}`,
     ...(freeShipping ? [`Προσφορά «${freeShipping.label}» (${freeShipping.code}): δωρεάν μεταφορικά, ο πελάτης γλίτωσε ${e2(freeShipping.saved)}.`] : []),
     ...(codFee ? [`Αντικαταβολή: χρέωση ${e2(codFee)}.`] : []),
     `Χρεώθηκαν στον πελάτη: ${e2(shipping + codFee)}${codFee ? ` (μεταφορικά ${e2(shipping)} + αντικαταβολή ${e2(codFee)})` : ""}.`,
