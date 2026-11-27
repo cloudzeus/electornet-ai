@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { asapConfig, asapDepot, asapGeocode, asapPriceQuote } from "@/lib/couriers/asap/client";
 import { EXPRESS_ETA, STANDARD_ETA, STANDARD_UNKNOWN, asapEligible, expressCheck, inZips, normalizeAsapRules, pickAsapPrice, type AsapRules } from "./asap-express";
 import { isAtticaZip } from "./carriers";
+import { zipPoint } from "@/lib/stores/geocode";
 import type { ShipLimit } from "./bulky-server";
 import { categoryPaths } from "@/lib/warranty/pricing";
 import DEFAULT_CATS from "./asap-categories.json";
@@ -103,21 +104,6 @@ export async function atticaOffer(lines: { productId: string; qty: number; title
   return { attica, standard, express: { state: "ok", fee: r.v.fee, zone: r.v.zone, eta: EXPRESS_ETA }, why: null };
 }
 
-// Το σημείο ενός Τ.Κ. από το OpenStreetMap: η αναζήτηση της ASAP με μόνο Τ.Κ. βγάζει λάθος σημείο (τη Ρόδο στην Ιταλία).
-// Ο Τ.Κ. δεν μετακινείται: μένει στη μνήμη της διεργασίας· η αποτυχία όχι, για να ξαναδοκιμαστεί.
-const zipPoint = new Map<string, Promise<{ lat: number; lon: number } | null>>();
-function pointOfZip(zip: string) {
-  let p = zipPoint.get(zip);
-  if (!p) {
-    p = fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=gr&postalcode=${zip}`, { headers: { "User-Agent": "euronics-redesign/1.0 (store locator; admin@euronics.gr)" }, signal: AbortSignal.timeout(6000) })
-      .then((r) => (r.ok ? (r.json() as Promise<{ lat: string; lon: string }[]>) : []))
-      .then((j) => (j[0] ? { lat: Number(j[0].lat), lon: Number(j[0].lon) } : null)).catch(() => null);
-    zipPoint.set(zip, p);
-    void p.then((v) => { if (!v) zipPoint.delete(zip); });
-  }
-  return p;
-}
-
 /**
  * Η τιμή του ASAP price calculator για ένα δέμα προς έναν Τ.Κ., σε όλη την Ελλάδα (συμβολαιακός τιμοκατάλογος, με ΦΠΑ).
  * Τη χρεώνει το ταμείο στον courier χωρίς δικό του τιμοκατάλογο και τη δείχνει το email του προσωπικού.
@@ -126,7 +112,7 @@ function pointOfZip(zip: string) {
 export async function asapCostQuote(zipRaw: string | null | undefined, pkg: { weightKg: number; dims: [number, number, number] }, waitMs = 20_000): Promise<{ fee: number; zone: string } | "pending" | null> {
   const zip = (zipRaw ?? "").replace(/\s/g, "");
   if (!/^\d{5}$/.test(zip)) return null;
-  const e = livePrice({ street: "", number: "", city: "", zip }, pkg, ["*"], () => pointOfZip(zip));
+  const e = livePrice({ street: "", number: "", city: "", zip }, pkg, ["*"], () => zipPoint(zip).then((p) => p && { lat: p.lat, lon: p.lng }));
   const r = e.done ?? (await Promise.race([e.p, new Promise<null>((ok) => setTimeout(() => ok(null), waitMs))]));
   return r ? r.v : "pending";
 }

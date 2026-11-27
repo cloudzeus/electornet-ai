@@ -20,6 +20,33 @@ export async function geocodeAddress(q: string, opts: { timeoutMs?: number; pref
   return r ? { lat: Number(r.lat), lng: Number(r.lon), label: r.display_name, score: r.importance ?? 0 } : null;
 }
 
+// Το σημείο ενός Τ.Κ. από το OpenStreetMap (αναζήτηση μόνο με Τ.Κ.): βρίσκει κάθε πραγματικό ελληνικό Τ.Κ., κανέναν ανύπαρκτο.
+// Η αναζήτηση «Τ.Κ. πόλη» σε ελεύθερο κείμενο αποτυγχάνει σε μεγάλες πόλεις («54622 Θεσσαλονίκη»), η ASAP με μόνο Τ.Κ. βγάζει τη Ρόδο στην Ιταλία.
+// Ο Τ.Κ. δεν μετακινείται: μένει στη μνήμη της διεργασίας· η αποτυχία δικτύου όχι (ξαναδοκιμάζεται), το «δεν υπάρχει» ναι.
+const zipMem = new Map<string, Promise<{ lat: number; lng: number } | null>>();
+export function zipPoint(zipRaw: string): Promise<{ lat: number; lng: number } | null> {
+  const zip = zipRaw.replace(/\s/g, "");
+  if (!/^\d{5}$/.test(zip)) return Promise.resolve(null);
+  let p = zipMem.get(zip);
+  if (!p) {
+    let netErr = false;
+    p = fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=gr&postalcode=${zip}`, { headers: { "User-Agent": "euronics-redesign/1.0 (store locator; admin@euronics.gr)" }, signal: AbortSignal.timeout(6000) })
+      .then((r) => { if (!r.ok) { netErr = true; return []; } return r.json() as Promise<{ lat: string; lon: string }[]>; })
+      .then((j) => (j[0] ? { lat: Number(j[0].lat), lng: Number(j[0].lon) } : null)).catch(() => { netErr = true; return null; });
+    zipMem.set(zip, p);
+    if (zipMem.size > 5000) zipMem.delete(zipMem.keys().next().value!);
+    void p.then(() => { if (netErr) zipMem.delete(zip); });
+  }
+  return p;
+}
+/** Υπάρχει ο Τ.Κ.; true/false, undefined = δεν απάντησε ο χάρτης μέσα στο waitMs (ή σφάλμα δικτύου: δεν λέμε στον πελάτη ότι είναι λάθος). */
+export async function zipExists(zip: string, waitMs = 1500): Promise<boolean | undefined> {
+  const p = zipPoint(zip);
+  const r = await Promise.race([p.then((v) => ({ v })), new Promise<null>((ok) => setTimeout(() => ok(null), waitMs))]);
+  if (!r) return undefined;
+  return r.v ? true : zipMem.has(zip.replace(/\s/g, "")) ? false : undefined;
+}
+
 /**
  * Ό,τι γράφει ο πελάτης («Κυψέλη», «546 22», «Ερμού 10 Αθήνα») → σημείο + σύντομη ετικέτα για την οθόνη. Μόνο Ελλάδα.
  * null όταν δεν βρεθεί ή δεν απαντήσει έγκαιρα το Nominatim.

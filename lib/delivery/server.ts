@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { normalizeRates, quoteRate, type RateData } from "./rates";
 import { getSetting } from "@/lib/settings/store";
-import { geocodeAddress } from "@/lib/stores/geocode";
+import { geocodeAddress, zipPoint } from "@/lib/stores/geocode";
 import { rankByRoad } from "@/lib/geo/road";
 import { decideRoute, normalizeDelivery, pickPartner, STEPS, type RouteCandidate, type RouteMode, type StepKey } from "./routing";
 
@@ -47,11 +47,15 @@ async function coopStores() {
   coopMem = { at: Date.now(), v: rows.map((r) => ({ ...r, partnerId: r.partnerId! })) };
   return coopMem.v;
 }
-const nearMem = new Map<string, { at: number; p: Promise<LocalStore[] | null>; done?: boolean; ttl?: number }>();
+const nearMem = new Map<string, { at: number; p: Promise<LocalStore[] | null>; done?: boolean; ttl?: number; /** «area»: η οδός δεν βρέθηκε, μετρήθηκε από τον Τ.Κ. */ found?: "ok" | "area" | "none" }>();
+const nearKey = (a: { street?: string | null; number?: string | null; city?: string | null; zip?: string | null }) =>
+  `${[a.street, a.number].map((x) => (x ?? "").trim()).filter(Boolean).join(" ")}|${(a.zip ?? "").trim()}|${(a.city ?? "").trim()}`.toLowerCase();
+/** Πόσο καλά βρήκε ο χάρτης τη διεύθυνση του τελευταίου nearStoresFor (undefined = δεν έχει τελειώσει / δεν ζητήθηκε). */
+export const nearStoresFound = (a: Parameters<typeof nearKey>[0]) => nearMem.get(nearKey(a))?.found;
 export async function nearStoresFor(a: { street?: string | null; number?: string | null; city?: string | null; zip?: string | null }, budgetMs = 2500): Promise<LocalStore[] | null | undefined> {
   const zip = (a.zip ?? "").trim(), city = (a.city ?? "").trim(), street = [a.street, a.number].map((x) => (x ?? "").trim()).filter(Boolean).join(" ");
   if (!/^\d{5}$/.test(zip) || !city) return undefined;
-  const key = `${street}|${zip}|${city}`.toLowerCase();
+  const key = nearKey(a);
   let hit = nearMem.get(key);
   // έτοιμο αποτέλεσμα: 30′ · όσο τρέχει ο υπολογισμός μοιράζεται · «δεν βρέθηκε»: 5′, μετά ξαναδοκιμάζεται
   if (!hit || (hit.done && Date.now() - hit.at > (hit.ttl ?? 30 * 60_000))) {
@@ -59,12 +63,15 @@ export async function nearStoresFor(a: { street?: string | null; number?: string
     const run = async (): Promise<LocalStore[] | null> => {
       // Nominatim: 1 αίτημα το δευτερόλεπτο — πρώτα η οδός, αλλιώς ο οικισμός του Τ.Κ.
       let pt = street ? await geocodeAddress(`${street}, ${zip} ${city}, Ελλάδα`, { timeoutMs: 6000, preferPlace: true }).catch(() => null) : null;
-      if (!pt) { if (street) await new Promise((r) => setTimeout(r, 1100)); pt = await geocodeAddress(`${zip} ${city}, Ελλάδα`, { timeoutMs: 6000, preferPlace: true }).catch(() => null); }
-      if (!pt) return null;
+      entry.found = pt || !street ? "ok" : "area"; // χωρίς οδό ο Τ.Κ. είναι ό,τι περιμένουμε
+      // αλλιώς το σημείο του Τ.Κ. (η αναζήτηση «Τ.Κ. πόλη» αποτυγχάνει σε μεγάλες πόλεις)
+      if (!pt) { if (street) await new Promise((r) => setTimeout(r, 1100)); const z = await zipPoint(zip); pt = z && { ...z, label: zip, score: 0 }; }
+      if (!pt) { entry.found = "none"; return null; }
       const r = await rankByRoad(pt, await coopStores());
       return r?.map((x) => ({ id: x.item.id, partnerId: x.item.partnerId, name: x.item.name, address: x.item.address, city: x.item.city, km: x.km })) ?? null;
     };
-    const entry: NonNullable<typeof hit> = { at: Date.now(), p: run().catch(() => null) };
+    const entry: NonNullable<typeof hit> = { at: Date.now(), p: Promise.resolve(null) };
+    entry.p = run().catch(() => null);
     void entry.p.then((v) => { entry.done = true; entry.at = Date.now(); if (v === null) entry.ttl = 5 * 60_000; });
     nearMem.set(key, entry); hit = entry;
   }

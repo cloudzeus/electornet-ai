@@ -7,7 +7,7 @@ import { PickupStorePicker } from "@/components/pdp/PickupStorePicker";
 import { readPickup, savePickup } from "@/lib/geo/pickup-pref";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CreditCard, Landmark, Banknote, Smartphone, Wallet as Wallet2, ExternalLink, Store as StoreIcon, Truck, Container, CalendarClock, ShieldCheck, Lock, RotateCcw, Pencil, Recycle, Check, Tag, Home, Zap, Loader2, Phone } from "lucide-react";
+import { CreditCard, Landmark, Banknote, Smartphone, Wallet as Wallet2, ExternalLink, Store as StoreIcon, Truck, Container, CalendarClock, ShieldCheck, Lock, RotateCcw, Pencil, Recycle, Check, Tag, Home, Zap, Loader2, Phone, MapPinOff } from "lucide-react";
 import { instalment, maxInstalments, priceLong } from "@/lib/format";
 import { InstalmentSelect } from "@/components/commerce/InstalmentSelect";
 import { useCart, type Fulfilment } from "@/components/commerce/CartProvider";
@@ -429,6 +429,23 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                       {field("number", "Αριθμός", text("number"), "@sm:col-span-1")}
                       {field("floor", "Όροφος", text("floor"), "@sm:col-span-1")}
                     </div>
+
+                    {zipOk && quote?.addressGeo && (
+                      // ο χάρτης δεν βρήκε τη διεύθυνση ή μόνο την περιοχή του Τ.Κ.: ο πελάτης ελέγχει τι έγραψε πριν διαλέξει αποστολή
+                      <div role="status" className="flex items-start gap-3 rounded-xl border-2 border-eu-amber/50 bg-eu-amber/10 px-4 py-3">
+                        <MapPinOff className="size-5 mt-0.5 shrink-0 text-eu-amber" aria-hidden />
+                        <div className="grid gap-1 text-[length:var(--fs-15)]">
+                          <b className="text-eu-ink">{quote.addressGeo === "zip" ? `Δεν βρίσκουμε τον Τ.Κ. ${f.zip}` : quote.addressGeo === "none" ? "Δεν βρήκαμε τη διεύθυνσή σου στον χάρτη" : "Δεν βρήκαμε ακριβώς την οδό σου στον χάρτη"}</b>
+                          <span className="text-eu-ink-2">
+                            {quote.addressGeo === "zip"
+                              ? "Έλεγξε ότι γράφτηκε σωστά. Από τον Τ.Κ. υπολογίζονται τα μεταφορικά και αν σου το φέρνει κατάστημα της περιοχής σου."
+                              : quote.addressGeo === "none"
+                              ? `Έλεγξε την οδό, τον αριθμό και ότι ο Τ.Κ. ${f.zip} ανήκει στην πόλη «${f.city.trim()}». Αν όλα είναι σωστά, συνέχισε κανονικά: θα σε καλέσουμε για να επιβεβαιώσουμε τη διεύθυνση.`
+                              : `Υπολογίσαμε την απόσταση από την περιοχή του Τ.Κ. ${f.zip}, όχι από την πόρτα σου. Έλεγξε την οδό και τον αριθμό. Αν είναι σωστά, συνέχισε κανονικά.`}
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
                     <fieldset className="m-0 p-0 border-0 grid gap-2" aria-describedby="ship-status">
                       <legend className="mb-2 font-bold text-eu-ink text-[length:var(--fs-16)]">Τρόπος αποστολής</legend>
